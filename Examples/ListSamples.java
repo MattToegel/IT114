@@ -13,7 +13,7 @@ public class ListSamples {
 	}
 	/***
 	 * private helper for cloning the list so the original order from the
-	 * constructor persists no matter what methods are ran during the ample
+	 * constructor persists no matter what methods are ran during the sample
 	***/
 	List<String> clone(List<String> strs){
 		List<String> newList = new ArrayList<String>();
