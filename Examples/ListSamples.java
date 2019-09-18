@@ -13,7 +13,7 @@ public class ListSamples {
 	}
 	/***
 	 * private helper for cloning the list so the original order from the
-	 * constructor persists no matter what methods are ran during the sample
+	 * constructor persists no matter what methods are ran during the ample
 	***/
 	List<String> clone(List<String> strs){
 		List<String> newList = new ArrayList<String>();
@@ -58,6 +58,7 @@ public class ListSamples {
             knuth.set(r, knuth.get(i));
             knuth.set(i, (String)swap);
         }
+	    showMyList(knuth);
 	}
 	public void AddValueToListAndTotal() {
 		//Use the index as the value for each slot in a 10 element list
