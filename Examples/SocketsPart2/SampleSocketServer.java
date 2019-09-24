@@ -1,4 +1,4 @@
-package com.mt.examples.sockets;
+//package com.mt.examples.sockets;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -11,7 +11,7 @@ import java.util.Collections;
 import java.util.List;
 
 public class SampleSocketServer {
-	int port = 3002;
+	int port = 3102;
 	public SampleSocketServer() {
 	}
 	private void start(int port) {
@@ -56,7 +56,19 @@ public class SampleSocketServer {
 	public static void main(String[] arg) {
 		System.out.println("Starting Server");
 		SampleSocketServer server = new SampleSocketServer();
-		server.start(3002);
+		int port = -1;
+		if(arg.length > 0){
+			try{
+				port = Integer.parseInt(arg[0]);
+			}
+			catch(Exception e){
+				System.out.println("Invalid port: " + arg[0]);
+			}		
+		}
+		if(port > -1){
+			System.out.println("Server listening on port " + port);
+			server.start(port);
+		}
 		System.out.println("Server Stopped");
 	}
 }
