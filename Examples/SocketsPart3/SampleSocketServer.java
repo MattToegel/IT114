@@ -1,4 +1,4 @@
-package com.mt.examples.sockets;
+//package com.mt.examples.sockets;
 
 import java.io.BufferedReader;
 import java.io.IOException;
