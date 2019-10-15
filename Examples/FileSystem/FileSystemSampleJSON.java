@@ -13,7 +13,7 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
-public class FileSystemSample {
+public class FileSystemSampleJSON {
 	public void createFileAndGetDetails(String fileName) {
 		try {
 			File fileReference = new File(fileName);
@@ -95,7 +95,7 @@ public class FileSystemSample {
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
 		String fileName = "test.txt";
-		FileSystemSample fss = new FileSystemSample();
+		FileSystemSampleJSON fss = new FileSystemSampleJSON();
 		fss.createFileAndGetDetails(fileName);
 		fss.writeToFile(fileName, "Hello world! We're writing to files");
 		fss.readFromFile(fileName);
