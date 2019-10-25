@@ -1,46 +1,46 @@
-package com.examples.drawing;
+
 
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.GridLayout;
-import java.awt.Point;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.util.HashMap;
-import java.util.Random;
 
-import javax.swing.AbstractAction;
-import javax.swing.ActionMap;
 import javax.swing.BorderFactory;
-import javax.swing.InputMap;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
-import javax.swing.KeyStroke;
 
-public class SimpleChat {
+public class SimpleChatUI {
 	public static void main(String[] args) {
-		
-		JFrame frame = new JFrame("Havin' Fun?");
+		//create frame
+		JFrame frame = new JFrame("Simple Chat Mockup");
 		frame.setLayout(new BorderLayout());
-		//start simple chat
+		//create panel
 		JPanel simpleChat = new JPanel();
 		simpleChat.setPreferredSize(new Dimension(400,400));
 		simpleChat.setLayout(new BorderLayout());
-		JTextArea ta = new JTextArea();
-		ta.setText("");
+		//create text area for messages
+		JTextArea textArea = new JTextArea();
+		//don't let the user edit this directly
+		textArea.setEditable(false);
+		textArea.setText("");
+		//create panel to hold multiple controls
 		JPanel chatArea = new JPanel();
 		chatArea.setLayout(new BorderLayout());
-		chatArea.add(ta, BorderLayout.CENTER);
+		//add text area to chat area
+		chatArea.add(textArea, BorderLayout.CENTER);
 		chatArea.setBorder(BorderFactory.createLineBorder(Color.black));
+		//add chat area to panel
 		simpleChat.add(chatArea, BorderLayout.CENTER);
-		
+		//create panel to hold multiple controls
 		JPanel userInput = new JPanel();
-		JTextField tf = new JTextField();
-		tf.setPreferredSize(new Dimension(100,30));
+		//setup textfield
+		JTextField textField = new JTextField();
+		textField.setPreferredSize(new Dimension(100,30));
+		//setup submit button
 		JButton b = new JButton();
 		b.setPreferredSize(new Dimension(100,30));
 		b.setText("Send");
@@ -48,18 +48,22 @@ public class SimpleChat {
 
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				// TODO Auto-generated method stub
-				String messages = ta.getText();
-				messages += "\n" + tf.getText();
-				ta.setText(messages);
-				tf.setText("");
+				String message = textField.getText();
+				if(message.length() > 0) {
+					//append a newline and the text from the textfield
+					//to that textarea (simulate simple chatroom)
+					textArea.append("\n" + textField.getText());
+					textField.setText("");
+				}
 			}
 			
 		});
-		userInput.add(tf);
+		//add textfield and button to panel
+		userInput.add(textField);
 		userInput.add(b);
+		//add panel to simpleChat panel
 		simpleChat.add(userInput, BorderLayout.SOUTH);
-		//end simple chat
+		//add simpleChat panel to frame
 		frame.add(simpleChat, BorderLayout.CENTER);
 		
 		frame.pack();
