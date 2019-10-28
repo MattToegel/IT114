@@ -80,9 +80,11 @@ public class Player {
 		return radius;
 	}
 	public void setPosition(int x, int y) {
+		//check distance for snapping or lerping
 		double dist = GameEngine.distance(x, y, center.x, center.y);
 		if(dist < 50) {
-			float f = 1 - (float)dist/50f;
+			float f = 1 - (float)dist/50f;//invert the %
+			//apply lerp to easy the x,y to the new coordinate to reduce jitty
 			center.x = (int)GameEngine.lerp(x, center.x, f);
 			center.y = (int)GameEngine.lerp(y, center.y, f);
 		}
