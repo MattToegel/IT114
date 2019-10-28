@@ -80,8 +80,17 @@ public class Player {
 		return radius;
 	}
 	public void setPosition(int x, int y) {
-		center.x = x;
-		center.y = y;
+		double dist = GameEngine.distance(x, y, center.x, center.y);
+		if(dist < 50) {
+			float f = 1 - (float)dist/50f;
+			center.x = (int)GameEngine.lerp(x, center.x, f);
+			center.y = (int)GameEngine.lerp(y, center.y, f);
+		}
+		else {
+			center.x = x;
+			center.y = y;
+		}
+		
 	}
 	public Point getPosition() {
 		return center;

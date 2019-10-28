@@ -12,6 +12,8 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.Queue;
 import java.util.Random;
 
@@ -25,8 +27,14 @@ public class NetworkServer{
 	PlayerContainer players = new PlayerContainer();
 	Random random = new Random();
 	static boolean verbose = true;
+	private ScheduledThreadPoolExecutor exec = new ScheduledThreadPoolExecutor(1);
 	public NetworkServer() {
+		EstMem.Start();
 		isRunning = true;
+		EstMem.Snapshot();
+		exec.scheduleAtFixedRate(()->{
+			EstMem.Snapshot();
+		}, 5, 5, TimeUnit.SECONDS);
 	}
 	public static void Output(String str) {
 		if(verbose) {
