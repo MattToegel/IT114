@@ -251,7 +251,7 @@ class ServerThread extends Thread{
 	Point dir = new Point(-2,-2);
 	private void createAndSync(int id, String name) {
 		this.id = id;
-		Player player = new Player(name, server.playArea);
+		Player player = new Player(name);
 		player.setID(id);
 		server.players.AddPlayer(id, player);
 		//generate random position and no direction
@@ -310,7 +310,7 @@ class ServerThread extends Thread{
 		Player player = server.players.getPlayer(id);
 		if(player != null && player.isIt()) {
 			NetworkServer.Output(player.getID() + " is tagging");
-			Entry<Integer,Player> tagged = server.players.CheckCollisions(player);
+			Entry<Integer,Player> tagged = server.players.checkCollisions(player);
 			if(tagged != null) {
 				Player taggedPlayer = tagged.getValue();
 				System.out.println("Tagged " + taggedPlayer.getName() + "(" + taggedPlayer.getID() + ")");
@@ -318,7 +318,7 @@ class ServerThread extends Thread{
 					throw new Exception("Somehow we tagged ourself");
 				}
 				//update server state
-				server.players.UpdatePlayer(tagged.getKey(), PayloadType.SET_IT,
+				server.players.updatePlayers(tagged.getKey(), PayloadType.SET_IT,
 						taggedPlayer.getPosition().x,
 						taggedPlayer.getPosition().y,
 						taggedPlayer.getName());
@@ -417,7 +417,7 @@ class ServerThread extends Thread{
 									new Payload(setItForID, PayloadType.SET_IT)
 									);
 							System.out.println("Making " + setItForID + " IT");
-							server.players.UpdatePlayer(setItForID, PayloadType.SET_IT,0,0,"");
+							server.players.updatePlayers(setItForID, PayloadType.SET_IT,0,0,"");
 						}
 					}
 					System.out.println("Tagger thread stopping");

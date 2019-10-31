@@ -20,7 +20,6 @@ public class Player {
 	private String name = "";
 	private boolean isIt = false;
 	private Dimension nameSize = new Dimension(0,0);
-	private Dimension playArea = new Dimension(0,0);
 	private boolean isTryingToTag = false;
 	private boolean canTagAgain = false;
 	private ScheduledThreadPoolExecutor exec = new ScheduledThreadPoolExecutor(3);
@@ -29,7 +28,7 @@ public class Player {
 	private int numTagged = 0;
 	public boolean blacklist = false;
 	private int id = -1;
-	public Player(String name, Dimension playArea) {
+	public Player(String name) {
 		this.name = name;
 		if(name.toLowerCase().contains("comedian")) {
 			blacklist = true;
@@ -43,7 +42,6 @@ public class Player {
 		center.y = 100;
 		direction.x = 1;
 		direction.y = 1;
-		this.playArea = playArea;
 	}
 	public void syncStats(int tags, int tagged) {
 		numOfTags = tags;
@@ -118,6 +116,10 @@ public class Player {
 		return isIt;
 	}
 	int xi, yi, xMin, xMax, yMin, yMax;
+	/**
+	 * Does all the movement calculations for the player including bounds check
+	 * @return
+	 */
 	public Point move() {
 		/***
 		 * Get center coordinates
@@ -142,10 +144,10 @@ public class Player {
 		 * Check if bounds are within play area
 		 * Set new position if within play area
 		 */
-		if(xMin >= 0 && xMax <= playArea.width) {
+		if(xMin >= 0 && xMax <= GameEngine.GetPlayArea().width) {
 			center.x = xi;
 		}
-		if(yMin >= 0 && yMax <= playArea.height) {
+		if(yMin >= 0 && yMax <= GameEngine.GetPlayArea().height) {
 			center.y = yi;
 		}
 		//direction.x = 0;
@@ -174,7 +176,10 @@ public class Player {
 		return false;
 	}
 	
-	
+	/**
+	 * Triggered from player action to attempt a tag
+	 * @return
+	 */
 	public boolean tryToTag() {
 		if(isIt && !isTryingToTag && canTagAgain) {
 			isTryingToTag = true;
@@ -192,10 +197,13 @@ public class Player {
 		}
 		return isTryingToTag;
 	}
-	public void applyBoost() {
+	/***
+	 * Temporarily increases movement speed
+	 */
+	public void applyBoost(int targetSpeed) {
 		if(!isBoosted) {
 			isBoosted = true;
-			speed = 2;
+			speed = targetSpeed;
 			previousColor = color;
 			color = Color.BLUE;
 			System.out.println("Is boosted");
@@ -210,12 +218,10 @@ public class Player {
 		}
 		
 	}
-	
-
-	
 	/***
 	 * Set x, y direction
 	 * To ignore pass -2 for a value
+	 * Ran on the client side checking if direction was actually changed
 	 * @param p
 	 * p.x can be 1, 0, -1 [-2 to ignore]
 	 * p.y can be 1, 0, -1 [-2 to ignore]
@@ -232,31 +238,26 @@ public class Player {
 		}
 		return changed;
 	}
-	public void setDirectionX(int x) {
-		if(isValidDirection(x, direction.x)) {
-			direction.x = x;
-		}
-	}
-	public Point getDirection() {
-		return direction;
-	}
-	public void setDirectionY(int y) {
-		if(isValidDirection(y, direction.y)) {
-			direction.y = y;
-		}
-	}
+	/**
+	 * Forced updates used particular for updating from server responses
+	 * @param x
+	 * @param y
+	 */
 	public void setDirection(int x, int y) {
 		direction.x = x;
 		direction.y = y;
 	}
-	public void changeDirection(boolean cx, boolean cy) {
-		if(cx) {
-			direction.x *= -1;
-		}
-		if(cy) {
-			direction.y *= -1;
-		}
+	public Point getDirection() {
+		return direction;
 	}
+	
+	/***
+	 * Draws a string that can handle new line characters
+	 * @param g
+	 * @param text
+	 * @param x
+	 * @param y
+	 */
 	private void drawString(Graphics2D g, String text, int x, int y) {
 		int i = 0;
         for (String line : text.split("\n")) {
@@ -264,6 +265,10 @@ public class Player {
         	i++;
 		}
     }
+	/***
+	 * Draws our entire player including name/tag
+	 * @param g2d
+	 */
 	protected void paint(Graphics2D g2d) {
         if (center != null && g2d != null) {
         	if(isTryingToTag) {

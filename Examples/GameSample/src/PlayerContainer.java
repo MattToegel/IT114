@@ -53,12 +53,12 @@ public class PlayerContainer {
 		    v.move();
 		}
 	}
-	public void PaintPlayers(Graphics2D g2d) {
+	public void paintPlayers(Graphics2D g2d) {
 		for ( Player v : players.values() ) {
 		    v.paint(g2d);
 		}
 	}
-	public void UpdatePlayer(int id, PayloadType type, int x, int y, String extra) {
+	public void updatePlayers(int id, PayloadType type, int x, int y, String extra) {
 		Player player = null;
 		if(players.containsKey(id)) {
 			player = players.get(id);
@@ -78,7 +78,7 @@ public class PlayerContainer {
 				case SPEED_BOOST:
 					//trigger speed boost visual for player
 					if(player != null) {
-						player.applyBoost();
+						player.applyBoost(2);
 					}
 					break;
 				case TRIGGER_TAG:
@@ -132,7 +132,7 @@ public class PlayerContainer {
 	    return (int)Math.sqrt((b.y - a.y) * (b.y - a.y) + (b.x - a.x) * (b.x - a.x));
 	}
 	//use from server side
-	public Entry<Integer,Player> CheckCollisions(Player p) {
+	public Entry<Integer,Player> checkCollisions(Player p) {
 		Entry<Integer,Player> tagged = null;
 		synchronized(players) {
 			for(Entry<Integer, Player> set : players.entrySet()) {
