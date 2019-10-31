@@ -145,7 +145,7 @@ public class Player {
 		 * Check if bounds are within play area
 		 * Set new position if within play area
 		 */
-		System.out.println(GameEngine.GetPlayArea());
+		//System.out.println(GameEngine.GetPlayArea());
 		if(xMin >= 0 && xMax <= GameEngine.GetPlayArea().width) {
 			center.x = xi;
 		}
