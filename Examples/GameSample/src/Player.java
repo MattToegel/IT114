@@ -116,6 +116,7 @@ public class Player {
 		return isIt;
 	}
 	int xi, yi, xMin, xMax, yMin, yMax;
+	int lastX = 10000, lastY = 10000;
 	/**
 	 * Does all the movement calculations for the player including bounds check
 	 * @return
@@ -144,14 +145,15 @@ public class Player {
 		 * Check if bounds are within play area
 		 * Set new position if within play area
 		 */
+		System.out.println(GameEngine.GetPlayArea());
 		if(xMin >= 0 && xMax <= GameEngine.GetPlayArea().width) {
 			center.x = xi;
 		}
 		if(yMin >= 0 && yMax <= GameEngine.GetPlayArea().height) {
 			center.y = yi;
 		}
-		//direction.x = 0;
-		//.y = 0;
+		lastX = center.x;
+		lastY = center.y;
 		return center;
 	}
 	/***

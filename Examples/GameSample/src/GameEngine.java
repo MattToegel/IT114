@@ -9,7 +9,7 @@ import java.util.function.Consumer;
 
 public class GameEngine {
 	PlayerContainer players = new PlayerContainer();
-	static Dimension playArea = new Dimension(0,0);
+	static Dimension playArea = new Dimension(600,600);
 	static boolean isRunning = false;
 	NetworkClient client;
 	LocalPlayer localPlayer;
