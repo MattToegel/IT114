@@ -91,6 +91,8 @@ public class TagGame extends JPanel {
 		scores.add(f, BorderLayout.PAGE_START);
 		f.setText("Scores");
 		f.setPreferredSize(new Dimension(600, 20));
+		f.setEditable(false);
+		f.setFocusable(false);
 		scores.setVisible(false);
 		
 		components.put("scores", scores);

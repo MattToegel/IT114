@@ -9,5 +9,6 @@ public enum PayloadType {
 	TRIGGER_TAG,
 	SET_IT,
 	SYNC,
-	STATS
+	STATS,
+	ACK
 }

@@ -19,6 +19,7 @@ import java.util.Random;
 
 public class NetworkServer{
 	int port = -1;
+	static int id = 0;
 	//private Thread clientListenThread = null;
 	List<ServerThread> clients = new ArrayList<ServerThread>();
 	public static boolean isRunning = true;
@@ -41,7 +42,7 @@ public class NetworkServer{
 			System.out.println(str);
 		}
 	}
-	public synchronized void broadcast(Payload payload, String excludeIp) {
+	public synchronized void broadcast(Payload payload, int excludeId) {
 		//iterate through all clients and attempt to send the message to each
 		if(payload.payloadType != PayloadType.MOVE_SYNC) {
 			//ignore MOVE_SYNC to cut down on log spam
@@ -49,7 +50,7 @@ public class NetworkServer{
 		}
 		//TODO ensure closed clients are removed from the list
 		for(int i = 0; i < clients.size(); i++) {
-			if(clients.get(i).ipAddress.equals(excludeIp)) {
+			if(clients.get(i).id == excludeId) {
 				continue;
 			}
 			try {
@@ -62,10 +63,21 @@ public class NetworkServer{
 		//cleanup
 		cleanupStaleClients();
 	}
-	public synchronized void sync(String target, Payload payload) {
+	public synchronized void ack(int clientIndex, Payload payload) {
+		try {
+	
+			ServerThread c = clients.get(clientIndex);
+			System.out.println("Sending payload to " + c.id);
+			c.send(payload);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	public synchronized void sync(int target, Payload payload) {
 		//TODO for single client
 		for(int i = 0; i < clients.size(); i++) {
-			if(clients.get(i).ipAddress.equals(target)) {
+			if(clients.get(i).id == target) {
 				try {
 					clients.get(i).send(payload);
 				} catch (IOException e) {
@@ -83,12 +95,20 @@ public class NetworkServer{
 			ServerThread s = it.next();
 			if(s.isClosed()) {
 				outMessages.add(
-						new Payload(s.ipAddress, PayloadType.DISCONNECT)
+						new Payload(s.id, PayloadType.DISCONNECT)
 						);
 				s.stopThread();
 				it.remove();
 			}
 		}
+	}
+	int getClientIndex(Payload p) {
+		for(int i = 0; i < clients.size(); i++) {
+			if(clients.get(i).id == p.id) {
+				return i;
+			}
+		}
+		return -1;
 	}
 	private void start(int port) {
 		this.port = port;
@@ -102,8 +122,14 @@ public class NetworkServer{
 						Payload payloadOut = outMessages.poll();
 						if(payloadOut != null) {
 							//broadcast(payloadOut,"");
-							if(payloadOut.payloadType != PayloadType.SYNC) {
-								broadcast(payloadOut, "");
+							if(payloadOut.payloadType == PayloadType.ACK) {
+								int clientSocketIndex = getClientIndex(payloadOut);
+								if(clientSocketIndex > -1) {
+									ack(clientSocketIndex, payloadOut);
+								}
+							}
+							else if(payloadOut.payloadType != PayloadType.SYNC) {
+								broadcast(payloadOut, -1);
 							}
 							else {
 								sync(payloadOut.target,payloadOut);
@@ -133,7 +159,7 @@ public class NetworkServer{
 						syncCounter++;
 						if(syncCounter > 20) {
 							syncCounter = 0;
-							for(Entry<String, Player> p : players.players.entrySet()) {
+							for(Entry<Integer, Player> p : players.players.entrySet()) {
 								outMessages.add(
 										new Payload(p.getKey(), PayloadType.MOVE_SYNC, p.getValue().getPosition().x, p.getValue().getPosition().y, null)
 										);
@@ -201,7 +227,7 @@ public class NetworkServer{
 class ServerThread extends Thread{
 	private Socket client;
 	private String clientName;
-	public String ipAddress;
+	public int id;
 	private ObjectInputStream in;
 	private ObjectOutputStream out;
 	private boolean isRunning = false;
@@ -210,54 +236,60 @@ class ServerThread extends Thread{
 	public ServerThread(Socket myClient, NetworkServer server) throws IOException {
 		this.client = myClient;
 		this.server = server;
-		this.ipAddress = myClient.getLocalAddress().getHostAddress();
+		//this.ipAddress = myClient.getLocalAddress().getHostAddress();
+		
 		//this.clientName = clientName;
 		//this.callback = callback;
 		isRunning = true;
 		out = new ObjectOutputStream(client.getOutputStream());
 		in = new ObjectInputStream(client.getInputStream());
-		System.out.println("Spawned thread for client " + this.ipAddress);
+		System.out.println("Spawned thread for client " + this.id);
 	}
 	public boolean isClosed() {
 		return client.isClosed();
 	}
 	Point dir = new Point(-2,-2);
-	private void createAndSync(String clientIp, String name) {
+	private void createAndSync(int id, String name) {
+		this.id = id;
 		Player player = new Player(name, server.playArea);
-		server.players.AddPlayer(clientIp, player);
+		player.setID(id);
+		server.players.AddPlayer(id, player);
 		//generate random position and no direction
 		int x = server.random.nextInt(server.playArea.width - 45) + 15;
 		int y = server.random.nextInt(server.playArea.height - 45) + 15;
 		player.setPosition(x, y);
 		player.setDirection(0, 0);
 		//send across to clients
+		//update newly connected player's id
+		server.outMessages.add(
+				new Payload(id, PayloadType.ACK, x, y, name));
 		//Send Player Connect Payload
 		server.outMessages.add(
-				new Payload(clientIp, PayloadType.CONNECT,x, y, name)
+				new Payload(id, PayloadType.CONNECT,x, y, name)
 				);
 		//Send Move Sync Payload
 		server.outMessages.add(
-				new Payload(clientIp, PayloadType.MOVE_SYNC, x, y, name)
+				new Payload(id, PayloadType.MOVE_SYNC, x, y, name)
 				);
 		//Send Direction Payload
 		server.outMessages.add(
-				new Payload(clientIp, PayloadType.DIRECTION, 0, 0, name)
+				new Payload(id, PayloadType.DIRECTION, 0, 0, name)
 				);
 		//send sync details for each previously connected client to newly connected client
-		server.players.players.forEach((ip, p)->{
+		server.players.players.forEach((pid, p)->{
 			
-			NetworkServer.Output("Adding sync message for " + clientIp + " about " + ip);
+			NetworkServer.Output("Adding sync message for " + id + " about " + pid);
 				//send sync to target client
 				server.outMessages.add(
-						new Payload(ip, PayloadType.SYNC, p.getPosition().x, 
-								p.getPosition().y, p.getName(), clientIp)
+						new Payload(pid, PayloadType.SYNC, p.getPosition().x, 
+								p.getPosition().y, p.getName(), id)
 						);
 				//send direction to target client
 				server.outMessages.add(
-						new Payload(ip, PayloadType.DIRECTION, p.getDirection().x,
-								p.getDirection().y, p.getName(), clientIp)
+						new Payload(pid, PayloadType.DIRECTION, p.getDirection().x,
+								p.getDirection().y, p.getName(), id)
 						);
-				Entry<String,Player> tagger = server.players.getCurrentTagger();
+				Entry<Integer,Player> tagger = server.players.getCurrentTagger();
 				if(tagger != null) {
 					//send IT to all
 					server.outMessages.add(
@@ -266,7 +298,7 @@ class ServerThread extends Thread{
 				}
 				//send stats to all
 				server.outMessages.add(
-						new Payload(ip, PayloadType.STATS, p.getNumberOfTags(), p.getNumberTagged())
+						new Payload(pid, PayloadType.STATS, p.getNumberOfTags(), p.getNumberTagged())
 						);
 			
 		});
@@ -274,16 +306,17 @@ class ServerThread extends Thread{
 			checkTagger();
 		}
 	}
-	private void handleTagging(String clientIp) {
-		Player player = server.players.getPlayer(clientIp);
+	private void handleTagging(int id) throws Exception {
+		Player player = server.players.getPlayer(id);
 		if(player != null && player.isIt()) {
-			NetworkServer.Output("Tagger is tagging");
-			Entry<String,Player> tagged = server.players.CheckCollisions(player);
+			NetworkServer.Output(player.getID() + " is tagging");
+			Entry<Integer,Player> tagged = server.players.CheckCollisions(player);
 			if(tagged != null) {
 				Player taggedPlayer = tagged.getValue();
-				System.out.println("Tagged " + taggedPlayer.getName());
-				
-				//add ip to player object
+				System.out.println("Tagged " + taggedPlayer.getName() + "(" + taggedPlayer.getID() + ")");
+				if(taggedPlayer.getID() == id) {
+					throw new Exception("Somehow we tagged ourself");
+				}
 				//update server state
 				server.players.UpdatePlayer(tagged.getKey(), PayloadType.SET_IT,
 						taggedPlayer.getPosition().x,
@@ -298,7 +331,7 @@ class ServerThread extends Thread{
 				taggedPlayer.incrementTagged();
 				player.incrementTags();
 				server.outMessages.add(
-						new Payload(clientIp, PayloadType.STATS, player.getNumberOfTags(), player.getNumberTagged())
+						new Payload(id, PayloadType.STATS, player.getNumberOfTags(), player.getNumberTagged())
 						);
 				server.outMessages.add(
 						new Payload(tagged.getKey(), PayloadType.STATS, taggedPlayer.getNumberOfTags(), taggedPlayer.getNumberTagged())
@@ -309,7 +342,7 @@ class ServerThread extends Thread{
 			}
 		}
 	}
-	synchronized void processPayload(String clientIp, Payload payloadIn) {
+	synchronized void processPayload(int id, Payload payloadIn) {
 		Player player = null;
 		//NetworkServer.Output("Processing payload from " + clientIp);
 		//NetworkServer.Output("Type: " + payloadIn.payloadType.toString());
@@ -318,26 +351,27 @@ class ServerThread extends Thread{
 				//add player to internal map
 				System.out.println("Player connected with name " + payloadIn.extra);
 				payloadIn.extra = WordBlackList.filteredName(payloadIn.extra);
-				createAndSync(clientIp, payloadIn.extra);
+				NetworkServer.id++;
+				createAndSync(NetworkServer.id, payloadIn.extra);
 				break;
 			case DIRECTION:
 				//blindly update direction
-				player = server.players.getPlayer(clientIp);
+				player = server.players.getPlayer(id);
 				dir.x = payloadIn.x;
 				dir.y = payloadIn.y;
 				if(player.setDirection(dir)) {
 					//if direction changed, send to clients
 					server.outMessages.add(
-							new Payload(clientIp, PayloadType.DIRECTION, dir.x, dir.y)
+							new Payload(id, PayloadType.DIRECTION, dir.x, dir.y)
 							);
 				}
 				break;
 			case DISCONNECT:
 				//TODO make sure other client can't cause a different client to disconnect
-				player = server.players.RemovePlayer(clientIp);
+				player = server.players.RemovePlayer(id);
 				if(player != null) {
 					server.outMessages.add(
-							new Payload(clientIp, PayloadType.DISCONNECT)
+							new Payload(id, PayloadType.DISCONNECT)
 							);
 				}
 				
@@ -354,15 +388,20 @@ class ServerThread extends Thread{
 				break;*/
 			case TRIGGER_TAG:
 				//check collision and see if tagged
-				NetworkServer.Output("Handling trigger tag for " + clientIp);
-				handleTagging(clientIp);
+				NetworkServer.Output("Handling trigger tag for " + id);
+				try {
+					handleTagging(id);
+				}
+				catch(Exception e) {
+					NetworkServer.Output(e.getMessage());
+				}
 				break;
 			default:
 				break;
 			
 		}
 	}
-	void checkTagger() {
+	void checkTagger(){
 		if(!server.players.isThereATagger() && server.players.getTotalPlayers() > 1) {
 			Thread pickATagger = new Thread() {
 				@Override
@@ -370,18 +409,16 @@ class ServerThread extends Thread{
 					System.out.println("Trying to pick tagger");
 					int rp = server.random.nextInt((server.players.getTotalPlayers() - 1));
 					System.out.println("Using index " + rp);
-					String setItForAddress = null;
-					while(isRunning && setItForAddress == null) {
-						setItForAddress = server.players.getAddressByIndex(rp);
-						if(setItForAddress==null) {
-							System.out.println("Found null client");
-							continue;
+					int setItForID = -1;
+					while(isRunning && setItForID == -1) {
+						setItForID = server.players.getIdByIndex(rp);
+						if(setItForID > -1) {
+							server.outMessages.add(
+									new Payload(setItForID, PayloadType.SET_IT)
+									);
+							System.out.println("Making " + setItForID + " IT");
+							server.players.UpdatePlayer(setItForID, PayloadType.SET_IT,0,0,"");
 						}
-						server.outMessages.add(
-								new Payload(setItForAddress, PayloadType.SET_IT)
-								);
-						System.out.println("Making " + setItForAddress + " IT");
-						server.players.UpdatePlayer(setItForAddress, PayloadType.SET_IT,0,0,"");
 					}
 					System.out.println("Tagger thread stopping");
 				}
@@ -396,8 +433,8 @@ class ServerThread extends Thread{
 			Payload fromClient;
 			while(isRunning && (fromClient = (Payload)in.readObject()) != null) {
 				System.out.println("Received: " + fromClient);
-				System.out.println("Client IP: " + fromClient.ipAddress);
-				processPayload(fromClient.ipAddress,fromClient);
+				System.out.println("Client IP: " + fromClient.id);
+				processPayload(fromClient.id,fromClient);
 			}
 		}
 		catch(IOException | ClassNotFoundException e) {
@@ -406,7 +443,7 @@ class ServerThread extends Thread{
 		finally {
 			System.out.println("Server cleaning up IO for " + clientName);
 			server.outMessages.add(
-						new Payload(ipAddress, PayloadType.DISCONNECT)
+						new Payload(id, PayloadType.DISCONNECT)
 						);
 			cleanup();
 		}

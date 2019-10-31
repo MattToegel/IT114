@@ -34,26 +34,26 @@ public class NetworkClient {
 	public String getAddress() {
 		return server.getLocalAddress().getHostAddress();
 	}
-	public void Send(String address, PayloadType type) {
-		Send(address, type, 0,0, null);
+	public void Send(int id, PayloadType type) {
+		Send(id, type, 0,0, null);
 	}
-	public void Send(String address, PayloadType type, String extra) {
-		Send(address, type, 0,0,extra);
+	public void Send(int id, PayloadType type, String extra) {
+		Send(id, type, 0,0,extra);
 	}
-	public void Send(String address, PayloadType type, int x, int y) {
-		Send(address, type, x, y, null);
+	public void Send(int id, PayloadType type, int x, int y) {
+		Send(id, type, x, y, null);
 	}
-	public void Send(String address, PayloadType type, int x, int y, String extra) {
+	public void Send(int id, PayloadType type, int x, int y, String extra) {
 		if(server != null && !server.isClosed()) {
 			System.out.println("Sending " + ((PayloadType)type).toString());
-			outMessages.add(new Payload(address, type, x, y, extra));
+			outMessages.add(new Payload(id, type, x, y, extra));
 		}
 	}
 	public void handleQueuedMessages(Consumer<Payload> processFromServer, int messagesToHandle) {
 		Payload p = null;
 		int processed = 0;
 		while((p = this.getMessage()) != null) {
-			//process message
+			//call the processFromServer callback with the payload as a parameter
 			processFromServer.accept(p);
 			//process up to [messagesToHandle] messages per "tick"
 			processed++;
@@ -159,7 +159,7 @@ public class NetworkClient {
 		System.exit(0);
 	}
 	//helpers
-	public void disconnect(String ipAddress) {
-		Send(ipAddress, PayloadType.DISCONNECT);
+	public void disconnect(int id) {
+		Send(id, PayloadType.DISCONNECT);
 	}
 }

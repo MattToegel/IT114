@@ -13,7 +13,7 @@ public class Player {
 	private Color previousColor = color;
 	private Point center = new Point();
 	private Point direction = new Point();
-	private int radius = 15;
+	private int radius = 20;
 	private int diameter = 2*radius;
 	private int speed = 1;
 	private int baseSpeed = 1;//TODO server should own this
@@ -28,6 +28,7 @@ public class Player {
 	private int numOfTags = 0;
 	private int numTagged = 0;
 	public boolean blacklist = false;
+	private int id = -1;
 	public Player(String name, Dimension playArea) {
 		this.name = name;
 		if(name.toLowerCase().contains("comedian")) {
@@ -75,6 +76,12 @@ public class Player {
 	}
 	public String getName() {
 		return this.name;
+	}
+	public void setID(int id) {
+		this.id = id;
+	}
+	public int getID() {
+		return this.id;
 	}
 	public int getRadius() {
 		return radius;
@@ -171,15 +178,16 @@ public class Player {
 	public boolean tryToTag() {
 		if(isIt && !isTryingToTag && canTagAgain) {
 			isTryingToTag = true;
-			//speed = 2;
-			System.out.println("Is isTryingToTag");
-			
+			//try to tag for 250 ms
+			//when this expires, tagging action will stop
 			exec.schedule(()->{
 		              isTryingToTag = false;
 		              canTagAgain = false;
-		              exec.schedule(()->{canTagAgain = true;}, 2000, TimeUnit.MILLISECONDS);
-		              //speed = baseSpeed;
-		              System.out.println("Is not isTryingToTag");
+		              //delay when we can tag again
+		              //after 2 seconds we can try to tag again
+		              exec.schedule(()->{
+		            	  canTagAgain = true;
+		              }, 2000, TimeUnit.MILLISECONDS);
 		     }, 250, TimeUnit.MILLISECONDS);
 		}
 		return isTryingToTag;
@@ -249,6 +257,13 @@ public class Player {
 			direction.y *= -1;
 		}
 	}
+	private void drawString(Graphics2D g, String text, int x, int y) {
+		int i = 0;
+        for (String line : text.split("\n")) {
+            g.drawString(line, x, y += i * g.getFontMetrics().getHeight());
+        	i++;
+		}
+    }
 	protected void paint(Graphics2D g2d) {
         if (center != null && g2d != null) {
         	if(isTryingToTag) {
@@ -270,8 +285,8 @@ public class Player {
                 nameSize.height = fm.getMaxAscent();
             }
             g2d.setColor(Color.WHITE);
-            g2d.drawString(name, (int) (center.x - (nameSize.width * .51)),
-                (int) (center.y + (nameSize.height * .49)));
+            drawString(g2d, name + "\n(" + id +")", (int) (center.x - (nameSize.width * .51)),
+                (int) (center.y + (nameSize.height * .01f)));
             
         }
     }

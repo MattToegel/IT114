@@ -9,28 +9,28 @@ import java.util.List;
 import java.util.Map.Entry;
 
 public class PlayerContainer {
-	Hashtable<String, Player> players = new Hashtable<String, Player>();
-	public void AddPlayer(String ip, Player player) {
-		if(!players.containsKey(ip)) {
-			System.out.println("Added " + ip + " with name " + player.getName());
-			players.put(ip, player);
+	Hashtable<Integer, Player> players = new Hashtable<Integer, Player>();
+	public void AddPlayer(int id, Player player) {
+		if(!players.containsKey(id)) {
+			System.out.println("Added " + id + " with name " + player.getName());
+			players.put(id, player);
 		}
 		else {
-			System.out.println(ip + " with name " + player.getName() + " already connected");
+			System.out.println(id + " with name " + player.getName() + " already connected");
 		}
 	}
-	public Player RemovePlayer(String ip) {
-		return players.remove(ip);
+	public Player RemovePlayer(int id) {
+		return players.remove(id);
 	}
-	public String getAddressByIndex(int index) {
+	public int getIdByIndex(int index) {
 		int i = 0;
-		for(String address : players.keySet()) {
-			if(i == index) {
-				return address;
+		for(int id : players.keySet()) {
+			if(i == id) {
+				return id;
 			}
 			i++;
 		}
-		return null;
+		return -1;
 	}
 	public Player getPlayerByIndex(int index) {
 		int i = 0;
@@ -45,8 +45,8 @@ public class PlayerContainer {
 	public int getTotalPlayers() {
 		return players.size();
 	}
-	public Player getPlayer(String address) {
-		return players.get(address);
+	public Player getPlayer(int id) {
+		return players.get(id);
 	}
 	public void MovePlayers() {
 		for ( Player v : players.values() ) {
@@ -58,10 +58,10 @@ public class PlayerContainer {
 		    v.paint(g2d);
 		}
 	}
-	public void UpdatePlayer(String address, PayloadType type, int x, int y, String extra) {
+	public void UpdatePlayer(int id, PayloadType type, int x, int y, String extra) {
 		Player player = null;
-		if(players.containsKey(address)) {
-			player = players.get(address);
+		if(players.containsKey(id)) {
+			player = players.get(id);
 			switch(type) {
 				case DIRECTION:
 					//update player direction
@@ -89,11 +89,11 @@ public class PlayerContainer {
 					break;
 				case SET_IT:
 					//TODO server side should check/set this
-					System.out.println("Apply SET_IT payload");
-					players.forEach((ip, tplayer)->{
-						//if same address, set it, else not it
-						boolean isIt = ip.equals(address);
-						System.out.println(ip + " - " + address + " is it " + isIt);
+					System.out.println(player.getName() + "(" + id + "): Apply SET_IT payload");
+					players.forEach((pid, tplayer)->{
+						//if same id, set it, else not it
+						boolean isIt = pid == id;
+						System.out.println(pid + " - " + id + " is it " + isIt);
 						tplayer.setIsIt(isIt);
 					});
 					break;
@@ -113,9 +113,9 @@ public class PlayerContainer {
 		
 		return p;
 	}
-	public Entry<String,Player> getCurrentTagger(){
+	public Entry<Integer,Player> getCurrentTagger(){
 		synchronized(players) {
-			for(Entry<String, Player> set : players.entrySet()) {
+			for(Entry<Integer, Player> set : players.entrySet()) {
 				if(set.getValue().isIt()) {
 					return set;
 				}
@@ -132,11 +132,14 @@ public class PlayerContainer {
 	    return (int)Math.sqrt((b.y - a.y) * (b.y - a.y) + (b.x - a.x) * (b.x - a.x));
 	}
 	//use from server side
-	public Entry<String,Player> CheckCollisions(Player p) {
-		Entry<String,Player> tagged = null;
+	public Entry<Integer,Player> CheckCollisions(Player p) {
+		Entry<Integer,Player> tagged = null;
 		synchronized(players) {
-			for(Entry<String, Player> set : players.entrySet()) {
-				if(!p.getName().equals(set.getValue().getName())) {
+			for(Entry<Integer, Player> set : players.entrySet()) {
+				//if(!p.getName().equals(set.getValue().getName())) {
+				if(p.getID() != set.getKey()) {
+					System.out.println("Tagger ID: " + p.getID());
+					System.out.println("Checking ID: " + set.getKey());
 					//get distance between centers
 					int dist = calculateDistanceBetweenPoints(p.getPosition(), set.getValue().getPosition());
 					//System.out.println("Dist: " + dist);

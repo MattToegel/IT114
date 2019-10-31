@@ -60,7 +60,7 @@ class PlayerControls{
 		
 		am.put("SPACE", new TagAction());
 	}
-	static void applyControls(String myAddress, Player myPlayer, NetworkClient client) {
+	static void applyControls(int id, Player myPlayer, NetworkClient client) {
 		if(myPlayer != null) {
 			handleControls();
 			//apply direction and see if it changed
@@ -69,13 +69,13 @@ class PlayerControls{
 				Point mp = myPlayer.getDirection();
 				System.out.println("Direction: " + mp.toString());
 				//TODO Send new Direction over Network
-				client.Send(myAddress, PayloadType.DIRECTION, mp.x, mp.y);
+				client.Send(id, PayloadType.DIRECTION, mp.x, mp.y);
 			}
 			if(PlayerControls.SPACE_DOWN) {
 				PlayerControls.SPACE_DOWN = false;
 				if(myPlayer.tryToTag()) {
 					//TODO send Tag action to server
-					client.Send(myAddress, PayloadType.TRIGGER_TAG);
+					client.Send(id, PayloadType.TRIGGER_TAG);
 				}
 			}
 		}
