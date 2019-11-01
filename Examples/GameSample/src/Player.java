@@ -97,7 +97,6 @@ public class Player {
 			center.x = x;
 			center.y = y;
 		}
-		
 	}
 	public Point getPosition() {
 		return center;

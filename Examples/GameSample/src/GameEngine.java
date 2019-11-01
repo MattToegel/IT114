@@ -47,7 +47,7 @@ public class GameEngine {
 					//apply current control state
 					PlayerControls.applyControls(localPlayer.id, localPlayer.player, client);
 					//locally move the players
-					players.MovePlayers();
+					players.movePlayers();
 					//redraw the UI/players
 					ui.repaint();
 					try {
@@ -74,18 +74,18 @@ public class GameEngine {
 		//TODO send disc
 		client.disconnect(localPlayer.id);
 		try {
-			Thread.sleep(50);
+			//wait for disconnect to get sent to server
+			Thread.sleep(100);
 		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		client.Terminate();
+		client.terminate();
 	}
 	void sendConnectPayload() {
 		int id = -1;//temporarily set -1, server will give us an id
 		localPlayer.id = id;
 		//send 0,0 coords, server will fill and echo back
-		client.Send(localPlayer.id, PayloadType.CONNECT,0,0, localPlayer.name);
+		client.send(localPlayer.id, PayloadType.CONNECT,0,0, localPlayer.name);
 	}
 	public void paint(Graphics2D g2d) {
 		players.paintPlayers(g2d);
@@ -94,7 +94,7 @@ public class GameEngine {
 		Player newPlayer = new Player(p.extra);
 		newPlayer.setPosition(p.x, p.y);
 		newPlayer.setID(p.id);
-		players.AddPlayer(p.id, newPlayer);
+		players.addPlayer(p.id, newPlayer);
 		if(isMe) {
 			//This should be the server giving us our player
 			//so cache it for easier use
@@ -117,7 +117,7 @@ public class GameEngine {
 			syncPlayer(sync, p);
 		}
 	}
-	void UpdatePlayer(Payload p) {
+	void updatePlayer(Payload p) {
 		//try to update the player with whatever payload we received
 		players.updatePlayers(p.id, p.payloadType, p.x, p.y, p.extra);
 	}
@@ -139,11 +139,12 @@ public class GameEngine {
 				break;
 			case DISCONNECT: //broad cast
 				//disconnection from server, update local track of players
-				players.RemovePlayer(p.id);
+				players.removePlayer(p.id);
 				System.out.println("Removing player for " + p.id);
 				break;
 			case STATS:
 				//handled via player update, but we'll update score list here
+				updatePlayer(p);
 				List<Player> leaderboard = players.getLeaderboard();
 				String show = "| ";
 				int total = leaderboard.size();
@@ -152,78 +153,18 @@ public class GameEngine {
 						break;
 					}
 					Player l = leaderboard.get(i);
-					show += l.getName() + "(Tagged: #" + l.getNumberTagged() +") | ";
+					show += l.getName() + "(Tagged: #" + l.getNumberOfTags() +") | ";
 							
 				}
 				ui.showScores(show);
 				break;
 			default:
-				UpdatePlayer(p);
+				updatePlayer(p);
 				break;
 		}
-		/*if(p.payloadType == PayloadType.CONNECT || p.payloadType == PayloadType.SYNC) {
-			//connection from server, create new player and track locally
-			Player sync = players.getPlayer(p.id);
-			if(sync != null) {
-				sync.setPosition(p.x, p.y);
-				if(localPlayer.player == null && localPlayer.id == p.id) {
-					System.out.println("Stored my player existing");
-					localPlayer.player = sync;
-					localPlayer.name = sync.getName();
-				}
-			}
-			else {
-				sync = new Player(p.extra, playArea);
-				sync.setPosition(p.x, p.y);
-				players.AddPlayer(p.id, sync);
-				if(p.id == localPlayer.id) {
-					//This should be the server giving us our player
-					//so cache it for easier use
-					sync.setName(sync.getName());
-					localPlayer.player = sync;
-					localPlayer.name = sync.getName();
-					
-					System.out.println("Created local player");
-				}
-			}
-		}
-		else if(p.payloadType == PayloadType.DISCONNECT) {
-			//disconnection from server, update local track of players
-			players.RemovePlayer(p.id);
-			System.out.println("Removing player for " + p.id);
-		}
-		else {
-			//check if we have the respective player
-			//if not, try to add if the information is available
-			if(p.id > -1) {
-				Player c = players.getPlayer(p.id);
-				if(c == null) {
-					if(p.extra != null) {
-						c = new Player(p.extra, playArea);
-						players.AddPlayer(p.id, c);
-					}
-				}
-				//try to update the player with whatever payload we received
-				players.UpdatePlayer(p.id, p.payloadType, p.x, p.y, p.extra);
-			}
-			if(p.payloadType == PayloadType.STATS) {
-				//handled via player update, but we'll update score list here
-				List<Player> leaderboard = players.getLeaderboard();
-				String show = "| ";
-				int total = leaderboard.size();
-				for(int i = 0; i < 3; i++) {
-					if(i == total) {
-						break;
-					}
-					Player l = leaderboard.get(i);
-					show += l.getName() + "(Tagged: #" + l.getNumberTagged() +") | ";
-							
-				}
-				ui.showScores(show);
-			}
-		}*/
 	}
 }
+//TODO LocalPlayer class
 class LocalPlayer {
 	public int id;
 	public String name;

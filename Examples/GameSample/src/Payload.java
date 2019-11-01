@@ -9,7 +9,7 @@ import java.io.Serializable;
 public class Payload implements Serializable{
 	private static final long serialVersionUID = -7358730485627664992L;
 	public int id;
-	public int target;
+	public int target = -1;
 	public PayloadType payloadType;
 	public int x;
 	public int y;
@@ -32,7 +32,6 @@ public class Payload implements Serializable{
 		this.extra = extra;
 		this.target = target;
 	}
-	
 	@Override
 	public String toString() {
 		return this.id + "-" + this.payloadType.toString() + "(" + x + "," + y +") - " + extra;

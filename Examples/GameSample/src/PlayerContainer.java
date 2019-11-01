@@ -10,7 +10,7 @@ import java.util.Map.Entry;
 
 public class PlayerContainer {
 	Hashtable<Integer, Player> players = new Hashtable<Integer, Player>();
-	public void AddPlayer(int id, Player player) {
+	public void addPlayer(int id, Player player) {
 		if(!players.containsKey(id)) {
 			System.out.println("Added " + id + " with name " + player.getName());
 			players.put(id, player);
@@ -19,13 +19,13 @@ public class PlayerContainer {
 			System.out.println(id + " with name " + player.getName() + " already connected");
 		}
 	}
-	public Player RemovePlayer(int id) {
+	public Player removePlayer(int id) {
 		return players.remove(id);
 	}
 	public int getIdByIndex(int index) {
 		int i = 0;
 		for(int id : players.keySet()) {
-			if(i == id) {
+			if(i == index) {
 				return id;
 			}
 			i++;
@@ -48,7 +48,7 @@ public class PlayerContainer {
 	public Player getPlayer(int id) {
 		return players.get(id);
 	}
-	public void MovePlayers() {
+	public void movePlayers() {
 		for ( Player v : players.values() ) {
 		    v.move();
 		}
@@ -89,11 +89,10 @@ public class PlayerContainer {
 					break;
 				case SET_IT:
 					//TODO server side should check/set this
-					System.out.println(player.getName() + "(" + id + "): Apply SET_IT payload");
 					players.forEach((pid, tplayer)->{
 						//if same id, set it, else not it
 						boolean isIt = pid == id;
-						System.out.println(pid + " - " + id + " is it " + isIt);
+						//System.out.println(pid + " - " + id + " is it " + isIt);
 						tplayer.setIsIt(isIt);
 					});
 					break;
@@ -110,7 +109,6 @@ public class PlayerContainer {
 	public synchronized List<Player> getLeaderboard() {
 		List<Player> p = new ArrayList<Player>(players.values());
 		p.sort(Comparator.comparing(Player::getNumberOfTags).reversed());
-		
 		return p;
 	}
 	public Entry<Integer,Player> getCurrentTagger(){
@@ -136,7 +134,6 @@ public class PlayerContainer {
 		Entry<Integer,Player> tagged = null;
 		synchronized(players) {
 			for(Entry<Integer, Player> set : players.entrySet()) {
-				//if(!p.getName().equals(set.getValue().getName())) {
 				if(p.getID() != set.getKey()) {
 					System.out.println("Tagger ID: " + p.getID());
 					System.out.println("Checking ID: " + set.getKey());

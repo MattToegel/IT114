@@ -42,13 +42,12 @@ public class NetworkServer{
 			System.out.println(str);
 		}
 	}
-	public synchronized void broadcast(Payload payload, int excludeId) {
+	public synchronized void sendToAllClientsExcept(Payload payload, int excludeId) {
 		//iterate through all clients and attempt to send the message to each
 		if(payload.payloadType != PayloadType.MOVE_SYNC) {
 			//ignore MOVE_SYNC to cut down on log spam
 			NetworkServer.Output("Sending message to " + clients.size() + " clients");
 		}
-		//TODO ensure closed clients are removed from the list
 		for(int i = 0; i < clients.size(); i++) {
 			if(clients.get(i).id == excludeId) {
 				continue;
@@ -60,21 +59,9 @@ public class NetworkServer{
 				e.printStackTrace();
 			}
 		}
-		//cleanup
 		cleanupStaleClients();
 	}
-	public synchronized void ack(int clientIndex, Payload payload) {
-		try {
-	
-			ServerThread c = clients.get(clientIndex);
-			System.out.println("Sending payload to " + c.id);
-			c.send(payload);
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-	}
-	public synchronized void sync(int target, Payload payload) {
+	public synchronized void sendToClientById(int target, Payload payload) {
 		//TODO for single client
 		for(int i = 0; i < clients.size(); i++) {
 			if(clients.get(i).id == target) {
@@ -94,6 +81,7 @@ public class NetworkServer{
 		while(it.hasNext()) {
 			ServerThread s = it.next();
 			if(s.isClosed()) {
+				s.cleanup();
 				outMessages.add(
 						new Payload(s.id, PayloadType.DISCONNECT)
 						);
@@ -102,95 +90,13 @@ public class NetworkServer{
 			}
 		}
 	}
-	int getClientIndex(Payload p) {
-		for(int i = 0; i < clients.size(); i++) {
-			if(clients.get(i).id == p.id) {
-				return i;
-			}
-		}
-		return -1;
-	}
 	private void start(int port) {
 		this.port = port;
 		System.out.println("Waiting for client");
 		try(ServerSocket serverSocket = new ServerSocket(port);){
-			Thread messageSender = new Thread() {
-				@Override
-				public void run() {
-					System.out.println("Starting Message Sender");
-					while(isRunning) {
-						Payload payloadOut = outMessages.poll();
-						if(payloadOut != null) {
-							//broadcast(payloadOut,"");
-							if(payloadOut.payloadType == PayloadType.ACK) {
-								int clientSocketIndex = getClientIndex(payloadOut);
-								if(clientSocketIndex > -1) {
-									ack(clientSocketIndex, payloadOut);
-								}
-							}
-							else if(payloadOut.payloadType != PayloadType.SYNC) {
-								broadcast(payloadOut, -1);
-							}
-							else {
-								sync(payloadOut.target,payloadOut);
-							}
-						}
-						else {
-							try {
-								Thread.sleep(8);
-								
-							} catch (InterruptedException e) {
-								// TODO Auto-generated catch block
-								e.printStackTrace();
-							}
-						}
-					}
-					System.out.println("Message Sender Thread stopping");
-				}
-			};
-			messageSender.start();
-			Thread gameLoop = new Thread() {
-				@Override
-				public void run() {
-					int syncCounter = 0;
-					System.out.println("Server game loop starting");
-					while(isRunning) {
-						players.MovePlayers();
-						syncCounter++;
-						if(syncCounter > 20) {
-							syncCounter = 0;
-							for(Entry<Integer, Player> p : players.players.entrySet()) {
-								outMessages.add(
-										new Payload(p.getKey(), PayloadType.MOVE_SYNC, p.getValue().getPosition().x, p.getValue().getPosition().y, null)
-										);
-							}
-						}
-						try {
-							Thread.sleep(16);
-						} catch (InterruptedException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-						}
-					}
-					System.out.println("Server game loop stopping");
-				}
-			};
-			gameLoop.start();
-			while(isRunning) {
-				try {
-					//use Consumer class to pass a callback to the thread for broadcasting messages
-					//to all clients
-					//Consumer<Payload,String> callback = ;
-					Socket client = serverSocket.accept();
-					System.out.println("Client connected");
-					ServerThread thread = new ServerThread(client, this);
-					thread.start();//start client thread
-					clients.add(thread);//add to client pool
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-				
-			}
+			trySendMessagesToClients();
+			runGameLoop();
+			listenForConnections(serverSocket);
 		} catch (IOException e) {
 			e.printStackTrace();
 		} finally {
@@ -203,7 +109,83 @@ public class NetworkServer{
 			}
 		}
 	}
-	
+	void trySendMessagesToClients() {
+		Thread messageSender = new Thread() {
+			@Override
+			public void run() {
+				System.out.println("Starting Message Sender");
+				while(isRunning) {
+					Payload payloadOut = outMessages.poll();
+					if(payloadOut != null) {
+						//TODO send message to client(s)
+						if(payloadOut.target > -1) {
+							sendToClientById(payloadOut.target, payloadOut);
+						}
+						else {
+							//Note: we're currently not using the exclusion
+							sendToAllClientsExcept(payloadOut, -1);
+						}
+					}
+					else {
+						//if we don't have a message take a rest
+						try {
+							Thread.sleep(16);
+						} catch (InterruptedException e) {
+							e.printStackTrace();
+						}
+					}
+				}
+				System.out.println("Message Sender Thread stopping");
+			}
+		};
+		messageSender.start();
+	}
+	void runGameLoop() {
+		Thread gameLoop = new Thread() {
+			@Override
+			public void run() {
+				int syncCounter = 0;
+				System.out.println("Server game loop starting");
+				while(isRunning) {
+					players.movePlayers();
+					syncCounter++;
+					//every thread.sleep * 20ms force sync all players
+					//we don't want to do this too often for bandwidth concerns
+					if(syncCounter > 20) {
+						syncCounter = 0;
+						for(Entry<Integer, Player> p : players.players.entrySet()) {
+							outMessages.add(
+									new Payload(p.getKey(), PayloadType.MOVE_SYNC,
+											p.getValue().getPosition().x, p.getValue().getPosition().y)
+									);
+						}
+					}
+					try {
+						Thread.sleep(16);
+					} catch (InterruptedException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}
+				System.out.println("Server game loop stopping");
+			}
+		};
+		gameLoop.start();
+	}
+	void listenForConnections(ServerSocket serverSocket) {
+		while(isRunning) {
+			try {
+				//TODO listen for new connections
+				Socket client = serverSocket.accept();
+				System.out.println("Client connected");
+				ServerThread thread = new ServerThread(client, this);
+				thread.start();//start client thread
+				clients.add(thread);//add to client pool
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+	}
 	public static void main(String[] arg) {
 		System.out.println("Starting Server");
 		NetworkServer server = new NetworkServer();
@@ -231,15 +213,10 @@ class ServerThread extends Thread{
 	private ObjectInputStream in;
 	private ObjectOutputStream out;
 	private boolean isRunning = false;
-	
 	private NetworkServer server;
 	public ServerThread(Socket myClient, NetworkServer server) throws IOException {
 		this.client = myClient;
 		this.server = server;
-		//this.ipAddress = myClient.getLocalAddress().getHostAddress();
-		
-		//this.clientName = clientName;
-		//this.callback = callback;
 		isRunning = true;
 		out = new ObjectOutputStream(client.getOutputStream());
 		in = new ObjectInputStream(client.getInputStream());
@@ -251,34 +228,35 @@ class ServerThread extends Thread{
 	Point dir = new Point(-2,-2);
 	private void createAndSync(int id, String name) {
 		this.id = id;
-		Player player = new Player(name);
-		player.setID(id);
-		server.players.AddPlayer(id, player);
+		Player newPlayer = new Player(name);
+		newPlayer.setID(id);
+		server.players.addPlayer(id, newPlayer);
 		//generate random position and no direction
-		int x = server.random.nextInt(server.playArea.width - 45) + 15;
-		int y = server.random.nextInt(server.playArea.height - 45) + 15;
-		player.setPosition(x, y);
-		player.setDirection(0, 0);
-		//send across to clients
+		//account for radius offset so we don't get stuck in a wall
+		int offset = newPlayer.getRadius() + 1;
+		int x = server.random.nextInt(server.playArea.width - offset) + offset;
+		int y = server.random.nextInt(server.playArea.height - offset) + offset;
+		newPlayer.setPosition(x, y);
+		newPlayer.setDirection(0, 0);
 		//update newly connected player's id
+		//this only goes to the new player
 		server.outMessages.add(
-				new Payload(id, PayloadType.ACK, x, y, name));
-		//Send Player Connect Payload
+				new Payload(id, PayloadType.ACK, x, y, name, id));
+		//Send Player Connect for new client to all clients
 		server.outMessages.add(
 				new Payload(id, PayloadType.CONNECT,x, y, name)
 				);
-		//Send Move Sync Payload
+		//Send Move Sync Payload for new client to all clients
 		server.outMessages.add(
 				new Payload(id, PayloadType.MOVE_SYNC, x, y, name)
 				);
-		//Send Direction Payload
+		//Send Direction Payload for new client to all clients
 		server.outMessages.add(
 				new Payload(id, PayloadType.DIRECTION, 0, 0, name)
 				);
 		//send sync details for each previously connected client to newly connected client
 		server.players.players.forEach((pid, p)->{
-			
-			NetworkServer.Output("Adding sync message for " + id + " about " + pid);
+				//NetworkServer.Output("Adding sync message for " + id + " about " + pid);
 				//send sync to target client
 				server.outMessages.add(
 						new Payload(pid, PayloadType.SYNC, p.getPosition().x, 
@@ -289,19 +267,19 @@ class ServerThread extends Thread{
 						new Payload(pid, PayloadType.DIRECTION, p.getDirection().x,
 								p.getDirection().y, p.getName(), id)
 						);
-				Entry<Integer,Player> tagger = server.players.getCurrentTagger();
-				if(tagger != null) {
-					//send IT to all
-					server.outMessages.add(
-							new Payload(tagger.getKey(), PayloadType.SET_IT)
-							);
-				}
-				//send stats to all
+				//send stats for each to target client
 				server.outMessages.add(
-						new Payload(pid, PayloadType.STATS, p.getNumberOfTags(), p.getNumberTagged())
+						new Payload(pid, PayloadType.STATS, p.getNumberOfTags(), p.getNumberTagged(), null, id)
 						);
 			
 		});
+		Entry<Integer,Player> tagger = server.players.getCurrentTagger();
+		if(tagger != null) {
+			//send IT to all
+			server.outMessages.add(
+					new Payload(tagger.getKey(), PayloadType.SET_IT)
+					);
+		}
 		if(server.players.getTotalPlayers() > 1) {
 			checkTagger();
 		}
@@ -368,7 +346,7 @@ class ServerThread extends Thread{
 				break;
 			case DISCONNECT:
 				//TODO make sure other client can't cause a different client to disconnect
-				player = server.players.RemovePlayer(id);
+				player = server.players.removePlayer(id);
 				if(player != null) {
 					server.outMessages.add(
 							new Payload(id, PayloadType.DISCONNECT)

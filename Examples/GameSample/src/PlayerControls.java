@@ -69,13 +69,13 @@ class PlayerControls{
 				Point mp = myPlayer.getDirection();
 				System.out.println("Direction: " + mp.toString());
 				//TODO Send new Direction over Network
-				client.Send(id, PayloadType.DIRECTION, mp.x, mp.y);
+				client.send(id, PayloadType.DIRECTION, mp.x, mp.y);
 			}
 			if(PlayerControls.SPACE_DOWN) {
 				PlayerControls.SPACE_DOWN = false;
 				if(myPlayer.tryToTag()) {
 					//TODO send Tag action to server
-					client.Send(id, PayloadType.TRIGGER_TAG);
+					client.send(id, PayloadType.TRIGGER_TAG);
 				}
 			}
 		}

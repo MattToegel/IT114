@@ -34,16 +34,16 @@ public class NetworkClient {
 	public String getAddress() {
 		return server.getLocalAddress().getHostAddress();
 	}
-	public void Send(int id, PayloadType type) {
-		Send(id, type, 0,0, null);
+	public void send(int id, PayloadType type) {
+		send(id, type, 0,0, null);
 	}
-	public void Send(int id, PayloadType type, String extra) {
-		Send(id, type, 0,0,extra);
+	public void send(int id, PayloadType type, String extra) {
+		send(id, type, 0,0,extra);
 	}
-	public void Send(int id, PayloadType type, int x, int y) {
-		Send(id, type, x, y, null);
+	public void send(int id, PayloadType type, int x, int y) {
+		send(id, type, x, y, null);
 	}
-	public void Send(int id, PayloadType type, int x, int y, String extra) {
+	public void send(int id, PayloadType type, int x, int y, String extra) {
 		if(server != null && !server.isClosed()) {
 			System.out.println("Sending " + ((PayloadType)type).toString());
 			outMessages.add(new Payload(id, type, x, y, extra));
@@ -62,6 +62,62 @@ public class NetworkClient {
 			}
 		}
 	}
+	void pollMessagesToSend(ObjectOutputStream out) {
+		Thread inputThread = new Thread() {
+			@Override
+			public void run() {
+				try {
+					while(!server.isClosed() && isRunning) {
+						Payload payload = outMessages.poll();
+						if(payload != null) {
+							out.writeObject(payload);//send to server
+							if(payload.payloadType == PayloadType.DISCONNECT) {
+								System.out.println("Stopping input thread");
+								break;
+							}
+						}
+					}
+				}
+				catch(Exception e) {
+					System.out.println("Client shutdown");
+				}
+				finally {
+					close();
+				}
+			}
+		};
+		inputThread.start();//start the thread
+	}
+	void listenForServer(ObjectInputStream in) {
+		//Thread to listen for responses from server so it doesn't block main thread
+		Thread fromServerThread = new Thread() {
+			@Override
+			public void run() {
+				try {
+					while(!server.isClosed() && isRunning) {
+						Payload p = (Payload)in.readObject();
+						inMessages.add(p);
+						if(p.payloadType != PayloadType.MOVE_SYNC)
+						System.out.println("Replay from server: " + p.toString());
+					}
+					System.out.println("Stopping server listen thread");
+				}
+				catch (Exception e) {
+					if(!server.isClosed()) {
+						e.printStackTrace();
+						System.out.println("Server closed connection");
+					}
+					else {
+						System.out.println("Connection closed");
+					}
+				}
+				finally {
+					close();
+				}
+			}
+		};
+		fromServerThread.start();//start the thread
+	}
 	public void start() throws IOException {
 		if(server == null) {
 			return;
@@ -71,59 +127,9 @@ public class NetworkClient {
 		try(
 				ObjectOutputStream out = new ObjectOutputStream(server.getOutputStream());
 				ObjectInputStream in = new ObjectInputStream(server.getInputStream());){
-			Thread inputThread = new Thread() {
-				@Override
-				public void run() {
-					try {
-						while(!server.isClosed() && isRunning) {
-							Payload payload = outMessages.poll();
-							if(payload != null) {
-								out.writeObject(payload);//send to server
-								if(payload.payloadType == PayloadType.DISCONNECT) {
-									System.out.println("Stopping input thread");
-									break;
-								}
-							}
-						}
-					}
-					catch(Exception e) {
-						System.out.println("Client shutdown");
-					}
-					finally {
-						close();
-					}
-				}
-			};
-			inputThread.start();//start the thread
 			
-			//Thread to listen for responses from server so it doesn't block main thread
-			Thread fromServerThread = new Thread() {
-				@Override
-				public void run() {
-					try {
-						while(!server.isClosed() && isRunning) {
-							Payload p = (Payload)in.readObject();
-							inMessages.add(p);
-							if(p.payloadType != PayloadType.MOVE_SYNC)
-							System.out.println("Replay from server: " + p.toString());
-						}
-						System.out.println("Stopping server listen thread");
-					}
-					catch (Exception e) {
-						if(!server.isClosed()) {
-							e.printStackTrace();
-							System.out.println("Server closed connection");
-						}
-						else {
-							System.out.println("Connection closed");
-						}
-					}
-					finally {
-						close();
-					}
-				}
-			};
-			fromServerThread.start();//start the thread
+			pollMessagesToSend(out);
+			listenForServer(in);
 			
 			//Keep main thread alive until the socket is closed
 			while(!server.isClosed() && isRunning) {
@@ -154,12 +160,12 @@ public class NetworkClient {
 			}
 		}
 	}
-	public void Terminate() {
+	public void terminate() {
 		isRunning = false;
 		System.exit(0);
 	}
 	//helpers
 	public void disconnect(int id) {
-		Send(id, PayloadType.DISCONNECT);
+		send(id, PayloadType.DISCONNECT);
 	}
 }
