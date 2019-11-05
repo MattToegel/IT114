@@ -152,3 +152,40 @@ class NetworkClient{
 	}
 
 }
+
+
+
+
+import java.io.Serializable;
+/***
+ * Data packet to send between client and server
+ * @author matt
+ *
+ */
+public class Payload implements Serializable{
+	private static final long serialVersionUID = -7358730485627664992L;
+	
+	public PayloadType payloadType;
+	public String message = null;
+	
+	public Payload(PayloadType type, String msg) {
+		this.payloadType = type;
+		this.message = msg;
+	}
+	@Override
+	public String toString() {
+		return this.message + " - " + this.payloadType.toString();
+	}
+}
+
+
+
+
+//afer latest changes around 10/31/2019, we technically may not need all of these
+public enum PayloadType {
+	CONNECT,
+	DISCONNECT,
+	ACK,
+	MESSAGE,
+	ROLL_IT
+}
