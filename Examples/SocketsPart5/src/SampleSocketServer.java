@@ -2,6 +2,7 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -21,13 +22,19 @@ public class SampleSocketServer{
 	 * Send the same payload to all connected clients.
 	 * @param payload
 	 */
-	public synchronized void broadcast(Payload payload) {
+	public synchronized void broadcast(Payload payload, String except) {
 		//iterate through all clients and attempt to send the message to each
 		System.out.println("Sending message to " + clients.size() + " clients");
 		//TODO ensure closed clients are removed from the list
 		for(int i = 0; i < clients.size(); i++) {
+			if(except != null && clients.get(i).getClientName().equals(except)) {
+				continue;
+			}
 			clients.get(i).send(payload);
 		}
+	}
+	public synchronized void broadcast(Payload payload) {
+		broadcast(payload, null);
 	}
 	public void removeClient(ServerThread client) {
 		Iterator<ServerThread> it = clients.iterator();
@@ -47,7 +54,7 @@ public class SampleSocketServer{
 		}
 		//use an iterator here so we can remove elements mid loop/iteration
 		Iterator<ServerThread> it = clients.iterator();
-		System.out.println("Start Cleanup count " + clients.size());
+		int start = clients.size();
 		while(it.hasNext()) {
 			ServerThread s = it.next();
 			if(s.isClosed()) {
@@ -58,7 +65,10 @@ public class SampleSocketServer{
 				it.remove();
 			}
 		}
-		System.out.println("End Cleanup count " + clients.size());
+		int diff = start - clients.size();
+		if(diff != 0) {
+			System.out.println("Cleaned up " + diff + " clients");
+		}
 	}
 	/***
 	 * Send a payload to a client based on index (basically in order of connection)
@@ -133,69 +143,80 @@ public class SampleSocketServer{
 			}
 		}
 	}
+	/***
+	 * Determines winner of the two choices
+	 * @param choice1
+	 * @param choice2
+	 * @return
+	 * 0 = tie, 1 = win, -1 = lose
+	 */
+	int checkMatch(String choice1, String choice2) {
+		List<String> c = Arrays.asList("rock", "paper", "scissors");
+		int a = c.indexOf(choice1);
+		int b = c.indexOf(choice2);
+		//math to find result without having all permutations
+		//see: https://stackoverflow.com/questions/11377117/rock-paper-scissors-determine-win-loss-tie-using-math
+		if(a==b) {
+			//tie
+			return 0;
+		}
+		if((a - b + 3) % 3 == 1) {
+			//win
+			return 1;
+		}
+		else {
+			//lose
+			return -1;
+		}
+	}
 	void processMatch(String kvpClient, String fromClient, Entry<String, String[]> kvp) {
 		String[] choices = kvp.getValue();
 		Payload p;
-		if(choices[0] == "rock" && choices[1] == "scissors") {
-			//0 beats 1
-			p = new Payload(PayloadType.MESSAGE, 
-					kvpClient + " beat " + fromClient + "[" + choices[0] + " - " + choices[1] + "]");
-			broadcast(p);
+		System.out.println("Checking " + choices[0] + " with " + choices[1]);
+		int result = checkMatch(choices[0], choices[1]);
+		String message = "";
+		if(result == 0) {
+			message = kvpClient + " ties " + fromClient + "[" + choices[0] + " - " + choices[1] + "]";
 		}
-		else if(choices[0] == "rock" && choices[1] == "paper") {
-			//1 beats 0
-			p = new Payload(PayloadType.MESSAGE, 
-					kvpClient + " loses to " + fromClient + "[" + choices[0] + " - " + choices[1] + "]");
-			broadcast(p);
+		else if (result == 1) {
+			message = kvpClient + " beat " + fromClient + "[" + choices[0] + " - " + choices[1] + "]";
 		}
-		else if(choices[0] == "rock" && choices[1] == "rock") {
-			//tie
-			p = new Payload(PayloadType.MESSAGE, 
-					kvpClient + " ties " + fromClient + "[" + choices[0] + " - " + choices[1] + "]");
-			broadcast(p);
+		else {
+			message = kvpClient + " loses to " + fromClient + "[" + choices[0] + " - " + choices[1] + "]";
 		}
-		else if(choices[0] == "paper" && choices[1] == "scissors") {
-			p = new Payload(PayloadType.MESSAGE, 
-					kvpClient + " loses to " + fromClient + "[" + choices[0] + " - " + choices[1] + "]");
-			broadcast(p);
-		}
-		else if(choices[0] == "paper" && choices[1] == "paper") {
-			p = new Payload(PayloadType.MESSAGE, 
-					kvpClient + " ties " + fromClient + "[" + choices[0] + " - " + choices[1] + "]");
-			broadcast(p);
-		}
-		else if(choices[0] == "paper" && choices[1] == "rock") {
-			p = new Payload(PayloadType.MESSAGE, 
-					kvpClient + " beat " + fromClient + "[" + choices[0] + " - " + choices[1] + "]");
-			broadcast(p);
-		}
-		else if(choices[0] == "scissors" && choices[1] == "scissors") {
-			p = new Payload(PayloadType.MESSAGE, 
-					kvpClient + " ties " + fromClient + "[" + choices[0] + " - " + choices[1] + "]");
-			broadcast(p);
-		}
-		else if(choices[0] == "scissors" && choices[1] == "paper") {
-			p = new Payload(PayloadType.MESSAGE, 
-					kvpClient + " loses to " + fromClient + "[" + choices[0] + " - " + choices[1] + "]");
-			broadcast(p);
-		}
-		else if(choices[0] == "scissors" && choices[1] == "rock") {
-			p = new Payload(PayloadType.MESSAGE, 
-					kvpClient + " beat " + fromClient + "[" + choices[0] + " - " + choices[1] + "]");
-			broadcast(p);
-		}
+		System.out.println("processMatch(): " + message);
+		p = new Payload(PayloadType.MESSAGE, message);
+		broadcast(p);
 	}
 	public void HandleChoice(String clientName, String choice) {
+		System.out.println("Handling choice " + choice + " from " + clientName);
+		/*if(!moves.containsKey(clientName)) {
+			moves.put(clientName, new String[] {choice, ""});
+			System.out.println("Added entry for " + clientName);
+		}*/
+		boolean foundAGame = false;
 		for(Entry<String, String[]> kvp : moves.entrySet()) {
-			if(kvp.getValue().length == 1 
-					&& !kvp.getKey().equals(clientName)) {
-				String[] v = kvp.getValue();
-				v[1] = choice;
-				processMatch(kvp.getKey(), clientName,kvp);
+			if(!kvp.getKey().equals(clientName)) {
+				String[] value = kvp.getValue();
+				if("".equals(value[1])) {
+					foundAGame = true;
+					value[1] = choice;
+					kvp.setValue(value);
+					System.out.println(clientName + " completed game with " + kvp.getKey() + " processing results");
+					processMatch(kvp.getKey(), clientName, kvp);
+				}
+				break;
 			}
-			else if(kvp.getValue().length == 0 
-					|| kvp.getValue().length == 2 && kvp.getKey().equals(clientName)) {
-				kvp.setValue(new String[] {choice,""});
+		}
+		if(!foundAGame) {
+			String[] myGame = moves.get(clientName);
+			
+			if(myGame == null || !"".equals(myGame[1])) {
+				System.out.println("Resetting game for " + clientName);
+				moves.put(clientName, new String[] {choice, ""});
+			}
+			else {
+				System.out.println(clientName + " waiting for opponent");
 			}
 		}
 	}

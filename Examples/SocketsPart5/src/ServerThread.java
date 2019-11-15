@@ -20,6 +20,9 @@ public class ServerThread extends Thread{
 		out = new ObjectOutputStream(client.getOutputStream());
 		in = new ObjectInputStream(client.getInputStream());
 		System.out.println("Spawned thread for client " + clientName);
+		//send to my player my given name
+		server.broadcast(new Payload(PayloadType.CONNECT, clientName), clientName);
+		send(new Payload(PayloadType.UPDATE_NAME, clientName));
 	}
 	@Override
 	public void run() {

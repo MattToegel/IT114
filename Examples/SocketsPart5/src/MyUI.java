@@ -16,6 +16,7 @@ public class MyUI {
 	public static void main(String[] args) {
 		//create frame
 		JFrame frame = new JFrame("Rock-Paper-Scissors");
+		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		frame.setLayout(new BorderLayout());
 		//create panel
 		JPanel rps = new JPanel();
@@ -36,9 +37,41 @@ public class MyUI {
 		rps.add(attemptsArea, BorderLayout.CENTER);
 		//create panel to hold multiple controls
 		JPanel userInput = new JPanel();
+		
 		//Interaction will be our instance to interact with
 		//socket client
 		Interaction interaction = new Interaction();
+		Thread clientMessageReader = new Thread() {
+			@Override
+			public void run() {
+				while(isRunning && interaction.isClientConnected()) {
+					String m = interaction.getMessage();
+					if(m != null) {
+						System.out.println("Got message " + m);
+						if(m.indexOf("[name]") > -1) {
+							String[] n = m.split("]");
+							frame.setTitle(frame.getTitle() + " - " + n[1]);
+						}
+						else {
+							System.out.println("Appending to textarea");
+							textArea.append(m +"\n");
+						}
+					}
+				
+					try {
+						Thread.sleep(25);
+					} catch (InterruptedException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}
+				System.out.println("Message reader thread finished");
+			}
+			
+		};
+		clientMessageReader.start();
+		interaction.connect();
+		
 		//create rock button
 		JButton rock = new JButton();
 		rock.setText("Rock");
@@ -80,44 +113,47 @@ public class MyUI {
 		
 		frame.pack();
 		frame.setVisible(true);
-		Thread test = new Thread() {
-			@Override
-			public void run() {
-				String m = interaction.getMessage();
-				if(m != null) {
-				textArea.append(m);
-				}
-				while(isRunning) {
-					try {
-						Thread.sleep(25);
-					} catch (InterruptedException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-				}
-			}
-			
-		};
-		test.start();
+		
 	}
 	
 }
 class Interaction {
 	SampleSocketClient client;
 	public Interaction() {
-		client = new SampleSocketClient();
-		client.connect("127.0.0.1", 3000);
-		try {
-			client.start();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+		
+	}
+	public void connect() {
+		//thread just so we don't lock up main UI
+		Thread connectionThread = new Thread() {
+			@Override
+			public void run() {
+				client = new SampleSocketClient();
+				client.connect("127.0.0.1", 3000);
+				try {
+					System.out.println("Connected");
+					client.start();//this terminates when client is closed
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				System.out.println("Connection thread finished");
+			}
+		};
+		connectionThread.start();
 	}
 	public void sendChoice(String choice) {
 		client.sendChoice(choice);
 	}
+	public boolean isClientConnected() {
+		if(client == null) {
+			return true;//just so loop doesn't die early
+		}
+		return client.isStillConnected();
+	}
 	public String getMessage() {
+		if(client == null) {
+			return null;
+		}
 		return client.messages.poll();
 	}
 }

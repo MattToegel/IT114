@@ -33,47 +33,15 @@ public class SampleSocketClient {
 		}
 		System.out.println("Client Started");
 		//listen to console, server in, and write to server out
-		try(Scanner si = new Scanner(System.in);
-				
-				ObjectInputStream in = new ObjectInputStream(server.getInputStream());){
+		try(ObjectInputStream in = new ObjectInputStream(server.getInputStream());){
 			out = new ObjectOutputStream(server.getOutputStream());
-			//Thread to listen for keyboard input so main thread isn't blocked
-			Thread inputThread = new Thread() {
-				@Override
-				public void run() {
-					try {
-						while(!server.isClosed()) {
-							System.out.println("Waiting for input");
-							String line = si.nextLine();
-							if(!"quit".equalsIgnoreCase(line) && line != null) {
-								//grab line and throw it into a payload object
-								out.writeObject(new Payload(PayloadType.MESSAGE, line));
-							}
-							else {
-								System.out.println("Stopping input thread");
-								//we're quitting so tell server we disconnected so it can broadcast
-								out.writeObject(new Payload(PayloadType.DISCONNECT, null));
-								break;
-							}
-						}
-					}
-					catch(Exception e) {
-						System.out.println("Client shutdown");
-					}
-					finally {
-						close();
-					}
-				}
-			};
-			inputThread.start();//start the thread
-			
 			//Thread to listen for responses from server so it doesn't block main thread
 			Thread fromServerThread = new Thread() {
 				@Override
 				public void run() {
 					try {
 						Payload fromServer;
-						//while we're connected, listed for payloads from server
+						//while we're connected, listen for payloads from server
 						while(!server.isClosed() && (fromServer = (Payload)in.readObject()) != null) {
 							processPayload(fromServer);
 						}
@@ -100,9 +68,6 @@ public class SampleSocketClient {
 				Thread.sleep(50);
 			}
 			System.out.println("Exited loop");
-			System.exit(0);//force close
-			//TODO implement cleaner closure when server stops
-			//without this, it still waits for input before terminating
 		}
 		catch(Exception e) {
 			e.printStackTrace();
@@ -131,7 +96,12 @@ public class SampleSocketClient {
 				messages.add(p.message);
 				break;
 			case CHOICE:
+				System.out.println("Got choice " + p.message);
 				messages.add(p.message);
+				break;
+			case UPDATE_NAME:
+				System.out.println("Got name " + p.message);
+				messages.add("[name]"+p.message);
 				break;
 			default:
 				System.out.println("We aren't handling payloadType " + p.payloadType.toString());
@@ -139,6 +109,13 @@ public class SampleSocketClient {
 		}
 	}
 	private void close() {
+		if(out != null) {
+			try {
+				out.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
 		if(server != null && !server.isClosed()) {
 			try {
 				server.close();
@@ -148,7 +125,19 @@ public class SampleSocketClient {
 			}
 		}
 	}
+	/**
+	 * Returns true if never connected or true/false if still connected
+	 * @return
+	 */
+	public boolean isStillConnected() {
+		if(!server.isConnected()) {
+			return true;//
+		}
+		return !server.isClosed();
+	}
 	public static void main(String[] args) {
+		//only worry about this if we're running from command line
+		//our UI will use connect() and start() methods
 		SampleSocketClient client = new SampleSocketClient();
 		//grab host:port from commandline
 		//TODO this was reworked, please take note
