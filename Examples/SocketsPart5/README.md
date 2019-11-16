@@ -1,7 +1,9 @@
 *Rock Paper Scissors Multi Client + Server*
+Note: Ignore mention of tic-tac-toe, I had the wrong game in mind when I was typing and I didn't go back and fix the commit comments.
 1. Download the client ``builds\RPSClient.jar``
 2. Set host/port settings in the top text fields and click connect
 	1. If the server is up you can use the following conneciton details:
+	
 		1.host: sandbox.ethereallab.app
 		2.port: 3100
 	2. If there's an error, the text fields will show again with the error. Connection refused means there's no server currently listening.
