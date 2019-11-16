@@ -5,6 +5,7 @@ Note: Ignore mention of tic-tac-toe, I had the wrong game in mind when I was typ
 	1. If the server is up you can use the following conneciton details:
 	
 		1.host: sandbox.ethereallab.app
+		
 		2.port: 3100
 	2. If there's an error, the text fields will show again with the error. Connection refused means there's no server currently listening.
 3. If the server is up you'll automatically connect.
