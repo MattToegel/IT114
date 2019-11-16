@@ -22,7 +22,7 @@ public class ServerThread extends Thread{
 		System.out.println("Spawned thread for client " + clientName);
 		//broadcast connect to other players
 		server.broadcast(new Payload(PayloadType.CONNECT, clientName), clientName);
-		send(new Payload(PayloadType.MESSAGE, "Total players including yourself: " + server.clients.size()));
+		send(new Payload(PayloadType.MESSAGE, "Other players online: " + server.clients.size()));
 		//send to my player my given name
 		send(new Payload(PayloadType.UPDATE_NAME, clientName));
 	}
