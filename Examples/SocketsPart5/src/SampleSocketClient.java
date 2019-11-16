@@ -9,13 +9,14 @@ public class SampleSocketClient {
 	Socket server;
 	static ObjectOutputStream out;
 	public Queue<String> messages = new LinkedList<String>();
-	public void connect(String address, int port) {
+	public void connect(String address, int port) throws IOException {
 		try {
 			//create new socket to destination and port
 			server = new Socket(address, port);
 			System.out.println("Client connected");
 		} catch (IOException e) {
 			e.printStackTrace();
+			throw e;
 		}
 	}
 	public void sendChoice(String choice) {
@@ -67,6 +68,7 @@ public class SampleSocketClient {
 				Thread.sleep(50);
 			}
 			System.out.println("Exited loop");
+			throw new Exception("Connection loop exited");
 		}
 		catch(Exception e) {
 			e.printStackTrace();
@@ -133,7 +135,7 @@ public class SampleSocketClient {
 	 * @return
 	 */
 	public boolean isStillConnected() {
-		if(!server.isConnected()) {
+		if(server == null || !server.isConnected()) {
 			return true;//
 		}
 		return !server.isClosed();
@@ -163,8 +165,9 @@ public class SampleSocketClient {
 		if(port == -1 || host == null){
 			return;
 		}
-		client.connect(host, port);
+		
 		try {
+			client.connect(host, port);
 			//if start is private, it's valid here since this main is part of the class
 			client.start();
 		} catch (IOException e) {

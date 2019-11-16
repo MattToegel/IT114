@@ -12,6 +12,7 @@ import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.JTextArea;
+import javax.swing.JTextField;
 
 public class MyUI {
 	public static boolean isRunning = true;
@@ -41,15 +42,12 @@ public class MyUI {
 		//create panel to hold multiple controls
 		JPanel userInput = new JPanel();
 		
+		
+		    	
+		
 		//Interaction will be our instance to interact with
 		//socket client
 		Interaction interaction = new Interaction();
-		frame.addWindowListener(new WindowAdapter() {
-			  public void windowClosing(WindowEvent we) {
-				  	interaction.client.disconnect();
-				    System.exit(0);
-				  }
-				});
 		Thread clientMessageReader = new Thread() {
 			@Override
 			public void run() {
@@ -78,8 +76,47 @@ public class MyUI {
 			}
 			
 		};
-		clientMessageReader.start();
-		interaction.connect();
+		
+		JPanel connectionPanel = new JPanel();
+		JTextField hostTextField = new JTextField();
+		hostTextField.setText("127.0.0.1");
+		JTextField portTextField = new JTextField();
+		portTextField.setText("3000");
+		JTextField errorTextField = new JTextField();
+		errorTextField.setText("");
+		JButton connect = new JButton();
+		connect.setText("Connect");
+		connect.addActionListener(new ActionListener() {
+		    @Override
+		    public void actionPerformed(ActionEvent e) {
+		        String hostStr = hostTextField.getText();
+		        String portString = portTextField.getText();
+		        try {
+		        	int port = Integer.parseInt(portString.trim());
+		        	interaction.connect(hostStr, port, errorTextField);
+		        	errorTextField.setText("Success!");
+		        	connectionPanel.setVisible(false);
+		        	clientMessageReader.start();
+		        	System.out.println("Connected");
+		        }
+		        catch(Exception ex) {
+		        	ex.printStackTrace();
+		        	errorTextField.setText(ex.getMessage());
+		        }
+		    }
+		});
+		connectionPanel.add(hostTextField);
+		connectionPanel.add(portTextField);
+		connectionPanel.add(connect);
+		connectionPanel.add(errorTextField);
+		frame.addWindowListener(new WindowAdapter() {
+			  public void windowClosing(WindowEvent we) {
+				  	interaction.client.disconnect();
+				    System.exit(0);
+				  }
+		});
+		
+		
 		
 		//create rock button
 		JButton rock = new JButton();
@@ -119,7 +156,7 @@ public class MyUI {
 		rps.add(userInput, BorderLayout.SOUTH);
 		//add rps panel to frame
 		frame.add(rps, BorderLayout.CENTER);
-		
+		frame.add(connectionPanel, BorderLayout.NORTH);
 		frame.pack();
 		frame.setVisible(true);
 		
@@ -131,20 +168,22 @@ class Interaction {
 	public Interaction() {
 		
 	}
-	public void connect() {
+	public void connect(String host, int port, JTextField errorField) throws IOException{
 		//thread just so we don't lock up main UI
 		Thread connectionThread = new Thread() {
 			@Override
 			public void run() {
 				client = new SampleSocketClient();
-				client.connect("127.0.0.1", 3000);
 				try {
-					System.out.println("Connected");
-					client.start();//this terminates when client is closed
+					client.connect(host, port);
+					client.start();
 				} catch (IOException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
-				}
+					errorField.setText(e.getMessage());
+					errorField.getParent().setVisible(true);
+				}//this terminates when client is closed
+				
 				System.out.println("Connection thread finished");
 			}
 		};
