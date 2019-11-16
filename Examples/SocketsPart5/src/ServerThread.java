@@ -20,18 +20,20 @@ public class ServerThread extends Thread{
 		out = new ObjectOutputStream(client.getOutputStream());
 		in = new ObjectInputStream(client.getInputStream());
 		System.out.println("Spawned thread for client " + clientName);
-		//send to my player my given name
+		//broadcast connect to other players
 		server.broadcast(new Payload(PayloadType.CONNECT, clientName), clientName);
+		//send to my player my given name
 		send(new Payload(PayloadType.UPDATE_NAME, clientName));
 	}
 	@Override
 	public void run() {
 		try{
 			Payload fromClient;
-			//if disconnected in.readObject will throw an EOFException
+			//if disconnected, in.readObject will throw an EOFException
 			while(isRunning 
 					&& !client.isClosed() 
 					&& (fromClient = (Payload)in.readObject()) != null) {
+				//received a payload, handle it
 				processPayload(fromClient);
 			}
 		}
@@ -50,7 +52,6 @@ public class ServerThread extends Thread{
 	}
 	void processPayload(Payload payload) {
 		System.out.println("Received: " + payload);
-		//TODO handle payload types
 		switch(payload.payloadType) {
 			case MESSAGE:
 				Payload toClient = new Payload(PayloadType.MESSAGE,clientName + ": " + payload.message);
@@ -60,10 +61,12 @@ public class ServerThread extends Thread{
 			case DISCONNECT:
 				System.out.println("Removing client " + clientName);
 				server.removeClient(this);
+				server.broadcast(new Payload(PayloadType.DISCONNECT,""));
 				stopThread();
 				break;
 			case CHOICE:
-				//send to clients
+				//handles my clients choice and broadcasts result if applicable
+				//otherwise records my choice and waits for opponent
 				server.HandleChoice(clientName, payload.message);
 				break;
 			default:

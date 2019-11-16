@@ -4,7 +4,6 @@ import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.util.LinkedList;
 import java.util.Queue;
-import java.util.Scanner;
 
 public class SampleSocketClient {
 	Socket server;
@@ -108,9 +107,13 @@ public class SampleSocketClient {
 				break;
 		}
 	}
+	public void disconnect() {
+		close();
+	}
 	private void close() {
 		if(out != null) {
 			try {
+				out.writeObject(new Payload(PayloadType.DISCONNECT, ""));
 				out.close();
 			} catch (IOException e) {
 				e.printStackTrace();

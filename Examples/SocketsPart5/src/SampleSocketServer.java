@@ -7,10 +7,10 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
-import java.util.concurrent.ConcurrentHashMap.KeySetView;
 
 public class SampleSocketServer{
 	int port = -1;
+	static int clientId = 0;
 	//private Thread clientListenThread = null;
 	List<ServerThread> clients = new ArrayList<ServerThread>();
 	HashMap<String, String[]> moves = new HashMap<String,String[]>();
@@ -49,7 +49,7 @@ public class SampleSocketServer{
 	}
 	void cleanupClients() {
 		if(clients.size() == 0) {
-			//we don't need to loop or spam if we don't have clients
+			//we don't need to iterate or spam if we don't have clients
 			return;
 		}
 		//use an iterator here so we can remove elements mid loop/iteration
@@ -122,10 +122,11 @@ public class SampleSocketServer{
 					Socket client = serverSocket.accept();
 					System.out.println("Client connected");
 					ServerThread thread = new ServerThread(client, 
-							"Client[" + clients.size() + "]",
+							"id_" + clientId,
 							this);
 					thread.start();//start client thread
 					clients.add(thread);//add to client pool
+					clientId++;
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
@@ -171,8 +172,8 @@ public class SampleSocketServer{
 	}
 	void processMatch(String kvpClient, String fromClient, Entry<String, String[]> kvp) {
 		String[] choices = kvp.getValue();
-		Payload p;
 		System.out.println("Checking " + choices[0] + " with " + choices[1]);
+		//converts the String choices to a -1, 0, 1 choice to define a winner, loser, tie
 		int result = checkMatch(choices[0], choices[1]);
 		String message = "";
 		if(result == 0) {
@@ -184,20 +185,20 @@ public class SampleSocketServer{
 		else {
 			message = kvpClient + " loses to " + fromClient + "[" + choices[0] + " - " + choices[1] + "]";
 		}
+		//TODO Send the resulting message to all clients
 		System.out.println("processMatch(): " + message);
-		p = new Payload(PayloadType.MESSAGE, message);
-		broadcast(p);
+		broadcast(new Payload(PayloadType.MESSAGE, message));
 	}
 	public void HandleChoice(String clientName, String choice) {
 		System.out.println("Handling choice " + choice + " from " + clientName);
-		/*if(!moves.containsKey(clientName)) {
-			moves.put(clientName, new String[] {choice, ""});
-			System.out.println("Added entry for " + clientName);
-		}*/
 		boolean foundAGame = false;
+		//loop through list of player moves
+		//find a game to apply choice to
 		for(Entry<String, String[]> kvp : moves.entrySet()) {
 			if(!kvp.getKey().equals(clientName)) {
 				String[] value = kvp.getValue();
+				//checks if second move is available
+				//if so, then we use that slot and calculate the winner
 				if("".equals(value[1])) {
 					foundAGame = true;
 					value[1] = choice;
@@ -208,11 +209,11 @@ public class SampleSocketServer{
 				break;
 			}
 		}
+		//otherwise create/restart our game, or wait for opponent
 		if(!foundAGame) {
 			String[] myGame = moves.get(clientName);
-			
 			if(myGame == null || !"".equals(myGame[1])) {
-				System.out.println("Resetting game for " + clientName);
+				System.out.println("Creating or resetting game for " + clientName);
 				moves.put(clientName, new String[] {choice, ""});
 			}
 			else {
