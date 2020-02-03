@@ -6,6 +6,7 @@ public class MyClass {
 		/*
 		 * TODO Fill this in I'm a comment and won't run
 		 */
+		
 		int myInt = 5;
 		long myLong = 1l;
 		float myFloat = 1.0f;
