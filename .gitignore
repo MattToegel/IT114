@@ -6,3 +6,4 @@ bin
 .metadata
 .log
 *.log
+ignore
