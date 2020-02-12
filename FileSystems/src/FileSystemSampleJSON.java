@@ -121,13 +121,10 @@ public class FileSystemSampleJSON {
 			readFromFile(jsonFile);
 			System.out.println("Done runnning JSON Sample");
 		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (ParseException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
