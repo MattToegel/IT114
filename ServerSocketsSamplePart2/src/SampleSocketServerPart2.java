@@ -4,14 +4,9 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
 
-public class SampleSocketServer {
+public class SampleSocketServerPart2 {
 	int port = 3002;
-	public SampleSocketServer() {
-	}
 	private void start(int port) {
 		this.port = port;
 		System.out.println("Waiting for client");
@@ -30,6 +25,10 @@ public class SampleSocketServer {
 				}
 				else {
 					System.out.println("From client: " + fromClient);
+					//added sending reply to client from server
+					toClient = "Echo: " + fromClient;
+					out.println(toClient);
+					//end sending reply to client from server
 				}
 			}
 		} catch (IOException e) {
@@ -45,9 +44,9 @@ public class SampleSocketServer {
 
 	
 
-	public static void main(String[] arg) {
+	public static void main(String[] args) {
 		System.out.println("Starting Server");
-		SampleSocketServer server = new SampleSocketServer();
+		SampleSocketServerPart2 server = new SampleSocketServerPart2();
 		server.start(3002);
 		System.out.println("Server Stopped");
 	}
