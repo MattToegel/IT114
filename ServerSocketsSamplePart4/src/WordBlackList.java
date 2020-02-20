@@ -27,7 +27,8 @@ public class WordBlackList {
 				//replace with random silly word
 				do {
 					original = str;
-					str = str.replaceFirst(Pattern.quote(i), silly.get(rand.nextInt(silly.size())));
+					//fixed blacklist word matching: https://stackoverflow.com/a/49888968
+					str = str.replaceFirst("(?<!\\w)" + Pattern.quote(i) + "(?!\\w)", silly.get(rand.nextInt(silly.size())));
 				
 				}
 				while(!original.equals(str));
