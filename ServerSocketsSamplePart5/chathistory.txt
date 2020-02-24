@@ -1,0 +1,17 @@
+nullmattmatt
+hi
+matt
+matt: hi
+matt: somebody
+bob
+bob
+bob: hi
+bob: test
+bob
+mark
+mark: hi
+mark: what's up?
+mark: making sure this all logs
+mark: works in debug since it stops at the breakpoint
+mark: but broke in regular running since there's no delay
+mark
