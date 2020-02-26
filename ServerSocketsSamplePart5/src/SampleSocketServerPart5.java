@@ -9,9 +9,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
-import org.json.simple.parser.ParseException;
+import com.google.gson.Gson;
+
 
 public class SampleSocketServerPart5 {
 	int port = 3002;
@@ -57,10 +56,11 @@ public class SampleSocketServerPart5 {
 	}
 	void loadScore() {
 		try {
-			JSONObject jo = (JSONObject) new JSONParser().parse(new FileReader("score.json"));
-			long s = (long) jo.get("score");
+			Gson gson = new Gson();
+			ScoreState ss = gson.fromJson(new FileReader("score.json"), ScoreState.class);
+			long s = (long) ss.scores.get(0).score;
 			System.out.println("Loaded score: " + s);
-		} catch (IOException | ParseException e) {
+		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
@@ -74,14 +74,12 @@ public class SampleSocketServerPart5 {
 		ss.scores.add(new Score("Joe", 500));
 		System.out.println(ss.toString());
 		try(FileWriter writer = new FileWriter("score.json",false)){
-			//TODO get ScoreState to convert to JSON Object
-			//JSONObject not needed in this case, just showing proof of concept
-			//if you need to override toString to build your own JSON
-			JSONObject jo = (JSONObject)new JSONParser().parse(ss.toString());
-			writer.write(jo.toJSONString());
+			//TODO get ScoreState to convert to JSON
+			Gson gson = new Gson();
+			writer.write(gson.toJson(ss));
 			writer.flush();
 		}
-		catch(IOException | ParseException e) {
+		catch(Exception e) {
 			e.printStackTrace();
 		}
 	}
