@@ -121,6 +121,7 @@ public class SocketServer {
 		}
 		return -1;
 	}
+	@Deprecated
 	public synchronized void broadcast(Payload payload, String name) {
 		String msg = payload.getMessage();
 		payload.setMessage(

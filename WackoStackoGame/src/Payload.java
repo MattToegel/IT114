@@ -19,6 +19,13 @@ public class Payload implements Serializable{
 	public PayloadType getPayloadType() {
 		return this.payloadType;
 	}
+	private String clientName;
+	public void setClientName(String cn) {
+		this.clientName = cn;
+	}
+	public String getClientName() {
+		return this.clientName;
+	}
 	private int x;
 	public void setX(int x) {
 		this.x = x;

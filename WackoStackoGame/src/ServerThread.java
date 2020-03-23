@@ -31,7 +31,9 @@ public class ServerThread extends Thread{
 		//for this case
 		//we can send our name instead of id
 		//server.broadcast(payload, this.getId());
-		server.broadcast(payload, this.clientName);
+		payload.setClientName(clientName);
+		server.broadcast(payload);
+		//server.broadcast(payload, this.clientName);
 	}
 	void broadcastDisconnected() {
 		//let everyone know we're here
@@ -41,7 +43,9 @@ public class ServerThread extends Thread{
 		//for this case
 		//we can send our name instead of id
 		//server.broadcast(payload, this.getId());
-		server.broadcast(payload, this.clientName);
+		payload.setClientName(clientName);
+		server.broadcast(payload);
+		//server.broadcast(payload, this.clientName);
 	}
 	public boolean send(Payload payload) {
 		try {
@@ -94,7 +98,8 @@ public class ServerThread extends Thread{
 		System.out.println("Received from client: " + payload);
 		switch(payload.getPayloadType()) {
 		case CONNECT:
-			String m = payload.getMessage();
+			//String m = payload.getMessage();
+			String m = payload.getClientName();
 			if(m != null) {
 				m = WordBlackList.filter(m);
 				this.clientName = m;
@@ -107,7 +112,9 @@ public class ServerThread extends Thread{
 		case MESSAGE:
 			//we can just pass the whole payload onward
 			payload.setMessage(WordBlackList.filter(payload.getMessage()));
-			server.broadcast(payload, this.clientName);
+			payload.setClientName(this.clientName);
+			server.broadcast(payload);
+			//server.broadcast(payload, this.clientName);
 			break;
 		default:
 			System.out.println("Unhandled payload type from client " + payload.getPayloadType());

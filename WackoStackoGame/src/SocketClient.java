@@ -32,7 +32,8 @@ public class SocketClient {
 		//to a desired value, though it's good to be clear
 		//what we're sending
 		p.setPayloadType(PayloadType.CONNECT);
-		p.setMessage(name);
+		//p.setMessage(name);
+		p.setClientName(name);
 		//out.writeObject(p);
 		toServer.add(p);
 	}
@@ -182,17 +183,17 @@ public class SocketClient {
 		switch(payload.getPayloadType()) {
 		case CONNECT:
 			System.out.println(
-					String.format("Client \"%s\" connected", payload.getMessage())
+					String.format("Client \"%s\" connected", payload.getClientName())
 			);
 			break;
 		case DISCONNECT:
 			System.out.println(
-					String.format("Client \"%s\" disconnected", payload.getMessage())
+					String.format("Client \"%s\" disconnected", payload.getClientName())
 			);
 			break;
 		case MESSAGE:
 			System.out.println(
-					String.format("%s", payload.getMessage())
+					String.format("%s: %s", payload.getClientName(), payload.getMessage())
 			);
 			break;
 		default:
