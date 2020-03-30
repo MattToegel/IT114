@@ -184,7 +184,7 @@ public class SocketServer {
 		//let's allow port to be passed as a command line arg
 		//in eclipse you can set this via "Run Configurations" 
 		//	-> "Arguments" -> type the port in the text box -> Apply
-		int port = 3002;//make some default
+		int port = 3001;//make some default
 		if(args.length >= 1) {
 			String arg = args[0];
 			try {

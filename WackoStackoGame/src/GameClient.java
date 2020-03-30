@@ -1,17 +1,24 @@
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.Point;
-import java.awt.Rectangle;
-import java.io.IOException;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
 
+import javax.swing.BorderFactory;
+import javax.swing.BoxLayout;
+import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
+import javax.swing.JTextField;
+import javax.swing.UIManager;
+import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.WindowConstants;
 
 public class GameClient extends JPanel{
@@ -25,35 +32,174 @@ public class GameClient extends JPanel{
 	//Player player = new Player();
 	List<Player> players = new ArrayList<Player>();
 	UI ui = new UI();
+	
+	static HashMap<String, Component> components = new HashMap<String, Component>();
+	static GameState gameState = GameState.LOBBY;
+	public static JFrame myFrame;
 	public GameClient() {
-		client = SocketClient.connect("localhost", 3001);
+		
 		
 	}
-	
+	public void toggleRunningState(boolean s) {
+		isRunning = s;
+	}
+	/***
+	 * Looks up a component by name and changes visibility based on the toggle boolean value
+	 * @param name
+	 * Name of component key
+	 * @param toggle
+	 * Boolean for isVisible
+	 */
+	void toggleComponent(String name, boolean toggle) {
+		if(components.containsKey(name)) {
+			components.get(name).setVisible(toggle);
+		}
+	}
+	/***
+	 * Based on Client State we'll hide/show groups of components
+	 * @param frame
+	 */
+	void ChangePanels() {
+		switch(GameClient.gameState) {
+			case GAME:
+				toggleComponent("lobby", false);
+				toggleComponent("game", true);
+				//toggleComponent("score", true);
+				//toggleComponent("scores", true);
+				break;
+			case LOBBY:
+				toggleComponent("lobby", true);
+				toggleComponent("game", false);
+				//toggleComponent("score", false);
+				//toggleComponent("scores", false);
+				break;
+			default:
+				break;
+		}
+		myFrame.pack();
+        myFrame.revalidate();
+        myFrame.repaint();
+	}
+	/***
+	 * Safely gets a UI element from components hashmap
+	 * @param name
+	 * @return null if key not exists
+	 */
+	public Component GetUIElement(String name) {
+		if(components.containsKey(name)) {
+			return components.get(name);
+		}
+		return null;
+	}
 	public static void main(String[] args) {
+		try {
+			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+		} catch (ClassNotFoundException ex) {
+		} catch (InstantiationException ex) {
+		} catch (IllegalAccessException ex) {
+		} catch (UnsupportedLookAndFeelException ex) {
+		}
 		JFrame frame = new JFrame("WackoStacko");
+		
 		//Terminates program when we click the x (close) button)
 		frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 		frame.setLayout(new BorderLayout());
 		frame.setSize(new Dimension(600,600));
+		GameClient.myFrame = frame;
+		InitLobby();
 		
+		InitGameCanvas();
+		
+		GameClient gc = (GameClient)components.get("game");
+		gc.ChangePanels();
+		GameClient.myFrame.pack();
+		GameClient.myFrame.setVisible(true);
+		
+	}
+	public static GameClient InitGameCanvas() {
 		//Game area
 		JPanel playArea = new GameClient();
+		//set the local reference of myFrame for easier use
+		components.put("game", playArea);
 		playArea.setPreferredSize(new Dimension(600,600));
 		//playArea.getBounds()
-		//Init players
-		for(int i = 0; i < 5; i++) {
-			Player p = new Player();
-			((GameClient)playArea).players.add(p);
-			System.out.println("Added player " + i);
-		}
 		
-		frame.add(playArea, BorderLayout.CENTER);
-		frame.pack();
-		frame.setVisible(true);
-		((GameClient)playArea).run();
+		myFrame.add(playArea, BorderLayout.CENTER);
+		return (GameClient)playArea;
 	}
-	
+	public static void InitLobby() {
+		JPanel lobby = new JPanel();
+		components.put("lobby", lobby);
+		lobby.setName("lobby");
+		lobby.setBorder(BorderFactory.createLineBorder(Color.black));
+		JPanel container = new JPanel();
+		JTextField name = new JTextField(20);
+		name.setText("Guest");
+		JTextField host = new JTextField(15);
+		host.setText("127.0.0.1");
+		JTextField port = new JTextField(4);
+		port.setText("3111");
+		JButton connectButton = new JButton();
+		connectButton.setText("Connect");
+		connectButton.addActionListener(new ActionListener() {
+		    @Override
+		    public void actionPerformed(ActionEvent e) {
+		        //your actions
+		    	//host.getText().trim(), 
+				//port.getText().trim()
+		    	GameClient gc = (GameClient)components.get("game");
+		    	if(gc != null) {
+		    		
+		    		gc.client = SocketClient.connect(host.getText().trim(),
+		    				Integer.parseInt(port.getText().trim()));
+		    		if(gc.client != null) {
+		    			gc.client.SetGameClient(gc);
+		    			gc.client.setClientName(name.getText().trim());
+		    		}
+		    		gc.StartGameLoop();
+		    	}
+		    }
+		});
+		JTextField message = new JTextField(60);
+		message.setEditable(false);
+		container.add(name);
+		container.add(host);
+		container.add(port);
+		container.add(connectButton);
+		lobby.setLayout(new BoxLayout(lobby, BoxLayout.PAGE_AXIS));
+		lobby.add(container);
+		lobby.add(message);
+		components.put("lobby.message", message);
+		//myFrame.add(scores, BorderLayout.NORTH);
+		myFrame.add(lobby, BorderLayout.NORTH);
+		
+	}
+	public void UpdatePlayerName(String str) {
+		for(int i = 0; i < players.size(); i++) {
+			players.get(i).name = str;
+		}
+	}
+	void StartGameLoop() {
+		GameClient.gameState = GameState.GAME;
+		GameClient self = this;
+    	ChangePanels();
+        toggleRunningState(true);
+		//gc.run();
+        Thread gameLoop = new Thread() {
+        	@Override
+        	public void run() {
+        		//Init players
+        		for(int i = 0; i < 5; i++) {
+        			Player p = new Player();
+        			self.players.add(p);
+        			System.out.println("Added player " + i);
+        		}
+        		self.run();
+        	}
+        };
+        gameLoop.start();
+    	
+	}
 	@Override
 	public void paintComponent(Graphics g) {
 		super.paintComponent(g);
@@ -87,9 +233,12 @@ public class GameClient extends JPanel{
 			for(int i = 0; i < players.size(); i++) {
 				Player player = players.get(i);
 				player.move(this.getBounds());
+				if(player.changedDirection) {
+					client.SyncDirection(player.lastDirection);
+				}
 			}
 			
-			repaint();
+			myFrame.repaint();
 			try {
 				Thread.sleep(16);//16 ms is ~60 fps
 			} catch (InterruptedException e) {
@@ -97,4 +246,8 @@ public class GameClient extends JPanel{
 			}
 		}
 	}
+}
+enum GameState{
+	LOBBY,
+	GAME
 }

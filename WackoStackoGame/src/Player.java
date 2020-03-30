@@ -9,8 +9,11 @@ class Player{
 	public Point position = new Point(300,300);
 	public Point speed = new Point(0,0);
 	public Point direction = new Point(0,0);
+	Point lastDirection = new Point(0,0);
 	public Dimension size = new Dimension(50,50);
 	public Color myColor;
+	public String name = "Sample name";
+	public boolean changedDirection = false;
 	public Player() {
 		Random random = new Random();
 		myColor = new Color(random.nextFloat(), random.nextFloat(), random.nextFloat());
@@ -22,6 +25,8 @@ class Player{
 				position.y - (size.height/2),
 				size.width,
 				size.height);
+		g2d.drawString(name, position.x - (size.width/2),
+				position.y + (size.height*.9f));
 	}
 	public void move(Rectangle bounds) {
 		position.x += (direction.x * speed.x);
@@ -36,6 +41,11 @@ class Player{
 		if((position.y - halfHeight <= bounds.getMinY())
 				|| (position.y+halfHeight >= bounds.getMaxY())) {
 			direction.y *= -1;
+		}
+		//used to determine intent of change to send across network
+		if(lastDirection != direction) {
+			changedDirection = true;
+			lastDirection = direction;
 		}
 	}
 }

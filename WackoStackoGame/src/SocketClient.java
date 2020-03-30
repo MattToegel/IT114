@@ -10,9 +10,17 @@ import java.util.Scanner;
 
 public class SocketClient {
 	Socket server;
+	GameClient gc;//TODO remove
 	Queue<Payload> toServer = new LinkedList<Payload>();
 	Queue<Payload> fromServer = new LinkedList<Payload>();
 	public static boolean isRunning = false;
+	/***
+	 * TODO - Remove, not great design
+	 * @param gc
+	 */
+	public void SetGameClient(GameClient gc) {
+		this.gc = gc;
+	}
 	private void _connect(String address, int port) {
 		try {
 			server = new Socket(address, port);
@@ -170,11 +178,18 @@ public class SocketClient {
 			toServer.add(p);
 		}
 	}
-	void SyncMove() {
+	public void SyncDirection(Point dir) {
+		Payload p = new Payload();
+		p.setPayloadType(PayloadType.CHANGE_DIRECTION);
+		p.setX(dir.x);
+		p.setY(dir.y);
+		toServer.add(p);
+	}
+	public void SyncMove(Point position) {
 		Payload p = new Payload();
 		p.setPayloadType(PayloadType.SYNC_POSITION);
-		p.setX(2);
-		p.setY(3);
+		p.setX(position.x);
+		p.setY(position.y);
 		//TODO send to server
 		toServer.add(p);
 	}
@@ -185,6 +200,10 @@ public class SocketClient {
 			System.out.println(
 					String.format("Client \"%s\" connected", payload.getClientName())
 			);
+			//TODO refactor
+			if(gc != null) {
+				gc.UpdatePlayerName(payload.getClientName());
+			}
 			break;
 		case DISCONNECT:
 			System.out.println(

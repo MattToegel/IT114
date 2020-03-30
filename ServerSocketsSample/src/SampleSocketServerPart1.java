@@ -6,7 +6,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 
 public class SampleSocketServerPart1 {
-	int port = 3002;
+	int port = 3001;
 	private void start(int port) {
 		this.port = port;
 		System.out.println("Waiting for client");
@@ -43,7 +43,7 @@ public class SampleSocketServerPart1 {
 	public static void main(String[] args) {
 		System.out.println("Starting Server");
 		SampleSocketServerPart1 server = new SampleSocketServerPart1();
-		server.start(3002);
+		server.start(3001);
 		System.out.println("Server Stopped");
 	}
 }
