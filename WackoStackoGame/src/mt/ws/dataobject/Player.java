@@ -1,3 +1,4 @@
+package mt.ws.dataobject;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
@@ -5,7 +6,7 @@ import java.awt.Point;
 import java.awt.Rectangle;
 import java.util.Random;
 
-class Player{
+public class Player{
 	public Point position = new Point(300,300);
 	public Point speed = new Point(0,0);
 	public Point direction = new Point(0,0);
@@ -17,6 +18,9 @@ class Player{
 	public Player() {
 		Random random = new Random();
 		myColor = new Color(random.nextFloat(), random.nextFloat(), random.nextFloat());
+	}
+	public Point getLastDirection() {
+		return lastDirection;
 	}
 	public void draw(Graphics2D g2d) {
 		g2d.setColor(myColor);

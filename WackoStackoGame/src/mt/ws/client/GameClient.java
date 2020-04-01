@@ -1,3 +1,4 @@
+package mt.ws.client;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
@@ -21,21 +22,24 @@ import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.WindowConstants;
 
+import mt.ws.network.client.SocketClient;
+import mt.ws.dataobject.*;
 public class GameClient extends JPanel{
 
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 6748325367132904432L;
-	SocketClient client;
+	
 	public static boolean isRunning = true;
 	//Player player = new Player();
-	List<Player> players = new ArrayList<Player>();
-	UI ui = new UI();
+	
+	UIUtils ui = new UIUtils();
 	
 	static HashMap<String, Component> components = new HashMap<String, Component>();
 	static GameState gameState = GameState.LOBBY;
 	public static JFrame myFrame;
+	GameEngine ge;
 	public GameClient() {
 		
 		
@@ -149,14 +153,10 @@ public class GameClient extends JPanel{
 				//port.getText().trim()
 		    	GameClient gc = (GameClient)components.get("game");
 		    	if(gc != null) {
-		    		
-		    		gc.client = SocketClient.connect(host.getText().trim(),
-		    				Integer.parseInt(port.getText().trim()));
-		    		if(gc.client != null) {
-		    			gc.client.SetGameClient(gc);
-		    			gc.client.setClientName(name.getText().trim());
-		    		}
-		    		gc.StartGameLoop();
+		    		gc.StartGameLoop(
+		    				host.getText().trim(),
+		    				Integer.parseInt(port.getText().trim()),
+		    				name.getText().trim());
 		    	}
 		    }
 		});
@@ -174,77 +174,49 @@ public class GameClient extends JPanel{
 		myFrame.add(lobby, BorderLayout.NORTH);
 		
 	}
-	public void UpdatePlayerName(String str) {
-		for(int i = 0; i < players.size(); i++) {
-			players.get(i).name = str;
-		}
-	}
-	void StartGameLoop() {
+	void StartGameLoop(String host, int port, String playername) {
 		GameClient.gameState = GameState.GAME;
-		GameClient self = this;
     	ChangePanels();
         toggleRunningState(true);
 		//gc.run();
-        Thread gameLoop = new Thread() {
-        	@Override
-        	public void run() {
-        		//Init players
-        		for(int i = 0; i < 5; i++) {
-        			Player p = new Player();
-        			self.players.add(p);
-        			System.out.println("Added player " + i);
-        		}
-        		self.run();
-        	}
-        };
-        gameLoop.start();
-    	
+        ge = new GameEngine();
+        ge.connect(host,port, playername);
+        ge.SetUI(this);
+        ge.start();
+    	run();
 	}
+	public void UpdatePlayerName(String str) {
+		for(int i = 0; i < GameEngine.players.size(); i++) {
+			GameEngine.players.get(i).name = str;
+		}
+	}
+	
 	@Override
 	public void paintComponent(Graphics g) {
 		super.paintComponent(g);
 		Graphics2D g2d = (Graphics2D)g;
 		
-		for(int i = 0; i < players.size(); i++) {
-			players.get(i).draw(g2d);
+		for(int i = 0; i < GameEngine.players.size(); i++) {
+			GameEngine.players.get(i).draw(g2d);
 		}
 		//player.draw(g2d);
 		//System.out.println(getFPS(FPSOldTime));
 		//Sample of enabling/disabling FPS and showing on screen
-		ui.draw(g2d);
+		ui.showFPS(g2d);
+	}
+	public void draw() {
+		myFrame.repaint();
 	}
 	//running logic (each frame what do we do?)
 	public void run() {
-		
-		Random random = new Random();
-		//give a random direction
-		//based on 0 or 1
-		for(int i = 0; i < players.size(); i++) {
-			Player player = players.get(i);
-			player.direction.x = random.nextInt(2) == 0?-1:1;
-			player.direction.y = random.nextInt(2) == 0?-1:1;
-			
-			//give a random speed between 1 and 3
-			player.speed.x = random.nextInt(3)+1;
-			player.speed.y = random.nextInt(3)+1;
-		}
-		while(isRunning) {
-			//apply direction and speed
-			for(int i = 0; i < players.size(); i++) {
-				Player player = players.get(i);
-				player.move(this.getBounds());
-				if(player.changedDirection) {
-					client.SyncDirection(player.lastDirection);
-				}
-			}
-			
-			myFrame.repaint();
+		/*while(GameEngine.isRunning) {
 			try {
-				Thread.sleep(16);//16 ms is ~60 fps
+				Thread.sleep(16);
 			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-		}
+		}*/
 	}
 }
 enum GameState{

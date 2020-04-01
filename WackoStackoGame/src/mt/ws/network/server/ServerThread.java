@@ -1,7 +1,11 @@
+package mt.ws.network.server;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+
+import mt.ws.dataobject.Payload;
+import mt.ws.dataobject.PayloadType;
 
 public class ServerThread extends Thread{
 	private Socket client;
@@ -115,6 +119,15 @@ public class ServerThread extends Thread{
 			payload.setClientName(this.clientName);
 			server.broadcast(payload);
 			//server.broadcast(payload, this.clientName);
+			break;
+		case SYNC_POSITION:
+			//This shouldn't be acknowledged from client
+			break;
+		case CHANGE_DIRECTION:
+			//TODO verify direction change
+			//TODO apply to server-side player(s)
+			//broadcast change of direction to everyone
+			server.broadcast(payload);
 			break;
 		default:
 			System.out.println("Unhandled payload type from client " + payload.getPayloadType());

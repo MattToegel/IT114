@@ -1,3 +1,4 @@
+package mt.ws.dataobject;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,6 +15,13 @@ public class ScoreState{
 	@Override
 	public String toString() {
 		return String.format("{\"ScoreState\": %s}", this.scores);
+	}
+	public long getScoreByIndex(int i) {
+		return scores.get(i).score;
+	}
+	public void addPlayerScore(String name, long score) {
+		Score s = new Score(name, score);
+		scores.add(s);
 	}
 }
 

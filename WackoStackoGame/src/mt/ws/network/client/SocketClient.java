@@ -1,3 +1,4 @@
+package mt.ws.network.client;
 import java.awt.Point;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -8,9 +9,14 @@ import java.util.LinkedList;
 import java.util.Queue;
 import java.util.Scanner;
 
+import mt.ws.client.GameClient;
+import mt.ws.dataobject.Payload;
+import mt.ws.dataobject.PayloadType;
+
 public class SocketClient {
 	Socket server;
 	GameClient gc;//TODO remove
+	public static boolean isConnected = false;
 	Queue<Payload> toServer = new LinkedList<Payload>();
 	Queue<Payload> fromServer = new LinkedList<Payload>();
 	public static boolean isRunning = false;
@@ -26,8 +32,10 @@ public class SocketClient {
 			server = new Socket(address, port);
 			System.out.println("Client connected");
 			isRunning = true;
+			isConnected = true;
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
+			
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -214,6 +222,19 @@ public class SocketClient {
 			System.out.println(
 					String.format("%s: %s", payload.getClientName(), payload.getMessage())
 			);
+			break;
+		case SYNC_POSITION:
+			//this is from server; listen
+			//TODO update player position (can be other player than self)
+			break;
+		case CHANGE_DIRECTION:
+			//this is from server
+			//TODO update player direction (can be other player than self)
+			System.out.println(
+					String.format("%s: new dir: %s,%s",
+							payload.getClientName(),
+							payload.getX(),
+							payload.getY()));
 			break;
 		default:
 			System.out.println("Unhandled payload type: " + payload.getPayloadType().toString());

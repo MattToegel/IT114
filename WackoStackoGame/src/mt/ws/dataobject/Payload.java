@@ -1,3 +1,4 @@
+package mt.ws.dataobject;
 import java.io.Serializable;
 public class Payload implements Serializable{
 	/**

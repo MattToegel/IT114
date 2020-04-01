@@ -1,3 +1,4 @@
+package mt.ws.network.server;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -10,6 +11,10 @@ import java.util.List;
 import java.util.Queue;
 
 import com.google.gson.Gson;
+
+import mt.ws.dataobject.Payload;
+import mt.ws.dataobject.PayloadType;
+import mt.ws.dataobject.ScoreState;
 
 public class SocketServer {
 	int port = 3002;
@@ -57,7 +62,7 @@ public class SocketServer {
 		try {
 			Gson gson = new Gson();
 			ScoreState ss = gson.fromJson(new FileReader("score.json"), ScoreState.class);
-			long s = (long) ss.scores.get(0).score;
+			long s = ss.getScoreByIndex(0);
 			System.out.println("Loaded score: " + s);
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -68,8 +73,8 @@ public class SocketServer {
 		//we want to update/replace the object
 		//sample
 		ScoreState ss = new ScoreState();
-		ss.scores.add(new Score("Bob", 1000));
-		ss.scores.add(new Score("Joe", 500));
+		ss.addPlayerScore("Bob",  1000);
+		ss.addPlayerScore("Joe", 500);
 		System.out.println(ss.toString());
 		try(FileWriter writer = new FileWriter("score.json",false)){
 			//TODO get ScoreState to convert to JSON Object

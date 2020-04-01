@@ -1,3 +1,4 @@
+package mt.ws.dataobject;
 
 public enum PayloadType {
 	CONNECT,

@@ -1,7 +1,8 @@
+package mt.ws.client;
 import java.awt.Color;
 import java.awt.Graphics2D;
 
-class UI{
+class UIUtils{
 	double FPSOldTime = 0;
 	Color myColor = Color.BLACK;
 	double getFPS(double oldTime) {
@@ -14,7 +15,7 @@ class UI{
 
 	    return FPS;
 	}
-	public void draw(Graphics2D g2d) {
+	public void showFPS(Graphics2D g2d) {
 		g2d.setColor(myColor);
 		boolean doesUserWantFPS = true;
 		if(doesUserWantFPS) {
