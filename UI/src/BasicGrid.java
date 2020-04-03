@@ -26,34 +26,36 @@ public class BasicGrid {
 		
 		JFrame frame = new JFrame("Dual Grid Comparison Sample");
 		frame.setLayout(new BorderLayout());
-		frame.setSize(new Dimension(600,600));
-		frame.setMinimumSize(new Dimension(600,600));
+		frame.setSize(new Dimension(800,800));
+		//frame.setMinimumSize(new Dimension(600,600));
 		//empty panel we'll use as a spacer for now
 		JPanel empty = new JPanel();
 		
-		int rows = 3;
-		int cols = 3;
+		int rows = 8;
+		int cols = 8;
 		Dimension gridDimensions = new Dimension(400,400);
 		//Create two sample grids to compare adding elements
 		JPanel grid1 = new JPanel();
 		//set gridlayout pass in rows and cols
 		grid1.setLayout(new GridLayout(rows,cols));
-		grid1.setSize(gridDimensions);
-		
+		grid1.setPreferredSize(gridDimensions);
+		//grid1.setMaximumSize(gridDimensions);
 		JPanel grid2 = new JPanel();
 		//set gridlayout pass in rows and cols
 		grid2.setLayout(new GridLayout(rows, cols));
-		grid2.setSize(gridDimensions);
+		grid2.setPreferredSize(gridDimensions);
+		//grid2.setMaximumSize(gridDimensions);
 		JTextField textField = new JTextField();
 		//grid layout creation (full layout control)
 		for(int i = 0; i < (rows*cols); i++) {
 			JButton button = new JButton();
+			button.setSize(new Dimension(2,2));
 			//convert to x coordinate
 			int x = i % rows;
 			//convert to y coordinate
 			int y = i/cols;
 			//%1 first param, %2 second param, etc
-			String buttonText = String.format("Index: %1$s Coord: (%2$s, %3$s)", i, x, y);
+			String buttonText = String.format("%1$s:(%2$s, %3$s)", i, x, y);
 			//show index and coordinate details on button
 			button.setText(buttonText);
 			
@@ -77,12 +79,12 @@ public class BasicGrid {
 		//keep if using Random, otherwise can omit
 		//Random random = new Random();
 		int i = 0;
-		Dimension buttonSize = new Dimension(10,10);
+		Dimension buttonSize = new Dimension(2,2);
 		for(int y = 0; y < rows; y++) {
 			for(int x = 0; x < cols; x++) {
 				JButton bt = new JButton();
 				//%1 first param, %2 second param, etc
-				String buttonText = String.format("Index: %1$s Coord: (%2$s, %3$s)", i, x, y);
+				String buttonText = String.format("%1$s:(%2$s, %3$s)", i, x, y);
 				bt.setText(buttonText);
 				bt.setLocation(x, y);
 				//point to button map for easy button reference in navigation sample
@@ -101,9 +103,21 @@ public class BasicGrid {
 					@Override
 					public void actionPerformed(ActionEvent e) {
 						//set the textfield value to the text value of the button to show clicked coordinate
+						
 						textField.setText(((JButton)e.getSource()).getText());
 						//set clicked button to red
-						((JButton)e.getSource()).setBackground(Color.red);
+						JButton me = ((JButton)e.getSource());
+						
+						String t = me.getText();
+						if(t.equalsIgnoreCase("X")) {
+							me.setText("O");
+							me.setBackground(Color.cyan);
+						}
+						else {
+							me.setText("X");
+							me.setBackground(Color.magenta);
+						}
+						
 						
 						//give focus back to grid2 for navigation sample
 						grid2.grabFocus();
