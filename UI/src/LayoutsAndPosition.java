@@ -28,6 +28,7 @@ public class LayoutsAndPosition {
 		JLabel sliderLabel = new JLabel("Frames Per Second", JLabel.CENTER);
 		sliderPanel.setLayout(new BoxLayout(sliderPanel, BoxLayout.PAGE_AXIS));
 		sliderPanel.add(sliderLabel);
+		slider.setPreferredSize(new Dimension(50,10));
 		sliderPanel.add(slider);
 		
 		//Add items to the flow panel
@@ -35,7 +36,10 @@ public class LayoutsAndPosition {
 		main.add(sliderPanel, BorderLayout.EAST);
 		
 		/* Above is vaguely similar to the below html
-		 <div id="main">
+		 * Think of css display as the layout manager.
+		 * Each layout manager may treat defined sizes differently
+		 * if at all.
+		 <div id="main" style="display: block">
 		 	<div id="textField"><input type="text"/></div>
 			<div id="sliderPanel">
 				<label>Slider</label>
