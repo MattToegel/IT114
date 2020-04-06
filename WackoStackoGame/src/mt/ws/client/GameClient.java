@@ -23,6 +23,7 @@ import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.WindowConstants;
 
 import mt.ws.network.client.SocketClient;
+import ws.dyn4j.framework.SimulationFrame;
 import mt.ws.dataobject.*;
 public class GameClient extends JPanel{
 
@@ -38,8 +39,13 @@ public class GameClient extends JPanel{
 	
 	static HashMap<String, Component> components = new HashMap<String, Component>();
 	static GameState gameState = GameState.LOBBY;
+	//public static JFrame myFrame;
 	public static JFrame myFrame;
 	GameEngine ge;
+	static Dimension gameArea;
+	public Dimension getGameArea() {
+		return gameArea;
+	}
 	public GameClient() {
 		
 		
@@ -57,6 +63,7 @@ public class GameClient extends JPanel{
 	void toggleComponent(String name, boolean toggle) {
 		if(components.containsKey(name)) {
 			components.get(name).setVisible(toggle);
+			((JPanel)components.get(name)).grabFocus();
 		}
 	}
 	/***
@@ -104,11 +111,19 @@ public class GameClient extends JPanel{
 		} catch (UnsupportedLookAndFeelException ex) {
 		}
 		JFrame frame = new JFrame("WackoStacko");
-		
+		/*SimulationFrame frame = new SimulationFrame("WackStacko",32) {
+			
+			@Override
+			protected void initializeWorld() {
+				// TODO Auto-generated method stub
+				
+			}
+		};*/
 		//Terminates program when we click the x (close) button)
 		frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 		frame.setLayout(new BorderLayout());
-		frame.setSize(new Dimension(600,600));
+		gameArea = new Dimension(600,600);
+		frame.setSize(gameArea);
 		GameClient.myFrame = frame;
 		InitLobby();
 		
@@ -183,6 +198,7 @@ public class GameClient extends JPanel{
         ge.connect(host,port, playername);
         ge.SetUI(this);
         ge.start();
+        PlayerControls.setKeyBindings(this.getInputMap(), this.getActionMap());
     	run();
 	}
 	public void UpdatePlayerName(String str) {
