@@ -5,6 +5,13 @@ public class Payload implements Serializable{
 	 * 
 	 */
 	private static final long serialVersionUID = -6625037986217386003L;
+	private int id;
+	public void setID(int id) {
+		this.id = id;
+	}
+	public int getID() {
+		return id;
+	}
 	private String message;
 	public void setMessage(String s) {
 		this.message = s;

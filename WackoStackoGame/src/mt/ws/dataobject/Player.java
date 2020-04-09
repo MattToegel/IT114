@@ -1,128 +1,77 @@
 package mt.ws.dataobject;
 import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.Graphics2D;
 import java.awt.Point;
 import java.util.Random;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import org.dyn4j.geometry.Vector2;
+
 import mt.ws.client.GameEngine;
 
-public class Player{
-	public Point position = new Point(300,300);
-	public Point speed = new Point(0,0);
-	public Point direction = new Point(0,0);
-	Point lastDirection = new Point(0,0);
-	public Dimension size = new Dimension(50,50);
-	public Color myColor;
-	public String name = "Sample name";
+public class Player extends GameObject{
+	private int id;
+	private Vector2 position = new Vector2(300,300);
+	private Vector2 speed = new Vector2(0,0);
+	private Vector2 direction = new Vector2(0,0);
+	private Vector2 lastDirection = new Vector2(0,0);
+	private Color myColor;
+	private String name = "Sample name";
 	private Point center = new Point();
-	public boolean changedDirection = false;
+	private boolean changedDirection = false;
+	private int gravity = 1;
+	public void overrideGravity(int g) {
+		gravity = g;
+	}
+	public void setID(int id) {
+		this.id = id;
+	}
+	public int getID() {
+		return id;
+	}
+	public Vector2 getPosition() {
+		return position;
+	}
+	public Vector2 getSpeed() {
+		return speed;
+	}
+	public Vector2 getDirection() {
+		return direction;
+	}
+	public Vector2 getLastDirection() {
+		return lastDirection;
+	}
+	public boolean didChangeDirection() {
+		return changedDirection;
+	}
+	public String getName() {
+		return name;
+	}
+	public void setName(String name) {
+		this.name = name;
+	}
+	public void setRandomSpeed() {
+		Random random = new Random();
+		speed.x = random.nextInt(3)+1;
+		speed.y = random.nextInt(3)+1;
+	}
 	public Player() {
 		Random random = new Random();
 		myColor = new Color(random.nextFloat(), random.nextFloat(), random.nextFloat());
+		speed = new Vector2(5,5);
 	}
-	public Point getLastDirection() {
-		return lastDirection;
+	void _physicalMove() {
+		Vector2 r = new Vector2();
+		r.x = direction.x * speed.x;
+		r.y = direction.y * speed.y;
+		this.applyForce(r);
 	}
-	public void draw(Graphics2D g2d) {
-		g2d.setColor(myColor);
-		g2d.fillRect(
-				position.x - (size.width/2),
-				position.y - (size.height/2),
-				size.width,
-				size.height);
-		g2d.drawString(name, position.x - (size.width/2),
-				position.y + (size.height*.9f));
+	public void move() {
+		_physicalMove();
 	}
-	boolean _isOutofBounds(int halfWidth, int halfHeight, Dimension bounds) {
-		return(position.x - halfWidth <= 0
-				|| position.x + halfWidth >= bounds.width
-				|| position.y - halfHeight <= 0
-				|| position.y + halfHeight >= bounds.height);
-	}
-	boolean _isOutOfBoundsY(int halfHeight, int height) {
-		return(position.y - halfHeight <= 0
-				|| position.y + halfHeight >= height);
-	}
-	boolean _isOutOfBoundsX(int halfWidth, int width) {
-		return(position.x - halfWidth <= 0
-				|| position.x + halfWidth >= width);
-	}
-	boolean _canMoveVert(int top, int bottom, int height) {
-		if(direction.y < 0) {
-			isGrounded = false;
-			//up
-			if(top > 0) {
-				//ok
-				return true;
-			}
-			
-		}
-		else if(direction.y > 0) {
-			//down
-			if(bottom < height) {
-				//ok
-				isGrounded = false;
-				return true;
-			}
-			else {
-				isGrounded = true;
-			}
-		}
-		return false;
-	}
-	boolean _canMoveHorz(int left, int right, int width) {
-		if (direction.x < 0) {
-			//left
-			if(left > 0) {
-				//ok
-				return true;
-			}
-		}
-		else if (direction.x > 0) {
-			//right
-			if(right < width) {
-				//ok
-				return true;
-			}
-		}
-		return false;
-	}
-	public void move(Dimension bounds) {
-		int halfWidth = size.width /2;
-		int halfHeight = size.height/2;
-		int l = position.x - halfWidth;
-		int r = position.x + halfWidth;
-		int t = position.y - halfHeight;
-		int b = position.y + halfHeight;
-	
-		//only move x if we're not currently out of bounds 
-		//in the direction of travel
-		if(_canMoveHorz(l, r, bounds.width)) {
-			position.x += (direction.x * speed.x);
-		}
-		//only move y if we're not currently out of bounds 
-		//in the direction of travel
-		if(_canMoveVert(t, b, bounds.height)) {
-			position.y += (direction.y * speed.y);
-		}
-		
-		/*if((position.x - halfWidth <= 0) 
-				|| (position.x + halfWidth >= bounds.width)) {
-			direction.x *= -1;
-		}
-		//hit top/bottom reflect direction y
-		if((position.y - halfHeight <= 0)
-				|| (position.y+halfHeight >= bounds.height)) {
-			direction.y *= -1;
-		}*/
-		//used to determine intent of change to send across network
-		if(lastDirection != direction) {
-			changedDirection = true;
-			lastDirection = direction;
-		}
+	public void overrideDirectionY(int y) {
+		this.direction.y = y;
 	}
 	public void setPosition(int x, int y) {
 		//check distance for snapping or lerping
@@ -148,11 +97,11 @@ public class Player{
 	 */
 	public boolean setDirection(Point p) {
 		boolean changed = false;
-		if(isValidDirection(p.x, direction.x)) {
+		if(isValidDirection((int)p.x, (int)direction.x)) {
 			direction.x = p.x;
 			changed = true;
 		}
-		if(isValidDirection(p.y, direction.y)) {
+		if(isValidDirection((int)p.y, (int)direction.y)) {
 			direction.y = p.y;
 			changed = true;
 		}
@@ -167,9 +116,6 @@ public class Player{
 		direction.x = x;
 		direction.y = y;
 	}
-	public Point getDirection() {
-		return this.direction;
-	}
 	/***
 	 * 
 	 * @param d
@@ -180,6 +126,8 @@ public class Player{
 	 * false if value didn't change
 	 */
 	static boolean isValidDirection(int d, int current) {
+		//honestly I don't recall why there's a hardcoded check for -2
+		//since this was pulled from an older project
 		if(d == -2) {
 			return false;
 		}
@@ -188,7 +136,6 @@ public class Player{
 				return true;
 			}
 		}
-		
 		return false;
 	}
 	/**
@@ -198,23 +145,30 @@ public class Player{
 	//check against this
 	boolean isJumping = false;
 	boolean canJump = true;
-	boolean isGrounded = false;
+	
 	private ScheduledThreadPoolExecutor exec = new ScheduledThreadPoolExecutor(3);
 	public boolean isJumping() {
 		return isJumping;
 	}
 	int tempSpeed = 0;
 	public boolean tryJump() {
+		System.out.println("Trying jump");
+		System.out.println("isJumping: " + isJumping);
+		System.out.println("canJump: " + canJump);
+		System.out.println("isGrounded: " + isGrounded);
+		System.out.println("Expected False, True, True");
 		if(!isJumping && canJump && isGrounded) {
 			isJumping = true;
-			tempSpeed = speed.y;
-            speed.y *= 2;
+			System.out.println("Jumped");
+			//tempSpeed = (int)speed.y;
+            //speed.y *= 2;
+			this.applyImpulse(new Vector2(0,5));
 			//try to tag for 250 ms
 			//when this expires, tagging action will stop
 			exec.schedule(()->{
 		              isJumping = false;
 		              canJump = false;
-		              speed.y = tempSpeed;
+		              //speed.y = tempSpeed;
 		              //delay when we can tag again
 		              //after 2 seconds we can try to tag again
 		              exec.schedule(()->{

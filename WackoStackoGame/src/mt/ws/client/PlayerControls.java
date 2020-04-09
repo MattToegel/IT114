@@ -2,6 +2,8 @@ package mt.ws.client;
 
 import java.awt.Point;
 import java.awt.event.ActionEvent;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 
 import javax.swing.AbstractAction;
 import javax.swing.ActionMap;
@@ -38,6 +40,11 @@ class PlayerControls{
 			pdd.y = 1;
 		}
 	}
+	/**
+	 * Used for JComponents since they have InputMap/ActionMap
+	 * @param im
+	 * @param am
+	 */
 	public static void setKeyBindings(InputMap im, ActionMap am) {
 		
 		//bind key actions to action map
@@ -72,12 +79,9 @@ class PlayerControls{
 			handleControls();
 			//apply direction and see if it changed
 			if(myPlayer.setDirection(pdd)) {
-				//send to server
-				Point mp = myPlayer.getDirection();
-				//System.out.println("Direction: " + mp.toString());
-				//TODO Send new Direction over Network
-				//client.send(id, PayloadType.CHANGE_DIRECTION, mp.x, mp.y);
-				client.SyncDirection(mp);
+				Point mp = new Point((int)myPlayer.getDirection().x, (int)myPlayer.getDirection().y);
+				System.out.println("Sending dir change to cient");
+				client.SyncDirection(mp, myPlayer.getID());
 			}
 			if(PlayerControls.SPACE_DOWN) {
 				PlayerControls.SPACE_DOWN = false;
@@ -85,14 +89,58 @@ class PlayerControls{
 					
 					//TODO send to network
 				}
-				/*if(myPlayer.tryToTag()) {
-					//TODO send Tag action to server
-					client.send(id, PayloadType.TRIGGER_TAG);
-				}*/
+			}
+		}
+	}
+	/**
+	 * Used for Canvas since it doesn't have an InputMap/ActionMap
+	 * @author MattT
+	 *
+	 */
+	public static class CustomKeyListener extends KeyAdapter {
+		@Override
+		public void keyPressed(KeyEvent e) {
+			switch (e.getKeyCode()) {
+				case KeyEvent.VK_LEFT:
+					PlayerControls.LEFT_DOWN = true;
+					break;
+				case KeyEvent.VK_RIGHT:
+					PlayerControls.RIGHT_DOWN = true;
+					break;
+				case KeyEvent.VK_UP:
+					PlayerControls.UP_DOWN = true;
+					break;
+				case KeyEvent.VK_DOWN:
+					PlayerControls.DOWN_DOWN = true;
+				case KeyEvent.VK_SPACE:
+					PlayerControls.SPACE_DOWN = true;
+					break;
+			}
+			
+		}
+		
+		@Override
+		public void keyReleased(KeyEvent e) {
+			switch (e.getKeyCode()) {
+			case KeyEvent.VK_LEFT:
+				PlayerControls.LEFT_DOWN = false;
+				break;
+			case KeyEvent.VK_RIGHT:
+				PlayerControls.RIGHT_DOWN = false;
+				break;
+			case KeyEvent.VK_UP:
+				PlayerControls.UP_DOWN = false;
+				break;
+			case KeyEvent.VK_DOWN:
+				PlayerControls.DOWN_DOWN = false;
+			case KeyEvent.VK_SPACE:
+				PlayerControls.SPACE_DOWN = false;
+				break;
 			}
 		}
 	}
 }
+
 class TagAction extends AbstractAction{
 	private static final long serialVersionUID = 397012257495431091L;
 
@@ -113,6 +161,7 @@ class MoveAction extends AbstractAction{
 	}
 	@Override
 	public void actionPerformed(ActionEvent e) {
+		System.out.println("Key pressed");
 		if (x == -1) {
 			PlayerControls.LEFT_DOWN = pressed;
 		}

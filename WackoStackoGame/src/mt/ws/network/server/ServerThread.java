@@ -28,14 +28,26 @@ public class ServerThread extends Thread{
 		//so we won't see that we connected. Jump down to run()
 		//broadcastConnected();
 	}
-	void broadcastConnected() {
+	/*void sendToOurClient(int id = -1) {
 		Payload payload = new Payload();
+		payload.setPayloadType(PayloadType.LOCAL_CONNECT);
+		if(id == -1) {
+			payload.setID(SocketServer.getNextID());
+		}
+		payload.setClientName(clientName);
+		//TODO create a single target reply so we don't create excessive traffic
+		server.broadcast(payload);
+	}*/
+	void broadcastConnected(String hashCodeOfLocal) {
+		Payload payload = new Payload();
+		payload.setID(SocketServer.getNextID());
 		payload.setPayloadType(PayloadType.CONNECT);
 		//note we don't need to specify message as it'll be handle by the server
 		//for this case
 		//we can send our name instead of id
 		//server.broadcast(payload, this.getId());
 		payload.setClientName(clientName);
+		payload.setMessage(hashCodeOfLocal);
 		server.broadcast(payload);
 		//server.broadcast(payload, this.clientName);
 	}
@@ -101,7 +113,16 @@ public class ServerThread extends Thread{
 	private void processPayload(Payload payload) {
 		System.out.println("Received from client: " + payload);
 		switch(payload.getPayloadType()) {
-		case CONNECT:
+		case LOCAL_CONNECT:
+			String m = payload.getClientName();
+			if(m != null) {
+				m = WordBlackList.filter(m);
+				this.clientName = m;
+			}
+			
+			broadcastConnected(payload.getMessage());
+			break;
+		/*case CONNECT:
 			//String m = payload.getMessage();
 			String m = payload.getClientName();
 			if(m != null) {
@@ -109,7 +130,7 @@ public class ServerThread extends Thread{
 				this.clientName = m;
 			}
 			broadcastConnected();
-			break;
+			break;*/
 		case DISCONNECT:
 			System.out.println("Received disconnect");
 			break;
@@ -122,11 +143,15 @@ public class ServerThread extends Thread{
 			break;
 		case SYNC_POSITION:
 			//This shouldn't be acknowledged from client
+			server.broadcast(payload);
 			break;
 		case CHANGE_DIRECTION:
 			//TODO verify direction change
 			//TODO apply to server-side player(s)
 			//broadcast change of direction to everyone
+			server.broadcast(payload);
+			break;
+		case DID_JUMP:
 			server.broadcast(payload);
 			break;
 		default:

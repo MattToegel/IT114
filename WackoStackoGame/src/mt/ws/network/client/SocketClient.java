@@ -10,12 +10,14 @@ import java.util.Queue;
 import java.util.Scanner;
 
 import mt.ws.client.GameClient;
+import mt.ws.client.GameEngine;
 import mt.ws.dataobject.Payload;
 import mt.ws.dataobject.PayloadType;
 
 public class SocketClient {
 	Socket server;
-	GameClient gc;//TODO remove
+	//GameClient gc;//TODO remove
+	GameEngine ge;
 	public static boolean isConnected = false;
 	Queue<Payload> toServer = new LinkedList<Payload>();
 	Queue<Payload> fromServer = new LinkedList<Payload>();
@@ -24,22 +26,10 @@ public class SocketClient {
 	 * TODO - Remove, not great design
 	 * @param gc
 	 */
-	public void SetGameClient(GameClient gc) {
-		this.gc = gc;
+	public void setGameEngine(GameEngine ge) {
+		this.ge = ge;
 	}
-	private void _connect(String address, int port) {
-		try {
-			server = new Socket(address, port);
-			System.out.println("Client connected");
-			isRunning = true;
-			isConnected = true;
-		} catch (UnknownHostException e) {
-			e.printStackTrace();
-			
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
+	
 	public void setClientName(String name) {
 		//we should only really call this once
 		//we should have a name, let's tell our server
@@ -47,13 +37,34 @@ public class SocketClient {
 		//we can also default payloadtype in payload
 		//to a desired value, though it's good to be clear
 		//what we're sending
-		p.setPayloadType(PayloadType.CONNECT);
+		p.setPayloadType(PayloadType.LOCAL_CONNECT);
+		p.setMessage(this.hashCode()+"");
 		//p.setMessage(name);
 		p.setClientName(name);
+		p.setID(-1);
 		//out.writeObject(p);
 		toServer.add(p);
 	}
-	public void start() throws IOException {
+	public void SyncDirection(Point dir, int playerid) {
+		Payload p = new Payload();
+		p.setPayloadType(PayloadType.CHANGE_DIRECTION);
+		p.setX(dir.x);
+		p.setY(dir.y);
+		p.setID(playerid);
+		toServer.add(p);
+	}
+	public void SyncMove(Point position, int playerid) {
+		Payload p = new Payload();
+		p.setPayloadType(PayloadType.SYNC_POSITION);
+		p.setX(position.x);
+		p.setY(position.y);
+		p.setID(playerid);
+		toServer.add(p);
+	}
+	public void start() {
+		_start();
+	}
+	private void _start() {
 		if(server == null) {
 			return;
 		}
@@ -164,54 +175,33 @@ public class SocketClient {
 			close();
 		}
 	}
-	Point direction = new Point(0,0);
-	void KeyListener() {
-		//TODO implement in full
-		Point lastDir = new Point(0,0);
-		lastDir.x = direction.x;
-		lastDir.y = direction.y;
-		boolean isUp = true;
-		if(isUp) {
-			direction.y = -1;
-		}
-		//assume isDown, isLeft, isRight follows the same logic
-		
-		if(!lastDir.equals(direction)) {
-			//send change in direction to server
-			Payload p = new Payload();
-			p.setPayloadType(PayloadType.CHANGE_DIRECTION);
-			p.setX(direction.x);
-			p.setY(direction.y);
-			//TODO send to server
-			toServer.add(p);
-		}
-	}
-	public void SyncDirection(Point dir) {
-		Payload p = new Payload();
-		p.setPayloadType(PayloadType.CHANGE_DIRECTION);
-		p.setX(dir.x);
-		p.setY(dir.y);
-		toServer.add(p);
-	}
-	public void SyncMove(Point position) {
-		Payload p = new Payload();
-		p.setPayloadType(PayloadType.SYNC_POSITION);
-		p.setX(position.x);
-		p.setY(position.y);
-		//TODO send to server
-		toServer.add(p);
-	}
 	private synchronized void processPayload(Payload payload) {
 		System.out.println(payload);
 		switch(payload.getPayloadType()) {
+		/*case LOCAL_CONNECT:
+				String msg = payload.getMessage();
+				if(msg != null && msg.equals((this.hashCode()+""))){
+					//it's for us
+					
+				}
+			break;*/
 		case CONNECT:
 			System.out.println(
 					String.format("Client \"%s\" connected", payload.getClientName())
 			);
 			//TODO refactor
-			if(gc != null) {
-				gc.UpdatePlayerName(payload.getClientName());
+			if(ge != null) {
+				System.out.println("Setting up player info");
+				ge.setPlayerName(payload.getClientName());
+				boolean isMe = false;
+				String msg = payload.getMessage();
+				if(msg != null && msg.equals((this.hashCode()+""))){
+					isMe = true;
+				}
+				ge.addPlayer(payload.getID(), payload.getX(), payload.getY(),
+							isMe, payload.getClientName());
 			}
+			
 			break;
 		case DISCONNECT:
 			System.out.println(
@@ -232,7 +222,7 @@ public class SocketClient {
 			//TODO update player direction (can be other player than self)
 			System.out.println(
 					String.format("%s: new dir: %s,%s",
-							payload.getClientName(),
+							payload.getID(),
 							payload.getX(),
 							payload.getY()));
 			break;
@@ -251,6 +241,19 @@ public class SocketClient {
 			}
 		}
 	}
+	private void _connect(String address, int port) {
+		try {
+			server = new Socket(address, port);
+			System.out.println("Client connected");
+			isRunning = true;
+			isConnected = true;
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
+			
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
 	public static SocketClient connect(String host, int port) {
 		SocketClient client = new SocketClient();
 		client._connect(host, port);
@@ -258,11 +261,7 @@ public class SocketClient {
 		Thread clientThread = new Thread() {
 			@Override
 			public void run() {
-				try {
-					client.start();
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
+				client.start();
 			}
 		};
 		clientThread.start();
@@ -273,11 +272,15 @@ public class SocketClient {
 		}
 		return client;
 	}
-	public static void main(String[] args) {
+	/***
+	 * Shouldn't run as main anymore
+	 * @param args
+	 */
+	/*public static void main(String[] args) {
 		SocketClient client = SocketClient.connect("127.0.0.1", 3002);
 		
 		System.out.println("Client connected and started");
 		client.setClientName("Test");
-	}
+	}*/
 
 }

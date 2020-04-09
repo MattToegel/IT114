@@ -1,16 +1,21 @@
 package mt.ws.client;
 import java.awt.BorderLayout;
+import java.awt.Canvas;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
-import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.util.ArrayList;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.awt.geom.AffineTransform;
+import java.awt.image.BufferStrategy;
 import java.util.HashMap;
-import java.util.List;
-import java.util.Random;
 
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
@@ -20,38 +25,68 @@ import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
-import javax.swing.WindowConstants;
 
-import mt.ws.network.client.SocketClient;
-import ws.dyn4j.framework.SimulationFrame;
-import mt.ws.dataobject.*;
-public class GameClient extends JPanel{
+import mt.ws.client.PlayerControls.CustomKeyListener;
+import mt.ws.dataobject.GameObject;
+public class GameClient extends JFrame{
 
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 6748325367132904432L;
 	
-	public static boolean isRunning = true;
 	//Player player = new Player();
 	
 	UIUtils ui = new UIUtils();
 	
 	static HashMap<String, Component> components = new HashMap<String, Component>();
 	static GameState gameState = GameState.LOBBY;
-	//public static JFrame myFrame;
-	public static JFrame myFrame;
 	GameEngine ge;
 	static Dimension gameArea;
-	public Dimension getGameArea() {
+	/** The canvas to draw to */
+	protected Canvas canvas;
+	public static Dimension getGameArea() {
 		return gameArea;
 	}
 	public GameClient() {
+		super("Wacko Stacko");
+		// setup the JFrame
+		this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		// add a window listener
+		this.addWindowListener(new WindowAdapter() {
+			/* (non-Javadoc)
+			 * @see java.awt.event.WindowAdapter#windowClosing(java.awt.event.WindowEvent)
+			 */
+			@Override
+			public void windowClosing(WindowEvent e) {
+				// before we stop the JVM stop the example
+				GameEngine.isRunning = false;
+				super.windowClosing(e);
+			}
+		});
+		// create the size of the window
+		Dimension size = new Dimension(800, 600);
+		// create a canvas to paint to 
+		this.canvas = new Canvas();
+		this.canvas.setPreferredSize(size);
+		this.canvas.setMinimumSize(size);
+		this.canvas.setMaximumSize(size);
 		
+		// add the canvas to the JFrame
+		this.add(this.canvas, BorderLayout.CENTER);
+		// make the JFrame not resizable
+		// (this way I dont have to worry about resize events)
+		this.setResizable(false);
 		
+		// size everything
+		this.pack();
+		// make sure we are not stopped
+		GameEngine.isRunning = true;
+		//we'll init GameEngine.world only when we're
+		//in game view
 	}
 	public void toggleRunningState(boolean s) {
-		isRunning = s;
+		GameEngine.isRunning = s;
 	}
 	/***
 	 * Looks up a component by name and changes visibility based on the toggle boolean value
@@ -63,7 +98,7 @@ public class GameClient extends JPanel{
 	void toggleComponent(String name, boolean toggle) {
 		if(components.containsKey(name)) {
 			components.get(name).setVisible(toggle);
-			((JPanel)components.get(name)).grabFocus();
+			//((JPanel)components.get(name)).grabFocus();
 		}
 	}
 	/***
@@ -74,22 +109,27 @@ public class GameClient extends JPanel{
 		switch(GameClient.gameState) {
 			case GAME:
 				toggleComponent("lobby", false);
-				toggleComponent("game", true);
+				toggleComponent("stuff", true);
+				//toggleComponent("game", true);
+				this.canvas.setVisible(true);
 				//toggleComponent("score", true);
 				//toggleComponent("scores", true);
 				break;
 			case LOBBY:
+				toggleComponent("stuff", false);
 				toggleComponent("lobby", true);
-				toggleComponent("game", false);
+				this.canvas.setVisible(false);
+				
+				//toggleComponent("game", false);
 				//toggleComponent("score", false);
 				//toggleComponent("scores", false);
 				break;
 			default:
 				break;
 		}
-		myFrame.pack();
-        myFrame.revalidate();
-        myFrame.repaint();
+		this.pack();
+        this.revalidate();
+        this.repaint();
 	}
 	/***
 	 * Safely gets a UI element from components hashmap
@@ -102,6 +142,14 @@ public class GameClient extends JPanel{
 		}
 		return null;
 	}
+	void startGameUI() {
+		GameEngine.last = System.nanoTime();
+		// don't allow AWT to paint the canvas since we are
+		this.canvas.setIgnoreRepaint(true);
+		// enable double buffering (the JFrame has to be
+		// visible before this can be done)
+		this.canvas.createBufferStrategy(2);
+	}
 	public static void main(String[] args) {
 		try {
 			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
@@ -110,43 +158,19 @@ public class GameClient extends JPanel{
 		} catch (IllegalAccessException ex) {
 		} catch (UnsupportedLookAndFeelException ex) {
 		}
-		JFrame frame = new JFrame("WackoStacko");
-		/*SimulationFrame frame = new SimulationFrame("WackStacko",32) {
-			
-			@Override
-			protected void initializeWorld() {
-				// TODO Auto-generated method stub
-				
-			}
-		};*/
-		//Terminates program when we click the x (close) button)
-		frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-		frame.setLayout(new BorderLayout());
-		gameArea = new Dimension(600,600);
-		frame.setSize(gameArea);
-		GameClient.myFrame = frame;
-		InitLobby();
+		GameClient window = new GameClient();
+		InitLobby(window);
 		
-		InitGameCanvas();
+		//InitGameCanvas();
 		
-		GameClient gc = (GameClient)components.get("game");
-		gc.ChangePanels();
-		GameClient.myFrame.pack();
-		GameClient.myFrame.setVisible(true);
+		//GameClient gc = (GameClient)components.get("game");
+		//gc.ChangePanels();
+		window.pack();
+		window.setVisible(true);
 		
 	}
-	public static GameClient InitGameCanvas() {
-		//Game area
-		JPanel playArea = new GameClient();
-		//set the local reference of myFrame for easier use
-		components.put("game", playArea);
-		playArea.setPreferredSize(new Dimension(600,600));
-		//playArea.getBounds()
-		
-		myFrame.add(playArea, BorderLayout.CENTER);
-		return (GameClient)playArea;
-	}
-	public static void InitLobby() {
+	
+	public static void InitLobby(GameClient window) {
 		JPanel lobby = new JPanel();
 		components.put("lobby", lobby);
 		lobby.setName("lobby");
@@ -166,9 +190,8 @@ public class GameClient extends JPanel{
 		        //your actions
 		    	//host.getText().trim(), 
 				//port.getText().trim()
-		    	GameClient gc = (GameClient)components.get("game");
-		    	if(gc != null) {
-		    		gc.StartGameLoop(
+		    	if(window != null) {
+		    		window.StartGameLoop(
 		    				host.getText().trim(),
 		    				Integer.parseInt(port.getText().trim()),
 		    				name.getText().trim());
@@ -185,8 +208,15 @@ public class GameClient extends JPanel{
 		lobby.add(container);
 		lobby.add(message);
 		components.put("lobby.message", message);
+		
+		JTextField stuff = new JTextField(10);
+		stuff.setEditable(false);
+		stuff.setText("Test");
+		window.add(stuff, BorderLayout.LINE_START);
+		components.put("stuff", stuff);
 		//myFrame.add(scores, BorderLayout.NORTH);
-		myFrame.add(lobby, BorderLayout.NORTH);
+		window.add(lobby, BorderLayout.NORTH);
+		
 		
 	}
 	void StartGameLoop(String host, int port, String playername) {
@@ -194,34 +224,68 @@ public class GameClient extends JPanel{
     	ChangePanels();
         toggleRunningState(true);
 		//gc.run();
+        //setCanvas();
+        startGameUI();
         ge = new GameEngine();
-        ge.connect(host,port, playername);
         ge.SetUI(this);
+        ge.connect(host,port, playername);
+        
         ge.start();
-        PlayerControls.setKeyBindings(this.getInputMap(), this.getActionMap());
+        //TODO fix input
+        KeyListener l = new CustomKeyListener();
+        this.addKeyListener(l);
+		this.canvas.addKeyListener(l);
+        //PlayerControls.setKeyBindings(this.rootPane.getInputMap(), this.rootPane.getActionMap());
     	run();
 	}
-	public void UpdatePlayerName(String str) {
-		for(int i = 0; i < GameEngine.players.size(); i++) {
-			GameEngine.players.get(i).name = str;
-		}
-	}
 	
-	@Override
-	public void paintComponent(Graphics g) {
-		super.paintComponent(g);
-		Graphics2D g2d = (Graphics2D)g;
-		
+	/*public void UpdatePlayerName(String str) {
 		for(int i = 0; i < GameEngine.players.size(); i++) {
-			GameEngine.players.get(i).draw(g2d);
+			GameEngine.players.get(i).setName(str);
 		}
-		//player.draw(g2d);
-		//System.out.println(getFPS(FPSOldTime));
-		//Sample of enabling/disabling FPS and showing on screen
-		ui.showFPS(g2d);
+	}*/
+	
+	/**
+	 * Renders the example.
+	 * @param g the graphics object to render to
+	 */
+	protected void render(Graphics2D g) {
+		// lets draw over everything with a white background
+		g.setColor(Color.WHITE);
+		g.fillRect(-400, -300, 800, 600);
+		//g.fillRect(0, 0, gameArea.width, gameArea.height);
+		// lets move the view up some
+		g.translate(0.0, 1.0 * GameEngine.SCALE);
+		
+		// draw all the objects in the world
+		for (int i = 0; i < ge.world.getBodyCount(); i++) {
+			// get the object
+			GameObject go = (GameObject) ge.world.getBody(i);
+			// draw the object
+			go.render(g);
+		}
+		
+	}
+	void _physicsDraw() {
+		Graphics2D g = (Graphics2D)this.canvas.getBufferStrategy().getDrawGraphics();
+		
+		AffineTransform yFlip = AffineTransform.getScaleInstance(1, -1);
+		AffineTransform move = AffineTransform.getTranslateInstance(400, -300);
+		g.transform(yFlip);
+		g.transform(move);
+		this.render(g);
+		g.dispose();
+		
+		//let's see if we need this
+		BufferStrategy strategy = this.canvas.getBufferStrategy();
+		if (!strategy.contentsLost()) {
+			strategy.show();
+		}
+		Toolkit.getDefaultToolkit().sync();
+		
 	}
 	public void draw() {
-		myFrame.repaint();
+		_physicsDraw();
 	}
 	//running logic (each frame what do we do?)
 	public void run() {
