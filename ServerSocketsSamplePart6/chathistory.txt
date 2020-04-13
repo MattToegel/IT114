@@ -15,8 +15,6 @@ mark: making sure this all logs
 mark: works in debug since it stops at the breakpoint
 mark: but broke in regular running since there's no delay
 mark
-<<<<<<< Updated upstream
-=======
 null
 null
 null
@@ -32,4 +30,3 @@ null
 null
 null
 null
->>>>>>> Stashed changes
