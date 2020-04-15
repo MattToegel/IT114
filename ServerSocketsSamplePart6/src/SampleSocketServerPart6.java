@@ -18,6 +18,18 @@ public class SampleSocketServerPart6 {
 	private List<ServerThreadPart6> clients = new ArrayList<ServerThreadPart6>();
 	//We'll use a queue and a thread to separate our chat history
 	Queue<String> messages = new LinkedList<String>();
+	public GameState state = new GameState();
+	
+	public synchronized void toggleButton(PayloadPart6 payload) {
+		if(state.isButtonOn && !payload.IsOn()) {
+			state.isButtonOn = false;
+			broadcast(payload);
+		}
+		else if (!state.isButtonOn && payload.IsOn()) {
+			state.isButtonOn = true;
+			broadcast(payload);
+		}
+	}
 	private void start(int port) {
 		this.port = port;
 		startQueueReader();
@@ -91,12 +103,6 @@ public class SampleSocketServerPart6 {
 		return -1;
 	}
 	public synchronized void broadcast(PayloadPart6 payload, String name) {
-		try {
-			Thread.sleep(1000);
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
 		String msg = payload.getMessage();
 		payload.setMessage(
 				//prepending client name to front of message
@@ -167,4 +173,7 @@ public class SampleSocketServerPart6 {
 		server.start(port);
 		System.out.println("Server Stopped");
 	}
+}
+class GameState{
+	boolean isButtonOn = false;
 }

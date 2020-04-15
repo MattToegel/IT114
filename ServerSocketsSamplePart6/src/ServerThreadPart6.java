@@ -24,7 +24,20 @@ public class ServerThreadPart6 extends Thread{
 		//so we won't see that we connected. Jump down to run()
 		//broadcastConnected();
 	}
+	void syncStateToMyClient() {
+		System.out.println(this.clientName + " broadcast state");
+		PayloadPart6 payload = new PayloadPart6();
+		payload.setPayloadType(PayloadTypePart6.STATE_SYNC);
+		payload.IsOn(server.state.isButtonOn);
+		try {
+			out.writeObject(payload);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
 	void broadcastConnected() {
+		System.out.println(this.clientName + " broadcast connected");
 		PayloadPart6 payload = new PayloadPart6();
 		payload.setPayloadType(PayloadTypePart6.CONNECT);
 		//note we don't need to specify message as it'll be handle by the server
@@ -100,6 +113,8 @@ public class ServerThreadPart6 extends Thread{
 				this.clientName = m;
 			}
 			broadcastConnected();
+			syncStateToMyClient();
+			
 			break;
 		case DISCONNECT:
 			System.out.println("Received disconnect");
@@ -108,6 +123,10 @@ public class ServerThreadPart6 extends Thread{
 			//we can just pass the whole payload onward
 			//payload.setMessage(WordBlackList.filter(payload.getMessage()));
 			server.broadcast(payload, this.clientName);
+			break;
+		case SWITCH:
+			//whatever we get from the client, just tell everyone else, ok?
+			server.toggleButton(payload);
 			break;
 		default:
 			System.out.println("Unhandled payload type from client " + payload.getPayloadType());

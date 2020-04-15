@@ -148,9 +148,16 @@ public class SampleSocketClientPart6 {
 			close();
 		}
 	}
-	public void doClick() {
+	public void postConnectionData() {
 		PayloadPart6 payload = new PayloadPart6();
-		payload.setPayloadType(PayloadTypePart6.MESSAGE);
+		payload.setPayloadType(PayloadTypePart6.CONNECT);
+		//payload.IsOn(isOn);
+		toServer.add(payload);
+	}
+	public void doClick(boolean isOn) {
+		PayloadPart6 payload = new PayloadPart6();
+		payload.setPayloadType(PayloadTypePart6.SWITCH);
+		payload.IsOn(isOn);
 		toServer.add(payload);
 	}
 	public void sendMessage(String message) {
@@ -176,8 +183,15 @@ public class SampleSocketClientPart6 {
 			System.out.println(
 					String.format("%s", payload.getMessage())
 			);
+			
+			break;
+		case STATE_SYNC:
+			System.out.println("Sync");
+			//break; //this state will drop down to next state
+		case SWITCH:
+			System.out.println("switch");
 			if (listener != null) {
-				listener.onReceived();
+				listener.onReceived(payload.IsOn());
 			}
 			break;
 		default:
@@ -209,5 +223,5 @@ public class SampleSocketClientPart6 {
 }
 
 interface OnReceiveMessage{
-	void onReceived();
+	void onReceived(boolean isOn);
 }

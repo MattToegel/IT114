@@ -17,6 +17,7 @@ import javax.swing.UnsupportedLookAndFeelException;
 public class UISample extends JFrame implements OnReceiveMessage{
 	static SampleSocketClientPart6 client;
 	static JButton toggle;
+	static JButton clickit;
 	public UISample() {
 		super("Callable SocketClient");
 		this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -32,6 +33,23 @@ public class UISample extends JFrame implements OnReceiveMessage{
 				super.windowClosing(e);
 			}
 		});
+	}
+	public static boolean toggleButton(boolean isOn) {
+		String t = UISample.toggle.getText();
+		if(isOn) {
+			UISample.toggle.setText("ON");
+			UISample.toggle.setBackground(Color.GREEN);
+			UISample.toggle.setForeground(Color.GREEN);
+			clickit.setText("Click to Turn Off");
+			return true;
+		}
+		else {
+			UISample.toggle.setText("OFF");
+			UISample.toggle.setBackground(Color.RED);
+			UISample.toggle.setForeground(Color.RED);
+			clickit.setText("Click to Turn On");
+			return false;
+		}
 	}
 	public static void main(String[] args) {
 		try {
@@ -62,17 +80,22 @@ public class UISample extends JFrame implements OnReceiveMessage{
 		toggle.setText("OFF");
 		//Cache it statically (not great but it's a sample)
 		UISample.toggle = toggle;
-		JButton click = new JButton();
+		BoxIcon icon = new BoxIcon(Color.GREEN,400,200, 2);
+		icon.setText("This is a test");
+		JButton click = new JButton("Click to Turn On", 
+				icon);
+		icon.setParent(click);
+		clickit = click;
 		click.setPreferredSize(new Dimension(400,200));
 		click.setText("Click to Turn On");
 		click.addActionListener(new ActionListener() {
 		    @Override
 		    public void actionPerformed(ActionEvent e) {
-		    	toggle.setText("ON");
-		    	toggle.setBackground(Color.GREEN);
-		    	toggle.setForeground(Color.GREEN);
+		    	String t = toggle.getText();
+		    	//boolean isOn = UISample.toggleButton();
+		    	boolean turnOn = toggle.getText().contains("OFF");
 		    	//TODO send to server
-		    	client.doClick();
+		    	client.doClick(turnOn);
 		    }
 		});
 		click.setEnabled(false);
@@ -100,8 +123,10 @@ public class UISample extends JFrame implements OnReceiveMessage{
 			    			UISample.toggle.setBackground(Color.RED);
 			    		}
 			    	});*/
-			    	//client.doClick();
-			    	client.sendMessage("This message");
+			    	
+			    	
+			    	//trigger any one-time data after client connects
+			    	client.postConnectionData();
 			    	connect.setEnabled(false);
 			    	click.setEnabled(true);
 		    	}
@@ -116,12 +141,10 @@ public class UISample extends JFrame implements OnReceiveMessage{
 		window.setVisible(true);
 	}
 	@Override
-	public void onReceived() {
+	public void onReceived(boolean isOn) {
 		// TODO Auto-generated method stub
 		if(UISample.toggle != null) {
-			UISample.toggle.setText("OFF");
-			UISample.toggle.setBackground(Color.RED);
-			UISample.toggle.setForeground(Color.RED);
+			UISample.toggleButton(isOn);
 		}
 	}
 }
