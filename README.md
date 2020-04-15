@@ -8,15 +8,17 @@ This will be your hub or table of contents.
 As of this writing, I still have Fall2019 Branch, Spring2020 Branch, and Master Branch (which is more or less Spring2020).
 
 Here's the new table of contents:
-- ["Sockets - Client to Server"](https://github.com/MattToegel/IT114/tree/SocketSample_C2S)
-- ["Sockets - Client to Server - To Client](https://github.com/MattToegel/IT114/tree/SocketSample_C2S2C)
-- ["Sockets - Client to Server - To Multiple Clients](https://github.com/MattToegel/IT114/tree/SocketSample_C2S2MC)
-- ["Sockets - Console Chat Sample"](https://github.com/MattToegel/IT114/tree/SocketSample_Chat)
-- ["Sockets - Chat with Server Side Data Saving"](https://github.com/MattToegel/IT114/tree/SocketSample_Chat_ServerSaves)
-- ["Sockets - Button Clicker Sample"](https://github.com/MattToegel/IT114/tree/SocketSample_Btn_Clicker)
-  - Shows game state synchronization and some custom UI
-- ["Spring 2020 Project - WackoStacko"](https://github.com/MattToegel/IT114/tree/WackoStackoPhysics)
-  - Check the Spring2020 Repo for the Non-physics based one that's deprecated
-- ["Fall2019 Project - TagGame"](https://github.com/MattToegel/IT114/tree/Fall2019-TagGame)
-- ["Fall2019 Project - Hectic RockPaperScissors"](https://github.com/MattToegel/IT114/tree/Fall2019-HecticRPS)
-- ["Generic UI Samples"](https://github.com/MattToegel/IT114/tree/GenericUISamples)
+- Class Items
+  - ["Sockets - Client to Server"](https://github.com/MattToegel/IT114/tree/SocketSample_C2S)
+  - ["Sockets - Client to Server - To Client](https://github.com/MattToegel/IT114/tree/SocketSample_C2S2C)
+  - ["Sockets - Client to Server - To Multiple Clients](https://github.com/MattToegel/IT114/tree/SocketSample_C2S2MC)
+  - ["Sockets - Console Chat Sample"](https://github.com/MattToegel/IT114/tree/SocketSample_Chat)
+  - ["Sockets - Chat with Server Side Data Saving"](https://github.com/MattToegel/IT114/tree/SocketSample_Chat_ServerSaves)
+  - ["Generic UI Samples"](https://github.com/MattToegel/IT114/tree/GenericUISamples)
+  - ["Sockets - Button Clicker Sample"](https://github.com/MattToegel/IT114/tree/SocketSample_Btn_Clicker)
+    - Shows game state synchronization and some custom UI
+- Historical Items
+  - ["Spring 2020 Project - WackoStacko"](https://github.com/MattToegel/IT114/tree/WackoStackoPhysics)
+    - Check the Spring2020 Repo for the Non-physics based one that's deprecated
+  - ["Fall2019 Project - TagGame"](https://github.com/MattToegel/IT114/tree/Fall2019-TagGame)
+  - ["Fall2019 Project - Hectic RockPaperScissors"](https://github.com/MattToegel/IT114/tree/Fall2019-HecticRPS)
