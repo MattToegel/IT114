@@ -8,14 +8,14 @@ This will be your hub or table of contents.
 As of this writing, I still have Fall2019 Branch, Spring2020 Branch, and Master Branch (which is more or less Spring2020).
 
 Here's the new table of contents:
-- ["Sockets - Client to Server"](https://github.com/MattToegel/IT114/tree/Sockets-C2S)
-- ["Sockets - Client to Server - To Client](https://github.com/MattToegel/IT114/tree/Sockets-C2S2C)
+- ["Sockets - Client to Server"](https://github.com/MattToegel/IT114/tree/SocketSample_C2S)
+- ["Sockets - Client to Server - To Client](https://github.com/MattToegel/IT114/tree/SocketSample_C2S2C)
 - ["Sockets - Client to Server - To Multiple Clients](https://github.com/MattToegel/IT114/tree/SocketSample_C2S2MC)
 - ["Sockets - Console Chat Sample"](https://github.com/MattToegel/IT114/tree/SocketSample_Chat)
 - ["Sockets - Chat with Server Side Data Saving"](https://github.com/MattToegel/IT114/tree/SocketSample_Chat_ServerSaves)
 - ["Sockets - Button Clicker Sample"](https://github.com/MattToegel/IT114/tree/SocketSample_Btn_Clicker)
   - Shows game state synchronization and some custom UI
-- ["Spring 2020 Project - WackoStacko"]()
-- ["Fall2019 Project - TagGame"]()
-- ["Fall2019 Project - Hectic RockPaperScissors]()
+- ["Spring 2020 Project - WackoStacko TBD"]()
+- ["Fall2019 Project - TagGame TBD"]()
+- ["Fall2019 Project - Hectic RockPaperScissors TBD"]()
 - ["Generic UI Samples"](https://github.com/MattToegel/IT114/tree/GenericUISamples)
