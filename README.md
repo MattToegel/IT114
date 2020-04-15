@@ -1,4 +1,4 @@
-# Welcome to IT202 Repo
+# Welcome to IT114 Repo
 #### I recently started to reorganize all the content so it's easier to go through. 
 #### There are still some things I need to work on, but for the most part the major items have been taken care of.
 #### Instead of everything being in one branch I have divided up the projects/content into their own specific branches.
