@@ -1,9 +1,33 @@
-.settings
-config.*
+##############################
+## Eclipse
+##############################
+.settings/
+bin/
+tmp/
+.metadata
 .classpath
 .project
-bin
-.metadata
-.log
+*.tmp
+*.bak
+*.swp
+*~.nib
+local.properties
+.loadpath
+.factorypath
+##############################
+## Java
+##############################
+.mtj.tmp/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+
+#############################
+## Class Specifics
+#############################
+config.*
 *.log
-ignore
+*.conf
