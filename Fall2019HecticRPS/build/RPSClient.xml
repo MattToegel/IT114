@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<project default="create_run_jar" name="Create Runnable Jar for Project GameSample">
+<project default="create_run_jar" name="Create Runnable Jar for Project SocketsPart5">
     <!--this file was created by Eclipse Runnable JAR Export Wizard-->
     <!--ANT 1.7 is required                                        -->
     <!--define folder properties-->
@@ -7,12 +7,12 @@
     <property name="dir.workspace" value="${dir.buildfile}/../.."/>
     <property name="dir.jarfile" value="${dir.buildfile}"/>
     <target name="create_run_jar">
-        <jar destfile="${dir.jarfile}/TagServer.jar" filesetmanifest="mergewithoutmain">
+        <jar destfile="${dir.jarfile}/RPSClient.jar" filesetmanifest="mergewithoutmain">
             <manifest>
-                <attribute name="Main-Class" value="NetworkServer"/>
+                <attribute name="Main-Class" value="MyUI"/>
                 <attribute name="Class-Path" value="."/>
             </manifest>
-            <fileset dir="${dir.workspace}/GameSample/bin"/>
+            <fileset dir="${dir.workspace}/SocketsPart5/bin"/>
         </jar>
     </target>
 </project>
