@@ -13,6 +13,7 @@ import ws.dyn4j.framework.Graphics2DRenderer;
 public class GameObject extends Body{
 	private static double SCALE;
 	private Color color = Color.DARK_GRAY;
+	public boolean isGrounded = false;
 	public static void setScale(double scale) {
 		SCALE = scale;
 	}

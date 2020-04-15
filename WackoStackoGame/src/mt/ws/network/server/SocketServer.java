@@ -18,10 +18,15 @@ import mt.ws.dataobject.ScoreState;
 
 public class SocketServer {
 	int port = 3002;
+	static int id;
 	public static boolean isRunning = true;
 	private List<ServerThread> clients = new ArrayList<ServerThread>();
 	//We'll use a queue and a thread to separate our chat history
 	Queue<String> messages = new LinkedList<String>();
+	public static int getNextID() {
+		id++;
+		return id;
+	}
 	private void start(int port) {
 		this.port = port;
 		startQueueReader();
@@ -189,7 +194,7 @@ public class SocketServer {
 		//let's allow port to be passed as a command line arg
 		//in eclipse you can set this via "Run Configurations" 
 		//	-> "Arguments" -> type the port in the text box -> Apply
-		int port = 3001;//make some default
+		int port = 3111;//make some default
 		if(args.length >= 1) {
 			String arg = args[0];
 			try {
