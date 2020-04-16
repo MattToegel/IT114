@@ -110,6 +110,7 @@ class Server{
 			Cell cell = grid.getCell(p.x, p.y);
 			if(cell.player < 0) {
 				//OK, spot is vacant
+				//update our local grid
 				//broadcast move to players
 				broadcast(p);
 			}
