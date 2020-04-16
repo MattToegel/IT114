@@ -7,17 +7,17 @@ import java.util.LinkedList;
 import java.util.Queue;
 
 
-public class SampleSocketClientPart6 {
+public class SocketClient {
 	private Socket server;
 	private OnReceiveMessage listener;
 	public void registerListener(OnReceiveMessage listener) {
 		this.listener = listener;
 	}
-	private Queue<PayloadPart6> toServer = new LinkedList<PayloadPart6>();
-	private Queue<PayloadPart6> fromServer = new LinkedList<PayloadPart6>();
+	private Queue<Payload> toServer = new LinkedList<Payload>();
+	private Queue<Payload> fromServer = new LinkedList<Payload>();
 	
-	public static SampleSocketClientPart6 connect(String address, int port) {
-		SampleSocketClientPart6 client = new SampleSocketClientPart6();
+	public static SocketClient connect(String address, int port) {
+		SocketClient client = new SocketClient();
 		client._connect(address, port);
 		Thread clientThread =  new Thread() {
 			@Override
@@ -56,7 +56,7 @@ public class SampleSocketClientPart6 {
 				public void run() {
 					try {
 						while(!server.isClosed()) {
-							PayloadPart6 p = toServer.poll();
+							Payload p = toServer.poll();
 							if(p != null) {
 								out.writeObject(p);
 							}
@@ -85,9 +85,9 @@ public class SampleSocketClientPart6 {
 				@Override
 				public void run() {
 					try {
-						PayloadPart6 p;
+						Payload p;
 						//while we're connected, listen for payloads from server
-						while(!server.isClosed() && (p = (PayloadPart6)in.readObject()) != null) {
+						while(!server.isClosed() && (p = (Payload)in.readObject()) != null) {
 							//System.out.println(fromServer);
 							//processPayload(fromServer);
 							fromServer.add(p);
@@ -115,7 +115,7 @@ public class SampleSocketClientPart6 {
 				@Override
 				public void run() {
 					while(!server.isClosed()) {
-						PayloadPart6 p = fromServer.poll();
+						Payload p = fromServer.poll();
 						if(p != null) {
 							processPayload(p);
 						}
@@ -149,24 +149,24 @@ public class SampleSocketClientPart6 {
 		}
 	}
 	public void postConnectionData() {
-		PayloadPart6 payload = new PayloadPart6();
-		payload.setPayloadType(PayloadTypePart6.CONNECT);
+		Payload payload = new Payload();
+		payload.setPayloadType(PayloadType.CONNECT);
 		//payload.IsOn(isOn);
 		toServer.add(payload);
 	}
 	public void doClick(boolean isOn) {
-		PayloadPart6 payload = new PayloadPart6();
-		payload.setPayloadType(PayloadTypePart6.SWITCH);
+		Payload payload = new Payload();
+		payload.setPayloadType(PayloadType.SWITCH);
 		payload.IsOn(isOn);
 		toServer.add(payload);
 	}
 	public void sendMessage(String message) {
-		PayloadPart6 payload = new PayloadPart6();
-		payload.setPayloadType(PayloadTypePart6.MESSAGE);
+		Payload payload = new Payload();
+		payload.setPayloadType(PayloadType.MESSAGE);
 		payload.setMessage(message);
 		toServer.add(payload);
 	}
-	private void processPayload(PayloadPart6 payload) {
+	private void processPayload(Payload payload) {
 		System.out.println(payload);
 		switch(payload.getPayloadType()) {
 		case CONNECT:
@@ -210,7 +210,7 @@ public class SampleSocketClientPart6 {
 		}
 	}
 	public static void main(String[] args) {
-		SampleSocketClientPart6 client = new SampleSocketClientPart6();
+		SocketClient client = new SocketClient();
 		client.connect("127.0.0.1", 3001);
 		try {
 			//if start is private, it's valid here since this main is part of the class

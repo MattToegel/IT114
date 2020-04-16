@@ -1,5 +1,5 @@
 import java.io.Serializable;
-public class PayloadPart6 implements Serializable{
+public class Payload implements Serializable{
 	/**
 	 * 
 	 */
@@ -19,11 +19,11 @@ public class PayloadPart6 implements Serializable{
 		return this.message;
 	}
 	
-	private PayloadTypePart6 payloadType;
-	public void setPayloadType(PayloadTypePart6 pt) {
+	private PayloadType payloadType;
+	public void setPayloadType(PayloadType pt) {
 		this.payloadType = pt;
 	}
-	public PayloadTypePart6 getPayloadType() {
+	public PayloadType getPayloadType() {
 		return this.payloadType;
 	}
 	

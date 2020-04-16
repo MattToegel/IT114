@@ -3,15 +3,15 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 
-public class ServerThreadPart6 extends Thread{
+public class ServerThread extends Thread{
 	private Socket client;
 	private ObjectInputStream in;//from client
 	private ObjectOutputStream out;//to client
 	private boolean isRunning = false;
-	private SampleSocketServerPart6 server;//ref to our server so we can call methods on it
+	private SocketServer server;//ref to our server so we can call methods on it
 	//more easily
 	private String clientName = "Anon";
-	public ServerThreadPart6(Socket myClient, SampleSocketServerPart6 server) throws IOException {
+	public ServerThread(Socket myClient, SocketServer server) throws IOException {
 		this.client = myClient;
 		this.server = server;
 		isRunning = true;
@@ -26,8 +26,8 @@ public class ServerThreadPart6 extends Thread{
 	}
 	void syncStateToMyClient() {
 		System.out.println(this.clientName + " broadcast state");
-		PayloadPart6 payload = new PayloadPart6();
-		payload.setPayloadType(PayloadTypePart6.STATE_SYNC);
+		Payload payload = new Payload();
+		payload.setPayloadType(PayloadType.STATE_SYNC);
 		payload.IsOn(server.state.isButtonOn);
 		try {
 			out.writeObject(payload);
@@ -38,8 +38,8 @@ public class ServerThreadPart6 extends Thread{
 	}
 	void broadcastConnected() {
 		System.out.println(this.clientName + " broadcast connected");
-		PayloadPart6 payload = new PayloadPart6();
-		payload.setPayloadType(PayloadTypePart6.CONNECT);
+		Payload payload = new Payload();
+		payload.setPayloadType(PayloadType.CONNECT);
 		//note we don't need to specify message as it'll be handle by the server
 		//for this case
 		//we can send our name instead of id
@@ -48,15 +48,15 @@ public class ServerThreadPart6 extends Thread{
 	}
 	void broadcastDisconnected() {
 		//let everyone know we're here
-		PayloadPart6 payload = new PayloadPart6();
-		payload.setPayloadType(PayloadTypePart6.DISCONNECT);
+		Payload payload = new Payload();
+		payload.setPayloadType(PayloadType.DISCONNECT);
 		//note we don't need to specify message as it'll be handle by the server
 		//for this case
 		//we can send our name instead of id
 		//server.broadcast(payload, this.getId());
 		server.broadcast(payload, this.clientName);
 	}
-	public boolean send(PayloadPart6 payload) {
+	public boolean send(Payload payload) {
 		try {
 			out.writeObject(payload);
 			return true;
@@ -71,8 +71,8 @@ public class ServerThreadPart6 extends Thread{
 	@Deprecated
 	public boolean send(String message) {
 		//added a boolean so we can see if the send was successful
-		PayloadPart6 payload = new PayloadPart6();
-		payload.setPayloadType(PayloadTypePart6.MESSAGE);
+		Payload payload = new Payload();
+		payload.setPayloadType(PayloadType.MESSAGE);
 		payload.setMessage(message);
 		return send(payload);
 	}
@@ -84,10 +84,10 @@ public class ServerThreadPart6 extends Thread{
 			//if we're using client name then we can comment this part out and use
 			//it only when we get a connect payload from our client
 			//broadcastConnected();
-			PayloadPart6 fromClient;
+			Payload fromClient;
 			while(isRunning 
 					&& !client.isClosed()
-					&& (fromClient = (PayloadPart6)in.readObject()) != null) {//open while loop
+					&& (fromClient = (Payload)in.readObject()) != null) {//open while loop
 				processPayload(fromClient);
 			}//close while loop
 		}
@@ -103,7 +103,7 @@ public class ServerThreadPart6 extends Thread{
 			cleanup();
 		}
 	}
-	private void processPayload(PayloadPart6 payload) {
+	private void processPayload(Payload payload) {
 		System.out.println("Received from client: " + payload);
 		switch(payload.getPayloadType()) {
 		case CONNECT:

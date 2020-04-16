@@ -1,5 +1,5 @@
 
-public enum PayloadTypePart6 {
+public enum PayloadType {
 	CONNECT,
 	DISCONNECT,
 	MESSAGE,

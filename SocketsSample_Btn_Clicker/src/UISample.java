@@ -15,7 +15,7 @@ import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
 
 public class UISample extends JFrame implements OnReceiveMessage{
-	static SampleSocketClientPart6 client;
+	static SocketClient client;
 	static JButton toggle;
 	static JButton clickit;
 	public UISample() {
@@ -103,7 +103,7 @@ public class UISample extends JFrame implements OnReceiveMessage{
 		connect.addActionListener(new ActionListener() {
 		    @Override
 		    public void actionPerformed(ActionEvent e) {
-		    	client = new SampleSocketClientPart6();
+		    	client = new SocketClient();
 		    	int _port = -1;
 		    	try {
 		    		_port = Integer.parseInt(port.getText());
@@ -112,7 +112,7 @@ public class UISample extends JFrame implements OnReceiveMessage{
 		    		System.out.println("Port not a number");
 		    	}
 		    	if(_port > -1) {
-			    	client = SampleSocketClientPart6.connect(host.getText(), _port);
+			    	client = SocketClient.connect(host.getText(), _port);
 			    	
 			    	//METHOD 1 Using the interface
 			    	client.registerListener(window);
