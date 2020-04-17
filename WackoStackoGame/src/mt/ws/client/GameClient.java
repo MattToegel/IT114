@@ -4,6 +4,7 @@ import java.awt.Canvas;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
@@ -44,7 +45,7 @@ public class GameClient extends JFrame{
 	GameEngine ge;
 	static Dimension gameArea;
 	/** The canvas to draw to */
-	protected Canvas canvas;
+	protected JPanel canvas;
 	public static Dimension getGameArea() {
 		return gameArea;
 	}
@@ -67,7 +68,20 @@ public class GameClient extends JFrame{
 		// create the size of the window
 		Dimension size = new Dimension(800, 600);
 		// create a canvas to paint to 
-		this.canvas = new Canvas();
+		GameClient self = this;
+		this.canvas = new JPanel() {
+			/**
+			 * 
+			 */
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public void paintComponent(Graphics g) {
+				super.paintComponent(g);
+				Graphics2D g2d = (Graphics2D)g;
+				self._physicsDraw(g2d);
+			}
+		};
 		this.canvas.setPreferredSize(size);
 		this.canvas.setMinimumSize(size);
 		this.canvas.setMaximumSize(size);
@@ -145,10 +159,12 @@ public class GameClient extends JFrame{
 	void startGameUI() {
 		GameEngine.last = System.nanoTime();
 		// don't allow AWT to paint the canvas since we are
+		this.setVisible(true);
+		this.canvas.setVisible(true);
 		this.canvas.setIgnoreRepaint(true);
 		// enable double buffering (the JFrame has to be
 		// visible before this can be done)
-		this.canvas.createBufferStrategy(2);
+		//this.canvas.createBufferStrategy(3);
 	}
 	public static void main(String[] args) {
 		try {
@@ -232,11 +248,12 @@ public class GameClient extends JFrame{
         
         ge.start();
         //TODO fix input
-        KeyListener l = new CustomKeyListener();
-        this.addKeyListener(l);
-		this.canvas.addKeyListener(l);
-        //PlayerControls.setKeyBindings(this.rootPane.getInputMap(), this.rootPane.getActionMap());
-    	run();
+        //KeyListener l = new CustomKeyListener();
+        //this.addKeyListener(l);
+		//this.canvas.addKeyListener(l);
+        PlayerControls.setKeyBindings(this.canvas.getInputMap(), this.canvas.getActionMap());
+    	this.canvas.grabFocus();
+        run();
 	}
 	
 	/*public void UpdatePlayerName(String str) {
@@ -250,6 +267,9 @@ public class GameClient extends JFrame{
 	 * @param g the graphics object to render to
 	 */
 	protected void render(Graphics2D g) {
+		if(ge == null || ge.world == null) {
+			return;
+		}
 		// lets draw over everything with a white background
 		g.setColor(Color.WHITE);
 		g.fillRect(-400, -300, 800, 600);
@@ -266,8 +286,8 @@ public class GameClient extends JFrame{
 		}
 		
 	}
-	void _physicsDraw() {
-		Graphics2D g = (Graphics2D)this.canvas.getBufferStrategy().getDrawGraphics();
+	void _physicsDraw(Graphics2D g) {
+		//Graphics2D g = (Graphics2D)this.canvas.getBufferStrategy().getDrawGraphics();
 		
 		AffineTransform yFlip = AffineTransform.getScaleInstance(1, -1);
 		AffineTransform move = AffineTransform.getTranslateInstance(400, -300);
@@ -277,15 +297,16 @@ public class GameClient extends JFrame{
 		g.dispose();
 		
 		//let's see if we need this
-		BufferStrategy strategy = this.canvas.getBufferStrategy();
+		/*BufferStrategy strategy = this.canvas.getBufferStrategy();
 		if (!strategy.contentsLost()) {
 			strategy.show();
-		}
+		}*/
 		Toolkit.getDefaultToolkit().sync();
 		
 	}
 	public void draw() {
-		_physicsDraw();
+		this.canvas.repaint();
+		//_physicsDraw();
 	}
 	//running logic (each frame what do we do?)
 	public void run() {
