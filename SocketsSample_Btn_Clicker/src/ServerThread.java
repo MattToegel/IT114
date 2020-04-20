@@ -24,6 +24,9 @@ public class ServerThread extends Thread{
 		//so we won't see that we connected. Jump down to run()
 		//broadcastConnected();
 	}
+	public void setClientId(long id) {
+		clientName += "_" + id;
+	}
 	void syncStateToMyClient() {
 		System.out.println(this.clientName + " broadcast state");
 		Payload payload = new Payload();
@@ -126,6 +129,7 @@ public class ServerThread extends Thread{
 			break;
 		case SWITCH:
 			//whatever we get from the client, just tell everyone else, ok?
+			payload.setMessage(this.clientName);
 			server.toggleButton(payload);
 			break;
 		default:

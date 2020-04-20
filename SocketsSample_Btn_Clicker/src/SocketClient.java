@@ -9,9 +9,13 @@ import java.util.Queue;
 
 public class SocketClient {
 	private Socket server;
-	private OnReceiveMessage listener;
-	public void registerListener(OnReceiveMessage listener) {
-		this.listener = listener;
+	private OnReceive switchListener;
+	public void registerSwitchListener(OnReceive listener) {
+		this.switchListener = listener;
+	}
+	private OnReceive messageListener;
+	public void registerMessageListener(OnReceive listener) {
+		this.messageListener = listener;
 	}
 	private Queue<Payload> toServer = new LinkedList<Payload>();
 	private Queue<Payload> fromServer = new LinkedList<Payload>();
@@ -168,16 +172,21 @@ public class SocketClient {
 	}
 	private void processPayload(Payload payload) {
 		System.out.println(payload);
+		String msg = "";
 		switch(payload.getPayloadType()) {
 		case CONNECT:
-			System.out.println(
-					String.format("Client \"%s\" connected", payload.getMessage())
-			);
+			msg = String.format("Client \"%s\" connected", payload.getMessage());
+			System.out.println(msg);
+			if(messageListener != null) {
+				messageListener.onReceivedMessage(msg);
+			}
 			break;
 		case DISCONNECT:
-			System.out.println(
-					String.format("Client \"%s\" disconnected", payload.getMessage())
-			);
+			msg = String.format("Client \"%s\" disconnected", payload.getMessage());
+			System.out.println(msg);
+			if(messageListener != null) {
+				messageListener.onReceivedMessage(msg);
+			}
 			break;
 		case MESSAGE:
 			System.out.println(
@@ -190,8 +199,15 @@ public class SocketClient {
 			//break; //this state will drop down to next state
 		case SWITCH:
 			System.out.println("switch");
-			if (listener != null) {
-				listener.onReceived(payload.IsOn());
+			if (switchListener != null) {
+				switchListener.onReceivedSwitch(payload.IsOn());
+			}
+			if(messageListener != null) {
+				messageListener.onReceivedMessage(
+						String.format("%s turned the button %s", 
+								payload.getMessage(),
+								payload.IsOn()?"On":"Off")
+				);
 			}
 			break;
 		default:
@@ -222,6 +238,7 @@ public class SocketClient {
 
 }
 
-interface OnReceiveMessage{
-	void onReceived(boolean isOn);
+interface OnReceive{
+	void onReceivedSwitch(boolean isOn);
+	void onReceivedMessage(String msg);
 }
