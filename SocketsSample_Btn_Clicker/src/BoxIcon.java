@@ -39,7 +39,7 @@ class BoxIcon implements Icon {
     g.setColor(Color.black);
     g.fillRect(x, y, getIconWidth(), getIconHeight());
     if(parent != null) {
-    	if(parent.getText().contains("OFF")) {
+    	if(parent.getText().contains("Off")) {
     		color = Color.RED;
     	}
     	else {

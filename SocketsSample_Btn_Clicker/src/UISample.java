@@ -1,6 +1,7 @@
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.Graphics;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
@@ -76,7 +77,16 @@ public class UISample extends JFrame implements OnReceiveMessage{
 		JPanel area = new JPanel();
 		area.setLayout(new BorderLayout());
 		window.add(area, BorderLayout.CENTER);
-		JButton toggle = new JButton();
+		JButton toggle = new JButton();/* {
+			@Override
+			public void paintComponent(Graphics g) {
+				//TODO fix
+				super.paintComponent(g);
+				System.out.println("Painting");
+				g.setColor(Color.black);
+			    g.fillRect(0, 0, 400, 200);
+			}
+		};*/
 		toggle.setText("OFF");
 		//Cache it statically (not great but it's a sample)
 		UISample.toggle = toggle;
