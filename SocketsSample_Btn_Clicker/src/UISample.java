@@ -6,19 +6,22 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.io.IOException;
 
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
+import javax.swing.text.DefaultCaret;
 
-public class UISample extends JFrame implements OnReceiveMessage{
+public class UISample extends JFrame implements OnReceive{
 	static SocketClient client;
 	static JButton toggle;
 	static JButton clickit;
+	static JTextArea history;
 	public UISample() {
 		super("Callable SocketClient");
 		this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -40,14 +43,12 @@ public class UISample extends JFrame implements OnReceiveMessage{
 		if(isOn) {
 			UISample.toggle.setText("ON");
 			UISample.toggle.setBackground(Color.GREEN);
-			UISample.toggle.setForeground(Color.GREEN);
 			clickit.setText("Click to Turn Off");
 			return true;
 		}
 		else {
 			UISample.toggle.setText("OFF");
 			UISample.toggle.setBackground(Color.RED);
-			UISample.toggle.setForeground(Color.RED);
 			clickit.setText("Click to Turn On");
 			return false;
 		}
@@ -77,24 +78,31 @@ public class UISample extends JFrame implements OnReceiveMessage{
 		JPanel area = new JPanel();
 		area.setLayout(new BorderLayout());
 		window.add(area, BorderLayout.CENTER);
-		JButton toggle = new JButton();/* {
+		JButton toggle = new JButton(){
+			//TODO showing how we can override the painting of a component
+			//for "custom" ui
 			@Override
 			public void paintComponent(Graphics g) {
 				//TODO fix
 				super.paintComponent(g);
-				System.out.println("Painting");
-				g.setColor(Color.black);
-			    g.fillRect(0, 0, 400, 200);
+				//use the assigned background color
+				g.setColor(this.getBackground());
+				//grab the current dimensions
+				Dimension d = this.getSize();
+			    g.fillRect(0, 0, d.width, d.height);
+			    g.setColor(Color.black);
+			    //draw the current text
+			    //Note: the other text still draws but we paint on top of it
+			    //we should look into this and see if it can be more easily repurposed
+			    g.drawString(this.getText(), d.width/2,d.height/2);
 			}
-		};*/
+		};
+		toggle.setBackground(Color.red);
 		toggle.setText("OFF");
 		//Cache it statically (not great but it's a sample)
 		UISample.toggle = toggle;
-		BoxIcon icon = new BoxIcon(Color.GREEN,400,200, 2);
-		icon.setText("This is a test");
-		JButton click = new JButton("Click to Turn On", 
-				icon);
-		icon.setParent(click);
+		JButton click = new JButton("Click to Turn On");
+		//icon.setParent(click);
 		clickit = click;
 		click.setPreferredSize(new Dimension(400,200));
 		click.setText("Click to Turn On");
@@ -125,7 +133,7 @@ public class UISample extends JFrame implements OnReceiveMessage{
 			    	client = SocketClient.connect(host.getText(), _port);
 			    	
 			    	//METHOD 1 Using the interface
-			    	client.registerListener(window);
+			    	client.registerSwitchListener(window);
 			    	//METHOD 2 Lamba Expression (unnamed function to handle callback)
 			    	/*client.registerListener(()->{	
 			    		if(UISample.toggle != null) {
@@ -136,25 +144,55 @@ public class UISample extends JFrame implements OnReceiveMessage{
 			    	
 			    	
 			    	//trigger any one-time data after client connects
+			    	
+			    	//register our history/message listener
+			    	client.registerMessageListener(window);
 			    	client.postConnectionData();
 			    	connect.setEnabled(false);
 			    	click.setEnabled(true);
 		    	}
 		    }
 		});
+		JPanel container = new JPanel();
+		container.setLayout(new BorderLayout());
+		JTextArea ta = new JTextArea();
+		ta.setEditable(false);
+		history = ta;
+		history.setWrapStyleWord(true);
+		history.setAutoscrolls(true);
+		history.setLineWrap(true);
+		JScrollPane scroll = new JScrollPane(history);
+		scroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_NEVER);
+		scroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+		DefaultCaret caret = (DefaultCaret)history.getCaret();
+		caret.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
+		container.add(scroll, BorderLayout.CENTER);
 		
+		JPanel spacer = new JPanel();
+		Dimension panelSize = new Dimension(125, 200);
+		container.setPreferredSize(panelSize);
+		spacer.setPreferredSize(panelSize);
 		area.add(toggle, BorderLayout.CENTER);
 		area.add(click, BorderLayout.SOUTH);
+		area.add(container, BorderLayout.WEST);
+		area.add(spacer, BorderLayout.EAST);
+		
 		
 		window.setPreferredSize(new Dimension(400,600));
 		window.pack();
 		window.setVisible(true);
 	}
 	@Override
-	public void onReceived(boolean isOn) {
-		// TODO Auto-generated method stub
+	public void onReceivedSwitch(boolean isOn) {
 		if(UISample.toggle != null) {
 			UISample.toggleButton(isOn);
+		}
+	}
+	@Override
+	public void onReceivedMessage(String msg) {
+		if(history != null) {
+			history.append(msg);
+			history.append(System.lineSeparator());
 		}
 	}
 }

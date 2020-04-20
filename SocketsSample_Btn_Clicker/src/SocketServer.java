@@ -19,7 +19,11 @@ public class SocketServer {
 	//We'll use a queue and a thread to separate our chat history
 	Queue<String> messages = new LinkedList<String>();
 	public GameState state = new GameState();
-	
+	public static long ClientID = 0;
+	public synchronized long getNextId() {
+		ClientID++;
+		return ClientID;
+	}
 	public synchronized void toggleButton(Payload payload) {
 		if(state.isButtonOn && !payload.IsOn()) {
 			state.isButtonOn = false;
@@ -43,6 +47,7 @@ public class SocketServer {
 					//Server thread is the server's representation of the client
 					ServerThread thread = new ServerThread(client, this);
 					thread.start();
+					thread.setClientId(getNextId());
 					//add client thread to list of clients
 					clients.add(thread);
 					System.out.println("Client added to clients pool");
