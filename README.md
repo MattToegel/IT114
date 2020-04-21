@@ -14,9 +14,12 @@ Here's the new table of contents:
   - ["Sockets - Client to Server - To Multiple Clients](https://github.com/MattToegel/IT114/tree/SocketSample_C2S2MC)
   - ["Sockets - Console Chat Sample"](https://github.com/MattToegel/IT114/tree/SocketSample_Chat)
   - ["Sockets - Chat with Server Side Data Saving"](https://github.com/MattToegel/IT114/tree/SocketSample_Chat_ServerSaves)
-  - ["Generic UI Samples"](https://github.com/MattToegel/IT114/tree/GenericUISamples)
   - ["Sockets - Button Clicker Sample"](https://github.com/MattToegel/IT114/tree/SocketSample_Btn_Clicker)
     - Shows game state synchronization and some custom UI
+ - ["Sockets - Draw Players Sample"](https://github.com/MattToegel/IT114/tree/SocketSample_Draw_Players)
+    - Shows how to tie in painting movable players and keeping them synced (includes connecting and disconnecting)
+    - Shows how to handle intent of change (at a basic level) for direction, then server less frequently syncs position to fix client side prediction
+- ["Generic UI Samples"](https://github.com/MattToegel/IT114/tree/GenericUISamples)
 - Historical Items
   - ["Spring 2020 Project - WackoStacko"](https://github.com/MattToegel/IT114/tree/WackoStackoPhysics)
     - Check the Spring2020 Repo for the Non-physics based one that's deprecated
