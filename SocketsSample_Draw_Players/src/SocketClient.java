@@ -11,7 +11,7 @@ import java.util.Queue;
 public class SocketClient {
 	private Socket server;
 	private OnReceive onReceiveListener;
-	public void registerTransformListener(OnReceive listener) {
+	public void registerListeners(OnReceive listener) {
 		this.onReceiveListener = listener;
 	}
 	private Queue<Payload> toServer = new LinkedList<Payload>();

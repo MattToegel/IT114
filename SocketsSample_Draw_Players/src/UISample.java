@@ -107,9 +107,11 @@ public class UISample extends JFrame implements OnReceive{
 		    	}
 		    	if(_port > -1) {
 			    	client = SocketClient.connect(host.getText(), _port);
-			    	client.registerTransformListener(window);
+			    	client.registerListeners(window);
 			    	client.postConnectionData();
 			    	connect.setEnabled(false);
+			    	
+			    	//connectionDetails.setVisible(false);
 			    	
 			    	PlayerControls.setKeyBindings(playArea.getInputMap(), playArea.getActionMap());
 			    	playArea.grabFocus();
