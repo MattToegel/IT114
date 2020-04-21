@@ -1,0 +1,9 @@
+
+public enum PayloadType {
+	CONNECT,
+	DISCONNECT,
+	MESSAGE,
+	DIRECTION,
+	MOVE_SYNC,
+	SELF
+}
