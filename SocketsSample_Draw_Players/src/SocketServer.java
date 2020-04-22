@@ -62,13 +62,13 @@ public class SocketServer {
 		pc.addPlayer(payload.getId(), p);
 		payload.setX(200);
 		payload.setY(200);
-		Payload self = new Payload();
-		self.setId(payload.getId());
-		self.setX(payload.getX());
-		self.setY(payload.getY());
-		self.setMessage(payload.getMessage());
-		self.setPayloadType(PayloadType.SELF);
-		sendToSpecificClient(self, self.getId());
+			Payload self = new Payload();
+			self.setId(payload.getId());
+			self.setX(payload.getX());
+			self.setY(payload.getY());
+			self.setMessage(payload.getMessage());
+			self.setPayloadType(PayloadType.SELF);
+			sendToSpecificClient(self, self.getId());
 		broadcast(payload);
 		//sync player
 		syncPlayers(self.getId());
@@ -118,8 +118,8 @@ public class SocketServer {
 				while(isRunning) {
 					pc.movePlayers();
 					counter++;
-					//every 5th frame sync movement to clients
-					if(counter % 5 == 0) {
+					//every 15th frame sync movement to clients
+					if(counter % 15 == 0) {
 						syncMove();
 					}
 					if(counter < 0) {//in case we overflow

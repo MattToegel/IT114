@@ -44,7 +44,10 @@ public class SocketClient {
 			e.printStackTrace();
 		}
 	}
-	public void start() {
+	/***
+	 * This blocks whatever thread it's called on, don't call it on main thread
+	 */
+	private void start() {
 		if(server == null) {
 			return;
 		}
@@ -148,10 +151,10 @@ public class SocketClient {
 			close();
 		}
 	}
-	public void postConnectionData() {
+	public void postConnectionData(String clientName) {
 		Payload payload = new Payload();
 		payload.setPayloadType(PayloadType.CONNECT);
-		//payload.IsOn(isOn);
+		payload.setMessage(clientName);
 		toServer.add(payload);
 	}
 	public void sendMessage(String message) {
@@ -208,7 +211,9 @@ public class SocketClient {
 			System.out.println(
 					String.format("%s", payload.getMessage())
 			);
-			
+			if(onReceiveListener != null) {
+				onReceiveListener.onReceivedMessage(msg);
+			}
 			break;
 		case DIRECTION:
 		case MOVE_SYNC:

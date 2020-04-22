@@ -82,12 +82,10 @@ public class UISample extends JFrame implements OnReceive{
 			@Override
 			public void paintComponent(Graphics g) {
 				super.paintComponent(g);
-				//use the assigned background color
-				g.setColor(this.getBackground());
 				//grab the current dimensions
 				Dimension d = this.getSize();
+				g.setColor(Color.white);
 			    g.fillRect(0, 0, d.width, d.height);
-			    g.setColor(Color.white);
 			    Graphics2D g2d = (Graphics2D)g;
 			    UISample.pc.movePlayers();
 			    UISample.pc.paintPlayers(g2d);
@@ -97,7 +95,6 @@ public class UISample extends JFrame implements OnReceive{
 		connect.addActionListener(new ActionListener() {
 		    @Override
 		    public void actionPerformed(ActionEvent e) {
-		    	client = new SocketClient();
 		    	int _port = -1;
 		    	try {
 		    		_port = Integer.parseInt(port.getText());
@@ -108,7 +105,7 @@ public class UISample extends JFrame implements OnReceive{
 		    	if(_port > -1) {
 			    	client = SocketClient.connect(host.getText(), _port);
 			    	client.registerListeners(window);
-			    	client.postConnectionData();
+			    	client.postConnectionData("Client Name");
 			    	connect.setEnabled(false);
 			    	
 			    	//connectionDetails.setVisible(false);
