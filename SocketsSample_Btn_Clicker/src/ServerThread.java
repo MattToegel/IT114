@@ -110,10 +110,10 @@ public class ServerThread extends Thread{
 		System.out.println("Received from client: " + payload);
 		switch(payload.getPayloadType()) {
 		case CONNECT:
-			String m = payload.getMessage();
-			if(m != null) {
-				m = WordBlackList.filter(m);
-				this.clientName = m;
+			String clientName = payload.getMessage();
+			if(clientName != null) {
+				clientName = WordBlackList.filter(clientName);
+				this.clientName = clientName;
 			}
 			broadcastConnected();
 			syncStateToMyClient();

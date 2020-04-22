@@ -9,13 +9,9 @@ import java.util.Queue;
 
 public class SocketClient {
 	private Socket server;
-	private OnReceive switchListener;
-	public void registerSwitchListener(OnReceive listener) {
-		this.switchListener = listener;
-	}
-	private OnReceive messageListener;
-	public void registerMessageListener(OnReceive listener) {
-		this.messageListener = listener;
+	private OnReceive onReceiveListener;
+	public void registerListener(OnReceive listener) {
+		this.onReceiveListener = listener;
 	}
 	private Queue<Payload> toServer = new LinkedList<Payload>();
 	private Queue<Payload> fromServer = new LinkedList<Payload>();
@@ -47,7 +43,7 @@ public class SocketClient {
 			e.printStackTrace();
 		}
 	}
-	public void start() {
+	private void start() {
 		if(server == null) {
 			return;
 		}
@@ -152,10 +148,10 @@ public class SocketClient {
 			close();
 		}
 	}
-	public void postConnectionData() {
+	public void postConnectionData(String clientName) {
 		Payload payload = new Payload();
 		payload.setPayloadType(PayloadType.CONNECT);
-		//payload.IsOn(isOn);
+		payload.setMessage(clientName);
 		toServer.add(payload);
 	}
 	public void doClick(boolean isOn) {
@@ -177,15 +173,15 @@ public class SocketClient {
 		case CONNECT:
 			msg = String.format("Client \"%s\" connected", payload.getMessage());
 			System.out.println(msg);
-			if(messageListener != null) {
-				messageListener.onReceivedMessage(msg);
+			if(onReceiveListener != null) {
+				onReceiveListener.onReceivedMessage(msg);
 			}
 			break;
 		case DISCONNECT:
 			msg = String.format("Client \"%s\" disconnected", payload.getMessage());
 			System.out.println(msg);
-			if(messageListener != null) {
-				messageListener.onReceivedMessage(msg);
+			if(onReceiveListener != null) {
+				onReceiveListener.onReceivedMessage(msg);
 			}
 			break;
 		case MESSAGE:
@@ -199,11 +195,9 @@ public class SocketClient {
 			//break; //this state will drop down to next state
 		case SWITCH:
 			System.out.println("switch");
-			if (switchListener != null) {
-				switchListener.onReceivedSwitch(payload.IsOn());
-			}
-			if(messageListener != null) {
-				messageListener.onReceivedMessage(
+			if (onReceiveListener != null) {
+				onReceiveListener.onReceivedSwitch(payload.IsOn());
+				onReceiveListener.onReceivedMessage(
 						String.format("%s turned the button %s", 
 								payload.getMessage(),
 								payload.IsOn()?"On":"Off")
@@ -225,17 +219,6 @@ public class SocketClient {
 			}
 		}
 	}
-	public static void main(String[] args) {
-		SocketClient client = new SocketClient();
-		client.connect("127.0.0.1", 3001);
-		try {
-			//if start is private, it's valid here since this main is part of the class
-			client.start();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
-
 }
 
 interface OnReceive{

@@ -18,6 +18,10 @@ import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.text.DefaultCaret;
 
 public class UISample extends JFrame implements OnReceive{
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 507030164269413483L;
 	static SocketClient client;
 	static JButton toggle;
 	static JButton clickit;
@@ -39,7 +43,6 @@ public class UISample extends JFrame implements OnReceive{
 		});
 	}
 	public static boolean toggleButton(boolean isOn) {
-		String t = UISample.toggle.getText();
 		if(isOn) {
 			UISample.toggle.setText("ON");
 			UISample.toggle.setBackground(Color.GREEN);
@@ -79,6 +82,11 @@ public class UISample extends JFrame implements OnReceive{
 		area.setLayout(new BorderLayout());
 		window.add(area, BorderLayout.CENTER);
 		JButton toggle = new JButton(){
+			/**
+			 * 
+			 */
+			private static final long serialVersionUID = 2428478549031523456L;
+
 			//TODO showing how we can override the painting of a component
 			//for "custom" ui
 			@Override
@@ -109,7 +117,6 @@ public class UISample extends JFrame implements OnReceive{
 		click.addActionListener(new ActionListener() {
 		    @Override
 		    public void actionPerformed(ActionEvent e) {
-		    	String t = toggle.getText();
 		    	//boolean isOn = UISample.toggleButton();
 		    	boolean turnOn = toggle.getText().contains("OFF");
 		    	//TODO send to server
@@ -131,9 +138,9 @@ public class UISample extends JFrame implements OnReceive{
 		    	}
 		    	if(_port > -1) {
 			    	client = SocketClient.connect(host.getText(), _port);
-			    	
+			    	//register our history/message listener
 			    	//METHOD 1 Using the interface
-			    	client.registerSwitchListener(window);
+			    	client.registerListener(window);
 			    	//METHOD 2 Lamba Expression (unnamed function to handle callback)
 			    	/*client.registerListener(()->{	
 			    		if(UISample.toggle != null) {
@@ -144,10 +151,7 @@ public class UISample extends JFrame implements OnReceive{
 			    	
 			    	
 			    	//trigger any one-time data after client connects
-			    	
-			    	//register our history/message listener
-			    	client.registerMessageListener(window);
-			    	client.postConnectionData();
+			    	client.postConnectionData("Sample client name");
 			    	connect.setEnabled(false);
 			    	click.setEnabled(true);
 		    	}
