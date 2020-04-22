@@ -62,6 +62,9 @@ public class SocketServer {
 		pc.addPlayer(payload.getId(), p);
 		payload.setX(200);
 		payload.setY(200);
+			//didn't need to clone, just needed to change
+			//payload type for 1 payload, then send all others
+			//as connect
 			Payload self = new Payload();
 			self.setId(payload.getId());
 			self.setX(payload.getX());

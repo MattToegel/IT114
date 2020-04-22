@@ -82,7 +82,6 @@ class PlayerControls{
 			}
 			if(PlayerControls.SPACE_DOWN) {
 				PlayerControls.SPACE_DOWN = false;
-				
 			}
 		}
 	}

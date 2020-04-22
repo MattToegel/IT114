@@ -30,6 +30,7 @@ public class ServerThread extends Thread{
 	}
 	public void setClientId(long id) {
 		clientName += "_" + id;
+		this.id = (int)id;
 	}
 	/*void syncStateToMyClient() {
 		System.out.println(this.clientName + " broadcast state");
@@ -119,10 +120,10 @@ public class ServerThread extends Thread{
 			//broadcasts connect info
 			//set ID here so we know it,
 			//then pass payload to server
-			long id = server.getNextId();
-			payload.setId((int)id);
+			//long id = server.getNextId();
+			payload.setId(this.id);
 			payload.setMessage(this.clientName);
-			this.id = (int)id;
+			//this.id = (int)id;
 			server.addPlayer(payload);
 			break;
 		case DISCONNECT:
