@@ -10,6 +10,8 @@ import javax.swing.ActionMap;
 import javax.swing.InputMap;
 import javax.swing.KeyStroke;
 
+import org.dyn4j.geometry.Vector2;
+
 import mt.ws.dataobject.Player;
 import mt.ws.network.client.SocketClient;
 
@@ -79,7 +81,8 @@ class PlayerControls{
 			handleControls();
 			//apply direction and see if it changed
 			if(myPlayer.setDirection(pdd)) {
-				Point mp = new Point((int)myPlayer.getDirection().x, (int)myPlayer.getDirection().y);
+				Vector2 mp = myPlayer.getDirection();
+				//Point mp = new Point((int)myPlayer.getDirection().x, (int)myPlayer.getDirection().y);
 				System.out.println("Sending dir change to cient");
 				client.SyncDirection(mp, myPlayer.getID());
 			}

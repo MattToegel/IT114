@@ -1,5 +1,7 @@
 package mt.ws.dataobject;
 import java.io.Serializable;
+
+import org.dyn4j.geometry.Vector2;
 public class Payload implements Serializable{
 	/**
 	 * 
@@ -34,24 +36,32 @@ public class Payload implements Serializable{
 	public String getClientName() {
 		return this.clientName;
 	}
-	private int x;
-	public void setX(int x) {
-		this.x = x;
+	private Vector2 position;
+	private Vector2 speed;
+	private Vector2 direction;
+	public Vector2 getPosition() {
+		return position;
 	}
-	public int getX() {
-		return this.x;
+	public void setPosition(Vector2 position) {
+		this.position = position;
 	}
-	private int y;
-	public void setY(int y) {
-		this.y = y;
+	public Vector2 getSpeed() {
+		return speed;
 	}
-	public int getY() {
-		return this.y;
+	public void setSpeed(Vector2 speed) {
+		this.speed = speed;
 	}
+	public Vector2 getDirection() {
+		return direction;
+	}
+	public void setDirection(Vector2 direction) {
+		this.direction = direction;
+	}
+	
 	
 	@Override
 	public String toString() {
 		return String.format("Type[%s], x,y[%s,%s], Message[%s]",
-					getPayloadType().toString(), getX(), getY(), getMessage());
+					getPayloadType().toString(), position.x, position.y, getMessage());
 	}
 }

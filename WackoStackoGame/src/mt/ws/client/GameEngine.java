@@ -107,10 +107,10 @@ public class GameEngine extends _GameEngine{
 	public void setPlayerName(String name) {
 		
 	}
-	public void addPlayer(int id, int x, int y, boolean isMe, String name) {
+	public void addPlayer(int id, Vector2 position, boolean isMe, String name) {
 		Player newPlayer = new Player();
 		newPlayer.setName(name);
-		newPlayer.setPosition(x, y);
+		newPlayer.setPosition((int)position.x, (int)position.y);
 		newPlayer.setID(id);
 		players.addPlayer(id, newPlayer);
 		if(isMe) {
@@ -120,6 +120,8 @@ public class GameEngine extends _GameEngine{
 		else {
 			System.out.println("Created remote player");
 		}
+		//newPlayer.getLinearVelocity();
+		//newPlayer.getWorldCenter();
 		Rectangle rectShape = new Rectangle(1, 1);
 		BodyFixture bf = new BodyFixture(rectShape);
 		bf.setFriction(.2);

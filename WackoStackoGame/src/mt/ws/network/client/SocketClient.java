@@ -9,6 +9,8 @@ import java.util.LinkedList;
 import java.util.Queue;
 import java.util.Scanner;
 
+import org.dyn4j.geometry.Vector2;
+
 import mt.ws.client.GameClient;
 import mt.ws.client.GameEngine;
 import mt.ws.dataobject.Payload;
@@ -45,19 +47,17 @@ public class SocketClient {
 		//out.writeObject(p);
 		toServer.add(p);
 	}
-	public void SyncDirection(Point dir, int playerid) {
+	public void SyncDirection(Vector2 dir, int playerid) {
 		Payload p = new Payload();
 		p.setPayloadType(PayloadType.CHANGE_DIRECTION);
-		p.setX(dir.x);
-		p.setY(dir.y);
+		p.setDirection(dir);
 		p.setID(playerid);
 		toServer.add(p);
 	}
-	public void SyncMove(Point position, int playerid) {
+	public void SyncMove(Vector2 position, int playerid) {
 		Payload p = new Payload();
 		p.setPayloadType(PayloadType.SYNC_POSITION);
-		p.setX(position.x);
-		p.setY(position.y);
+		p.setPosition(position);
 		p.setID(playerid);
 		toServer.add(p);
 	}
@@ -198,7 +198,7 @@ public class SocketClient {
 				if(msg != null && msg.equals((this.hashCode()+""))){
 					isMe = true;
 				}
-				ge.addPlayer(payload.getID(), payload.getX(), payload.getY(),
+				ge.addPlayer(payload.getID(), payload.getPosition(),
 							isMe, payload.getClientName());
 			}
 			
@@ -223,8 +223,9 @@ public class SocketClient {
 			System.out.println(
 					String.format("%s: new dir: %s,%s",
 							payload.getID(),
-							payload.getX(),
-							payload.getY()));
+							payload.getDirection()));
+			break;
+		case PHYSICS_SYNC:
 			break;
 		default:
 			System.out.println("Unhandled payload type: " + payload.getPayloadType().toString());
