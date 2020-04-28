@@ -1,1 +1,1 @@
-web: cd SocketsSample_Draw_Players/build/; java -jar Server.jar 3420
+web: java -jar SocketsSample_Draw_Players/build/Server.jar 3420
