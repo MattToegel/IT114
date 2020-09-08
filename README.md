@@ -2,4 +2,5 @@
 ## Matt
  
 My first file
-Conflict
+
+Conflict resolved
