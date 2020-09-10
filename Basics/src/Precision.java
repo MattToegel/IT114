@@ -14,6 +14,7 @@ public class Precision {
 
 		System.out.println("A: " + a);
 		System.out.println("B: " + b);
+
 		// let's see the same for doubles
 		double x = 1d;
 		double y = 0d;

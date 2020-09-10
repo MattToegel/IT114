@@ -7,7 +7,7 @@ public class Overflow {
 		byte myByte = 127;// remember the range of a byte is -128 - 127
 		System.out.println("My byte is " + myByte);
 		// let's see what happens when we add 1
-		myByte++;// shorthand for incrementing by 1
+		myByte++;// shorthand for incrementing by 1 mybyte = myByte + 1; myByte += 1;
 		// myByte += 1; myByte = myByte + 1;
 		System.out.println("My byte is " + myByte);
 		// huh, it's not 128 like we expected.

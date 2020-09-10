@@ -17,11 +17,11 @@ public class Scope {
 		// scope, not this block's scope
 		int b = 3;
 		System.out.println("b: " + b);
-
+		// c=4;
 		// Later we'll learn about modifiers but for now just follow the below
 		// c isn't accessible here because it's outside of the current scope of main()
 		// uncomment the below line to see
-		// System.err.println("c: " + c);
+		// System.out.println("c: " + c);
 		// Normally you'd acces a class level variable via "this"
 		// but that won't work here because this method is static (which we'll cover
 		// later)
