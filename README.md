@@ -4,3 +4,4 @@
 My first file
 
 Conflict resolved
+
