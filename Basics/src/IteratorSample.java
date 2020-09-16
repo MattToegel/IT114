@@ -2,7 +2,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-public class Test {
+public class IteratorSample {
 	public static void main(String[] args) {
 		// Normally this is a quick way to create a list in "one line" however, this
 		// sample fails
@@ -18,6 +18,7 @@ public class Test {
 		 * List<String> months = List.of("Jan", "Feb", "Mar", "Apr", "May", "Jun",
 		 * "Jul", "Aug", "Sep", "Oct", "Nov", "Dec");
 		 */
+		// we have to use the standard .add() method
 		List<String> months = new ArrayList<String>() {
 			{
 				add("Jan");

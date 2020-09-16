@@ -2,15 +2,16 @@ public class Homework {
 	public static void main(String[] args) {
 		// If it matches my sample exactly it gets a 0
 		// 1. Create a variable that holds a name
-
+		System.out.println("1");
 		// 2. Output the name to the console
-
+		System.out.println("1");
 		// 3. Create a variable that holds an age (as a whole number)
-
+		System.out.println("1");
 		// 4. Output the age to the console
-
+		System.out.println("1");
 		// 5. Create a variable that holds a decimal
-
+		System.out.println("1");
 		// 6. Output the variable
+		System.out.println("1");
 	}
 }
