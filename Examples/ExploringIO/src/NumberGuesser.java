@@ -9,12 +9,12 @@ public class NumberGuesser{
 			int number = new Random().nextInt(9)+1;
 			System.out.println("Type a number and press enter");
 			while(input.hasNext()) {
-				int guess = input.nextInt(9)+1;
+				int guess = input.nextInt();
 				System.out.println("You guessed " + guess);
 				if(guess == number) {
 					System.out.println("That's right!");
 					System.out.println("I picked a random number between 1-10, let's see if you can guess.");
-					number = new Random().nextInt(10);
+					number = new Random().nextInt(9)+1;
 				}
 				else {
 					System.out.println("That's wrong");
