@@ -2,7 +2,7 @@ public class IfTransitionSwitch {
 	public static void main(String[] args) {
 		// Here's what we'd need before switch
 		System.out.println("if..else if..else");
-		int answer = 5;//
+		int answer = 0;//
 		if (answer == 0) {
 			System.out.println("Do something for answer equals 0");
 		} else if (answer == 1) {
