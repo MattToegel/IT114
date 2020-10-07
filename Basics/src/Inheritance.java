@@ -3,18 +3,19 @@ public class Inheritance {
 		FourLeggedAnimal a = new FourLeggedAnimal();
 		System.out.println("Animal has " + a.getNumberOfLegs() + " legs");
 		a.speak();
-		Dog d = new Dog();
+		Dog d = new Dog("Max");
 		d.speak();
 		System.out.println("Dog has " + d.getNumberOfLegs() + " legs");
-		Cat c = new Cat();
+		Cat c = new Cat("Mittens");
 		c.speak();
-		System.out.println("Cat has " + d.getNumberOfLegs() + " legs");
+		System.out.println("Cat has " + c.getNumberOfLegs() + " legs");
 	}
 
 }
 
 abstract class Animal {
 	protected int numberOfLegs = 0;
+	protected String name = "";
 
 	public int getNumberOfLegs() {
 		return numberOfLegs;
@@ -35,15 +36,23 @@ class FourLeggedAnimal extends Animal {
 }
 
 class Dog extends FourLeggedAnimal {
+	public Dog(String name) {
+		this.name = name;
+	}
+
 	@Override
 	public void speak() {
-		System.out.println("Bark!");
+		System.out.println(name + ": Bark!");
 	}
 }
 
 class Cat extends FourLeggedAnimal {
+	public Cat(String name) {
+		this.name = name;
+	}
+
 	@Override
 	public void speak() {
-		System.out.println("Meow");
+		System.out.println(name + ": Meow");
 	}
 }

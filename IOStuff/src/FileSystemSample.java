@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.util.Scanner;
 
 public class FileSystemSample {
+
 	public void createFileAndGetDetails(String fileName) {
 		try {
 			File fileReference = new File(fileName);
