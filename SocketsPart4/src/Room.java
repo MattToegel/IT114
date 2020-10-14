@@ -48,6 +48,7 @@ public class Room {
 		try {
 			if (message.indexOf("/") > -1) {
 				String[] comm = message.split("/");
+				Debug.log(message);
 				String part1 = comm[1];
 				String[] comm2 = part1.split(" ");
 				String command = comm2[0];
@@ -58,14 +59,13 @@ public class Room {
 					if (server.createNewRoom(roomName)) {
 						server.joinRoom(roomName, client);
 					}
-					wasCommand = true;
+					wasCommand = true; 
 					break;
 				case "joinroom":
 					roomName = comm2[1];
 					server.joinRoom(roomName, client);
 					wasCommand = true;
 					break;
-
 				}
 			}
 		} catch (Exception e) {
