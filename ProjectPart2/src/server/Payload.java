@@ -50,14 +50,16 @@ public class Payload implements Serializable {
 	return this.number;
     }
 
-    Point point;
+    int x = 0;
+    int y = 0;
 
-    public void setPoint() {
-
+    public void setPoint(Point p) {
+	x = p.x;
+	y = p.y;
     }
 
-    public Point getPoints() {
-	return point;
+    public Point getPoint() {
+	return new Point(x, y);
     }
 
     @Override

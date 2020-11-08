@@ -4,14 +4,21 @@ import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Point;
+import java.io.Serializable;
 
 import core.GameObject;
-import core.Helpers;
 
-public class Player extends GameObject {
-    Color color = Color.YELLOW;
+public class Player extends GameObject implements Serializable {
+    /**
+     * 
+     */
+    private static final long serialVersionUID = -6088251166673414031L;
+    Color color = Color.RED;
     Point nameOffset = new Point(0, 5);
 
+    /**
+     * Gets called by the game engine to draw the current location/size
+     */
     @Override
     public boolean draw(Graphics g) {
 	// using a boolean here so we can block drawing if isActive is false via call to
@@ -26,36 +33,9 @@ public class Player extends GameObject {
 	return true;
     }
 
-    /***
-     * Sets the direction of this object. Use the return value to determine if a
-     * network request should sync
-     * 
-     * @param x
-     * @param y
-     * @return returns true if changed, false if it's the same.
-     */
-    public boolean setDirection(int x, int y) {
-	x = Helpers.clamp(x, -1, 1);
-	y = Helpers.clamp(y, -1, 1);
-	boolean changed = false;
-	if (direction.x != x) {
-	    direction.x = x;
-	    changed = true;
-	}
-	if (direction.y != y) {
-	    direction.y = y;
-	    changed = true;
-	}
-	return changed;
-    }
-
-    public Point getDirection() {
-	return direction;
-    }
-
     @Override
     public String toString() {
-	return String.format("Name: %s, p: (%d,%d), s: (%d, %d), isAcitve: %s", name, position.x, position.y, speed.x,
-		speed.y, isActive);
+	return String.format("Name: %s, p: (%d,%d), s: (%d, %d), d: (%d, %d), isAcitve: %s", name, position.x,
+		position.y, speed.x, speed.y, direction.x, direction.y, isActive);
     }
 }

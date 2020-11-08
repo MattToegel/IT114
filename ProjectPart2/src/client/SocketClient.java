@@ -1,5 +1,6 @@
 package client;
 
+import java.awt.Point;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -130,6 +131,26 @@ public enum SocketClient {
 	}
     }
 
+    private void sendSyncDirection(String clientName, Point direction) {
+	Iterator<Event> iter = events.iterator();
+	while (iter.hasNext()) {
+	    Event e = iter.next();
+	    if (e != null) {
+		e.onSyncDirection(clientName, direction);
+	    }
+	}
+    }
+
+    private void sendSyncPosition(String clientName, Point position) {
+	Iterator<Event> iter = events.iterator();
+	while (iter.hasNext()) {
+	    Event e = iter.next();
+	    if (e != null) {
+		e.onSyncPosition(clientName, position);
+	    }
+	}
+    }
+
     /***
      * Determine any special logic for different PayloadTypes
      * 
@@ -150,6 +171,13 @@ public enum SocketClient {
 	case CLEAR_PLAYERS:
 	    sendOnChangeRoom();
 	    break;
+	case SYNC_DIRECTION:
+	    sendSyncDirection(p.getClientName(), p.getPoint());
+	    break;
+	case SYNC_POSITION:
+	    System.out.println("inc " + p.getPoint());
+	    sendSyncPosition(p.getClientName(), p.getPoint());
+	    break;
 	default:
 	    log.log(Level.WARNING, "unhandled payload on client" + p);
 	    break;
@@ -158,6 +186,7 @@ public enum SocketClient {
     }
 
     // TODO Start public methods here
+
     public void registerCallbackListener(Event e) {
 	events.add(e);
 	log.log(Level.INFO, "Attached listener");
@@ -196,6 +225,29 @@ public enum SocketClient {
 
     public void sendMessage(String message) {
 	sendPayload(buildMessage(message));
+    }
+
+    /**
+     * Sends desired to change direction to server
+     * 
+     * @param dir
+     */
+    public void syncDirection(Point dir) {
+	Payload p = new Payload();
+	// no need to add clientName here since ServerThread has the info
+	// so let's save a few bytes
+	p.setPayloadType(PayloadType.SYNC_DIRECTION);
+	p.setPoint(dir);
+	sendPayload(p);
+    }
+
+    /**
+     * we won't be syncing position from the client since our server is the one
+     * that'll do it so creating this unused method as a reminder not to use/make it
+     */
+    @Deprecated
+    public void syncPosition() {
+	log.log(Level.SEVERE, "My sample doesn't use this");
     }
 
     public boolean start() throws IOException {
