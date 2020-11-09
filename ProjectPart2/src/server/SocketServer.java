@@ -146,9 +146,6 @@ public class SocketServer {
 	Iterator<Room> iter = rooms.iterator();
 	while (iter.hasNext()) {
 	    Room r = iter.next();
-	    if (r != null && r.getName() != null) {
-		System.out.println("Room in list: " + r.getName());
-	    }
 	    if (r != null && r.getName() != null && r.getName().equalsIgnoreCase(roomName)) {
 		return r;
 	    }

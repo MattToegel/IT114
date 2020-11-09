@@ -250,7 +250,7 @@ public class ClientUI extends JFrame implements Event {
 	textArea.add(entry);
 
 	pack();
-	System.out.println(entry.getSize());
+	// System.out.println(entry.getSize());
 	JScrollBar sb = ((JScrollPane) textArea.getParent().getParent()).getVerticalScrollBar();
 	sb.setValue(sb.getMaximum());
     }

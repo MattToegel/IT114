@@ -91,7 +91,6 @@ public class ServerThread extends Thread {
 	Payload payload = new Payload();
 	payload.setPayloadType(PayloadType.SYNC_POSITION);
 	payload.setClientName(clientName);
-	System.out.println("Send: " + pos);
 	payload.setPoint(pos);
 	return sendPayload(payload);
     }
@@ -158,7 +157,6 @@ public class ServerThread extends Thread {
 	    // this
 	    break;
 	case SYNC_DIRECTION:
-	    System.out.println("Direction changed: " + p.getPoint());
 	    currentRoom.sendDirectionSync(this, p.getPoint());
 	    break;
 	case SYNC_POSITION:

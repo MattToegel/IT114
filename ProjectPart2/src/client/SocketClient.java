@@ -175,7 +175,6 @@ public enum SocketClient {
 	    sendSyncDirection(p.getClientName(), p.getPoint());
 	    break;
 	case SYNC_POSITION:
-	    System.out.println("inc " + p.getPoint());
 	    sendSyncPosition(p.getClientName(), p.getPoint());
 	    break;
 	default:

@@ -387,7 +387,6 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 		checkPositionSync(p);
 	    }
 	}
-	nextFrame();
 
     }
 
@@ -404,6 +403,7 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 
     @Override
     public void lateUpdate() {
+	nextFrame();
     }
 
     @Override

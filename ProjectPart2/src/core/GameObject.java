@@ -35,7 +35,6 @@ public abstract class GameObject implements Serializable {
 	if (y > -1) {
 	    speed.y = y;
 	}
-	System.out.println(speed);
     }
 
     /**
