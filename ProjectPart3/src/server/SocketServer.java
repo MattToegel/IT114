@@ -113,14 +113,22 @@ public class SocketServer {
 	return lobby;
     }
 
-    protected List<String> getRooms() {
+    protected List<String> getRooms(String room) {
 	// not the most efficient way to do it, but it works
 	List<String> roomNames = new ArrayList<String>();
 	Iterator<Room> iter = rooms.iterator();
+	// part 2, limit returned rooms
+	int i = 0;
+	int max = 10;// lets get up to 10 rooms
 	while (iter.hasNext()) {
 	    Room r = iter.next();
-	    if (r != null && r.getName() != null) {
+	    // Part 2 added room name filter for searches
+	    if (r != null && r.getName() != null && (room != null && room.equalsIgnoreCase(r.getName()))) {
 		roomNames.add(r.getName());
+	    }
+	    i++;
+	    if (i > max) {
+		break;
 	    }
 	}
 	return roomNames;
