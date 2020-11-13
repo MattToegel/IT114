@@ -184,6 +184,12 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 	server.joinLobby(client);
     }
 
+    protected void createRoom(String room, ServerThread client) {
+	if (server.createNewRoom(room)) {
+	    joinRoom(room, client);
+	}
+    }
+
     /***
      * Helper function to process messages to trigger different functionality.
      * 
@@ -207,9 +213,7 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 		switch (command) {
 		case CREATE_ROOM:
 		    roomName = comm2[1];
-		    if (server.createNewRoom(roomName)) {
-			joinRoom(roomName, client);
-		    }
+		    createRoom(roomName, client);
 		    wasCommand = true;
 		    break;
 		case JOIN_ROOM:
@@ -319,8 +323,8 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 	}
     }
 
-    public List<String> getRooms() {
-	return server.getRooms();
+    public List<String> getRooms(String search) {
+	return server.getRooms(search);
     }
 
     /***

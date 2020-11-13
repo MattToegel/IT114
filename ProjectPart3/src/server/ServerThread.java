@@ -175,7 +175,7 @@ public class ServerThread extends Thread {
 	    break;
 	case GET_ROOMS:
 	    // far from efficient but it works for example sake
-	    List<String> roomNames = currentRoom.getRooms();
+	    List<String> roomNames = currentRoom.getRooms(p.getMessage());
 	    Iterator<String> iter = roomNames.iterator();
 	    while (iter.hasNext()) {
 		String room = iter.next();
@@ -186,6 +186,9 @@ public class ServerThread extends Thread {
 		    }
 		}
 	    }
+	    break;
+	case CREATE_ROOM:
+	    currentRoom.createRoom(p.getMessage(), this);
 	    break;
 	case JOIN_ROOM:
 	    currentRoom.joinRoom(p.getMessage(), this);

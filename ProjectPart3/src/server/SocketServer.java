@@ -123,13 +123,16 @@ public class SocketServer {
 	while (iter.hasNext()) {
 	    Room r = iter.next();
 	    // Part 2 added room name filter for searches
-	    if (r != null && r.getName() != null && (room != null && room.equalsIgnoreCase(r.getName()))) {
+	    if ((r != null && r.getName() != null)
+		    && (room == null || (room != null && r.getName().toLowerCase().contains(room.toLowerCase())))) {
 		roomNames.add(r.getName());
 	    }
+
 	    i++;
 	    if (i > max) {
 		break;
 	    }
+
 	}
 	return roomNames;
     }
