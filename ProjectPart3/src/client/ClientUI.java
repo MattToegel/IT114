@@ -53,12 +53,11 @@ public class ClientUI extends JFrame implements Event {
     public ClientUI(String title) {
 	setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 	menu = new JMenuBar();
-	JMenu roomsMenu = new JMenu("Rooms");
-	JMenuItem roomsSearch = new JMenuItem("Search");
+	JMenu roomsMenu = new JMenu("Actions");
+	JMenuItem roomsSearch = new JMenuItem("Rooms");
 	roomsSearch.addActionListener(new ActionListener() {
 	    @Override
 	    public void actionPerformed(ActionEvent e) {
-		System.out.println("clicked");
 		goToPanel("rooms");
 	    }
 
