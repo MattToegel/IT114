@@ -23,7 +23,6 @@ import javax.swing.InputMap;
 import javax.swing.KeyStroke;
 
 import core.BaseGamePanel;
-import core.Helpers;
 
 public class GamePanel extends BaseGamePanel implements Event {
 
@@ -68,59 +67,12 @@ public class GamePanel extends BaseGamePanel implements Event {
 	    if (clientName.equals(playerUsername)) {
 		System.out.println("Reset myPlayer");
 		myPlayer = p;
-
-		// brainstorming scenario
-		int players = 15;
-		final int chairs = Helpers.getNumberBetween(players, (int) (players * 1.5));
-		final Dimension chairSize = new Dimension(25, 25);
-		float paddingLeft = .1f;
-		float paddingRight = .9f;
-		float paddingTop = .1f;
-		float paddingBottom = .6f;
-		final float chairSpacing = chairSize.height * 1.75f;
-		final int chairHalfWidth = (int) (chairSize.width * .5);
-		final int screenWidth = getSize().width;
-		final int screenHeight = getSize().height;
-		for (int i = 0; i < chairs; i++) {
-		    Chair chair = new Chair("Chair " + (i + 1));
-		    Point chairPosition = new Point();
-		    if (i % 2 == 0) {
-			chairPosition.x = (int) ((screenWidth * paddingRight) - chairHalfWidth);
-		    }
-		    else {
-			chairPosition.x = (int) (screenWidth * paddingLeft);
-		    }
-		    chairPosition.y = (int) ((getSize().height * paddingTop) + (chairSpacing * (i / 2)));
-		    chair.setPosition(chairPosition);
-		    chair.setSize(chairSize.width, chairSize.height);
-		    this.chairs.add(chair);
-		}
-		int tickets = 15;
-		paddingLeft = .4f;
-		paddingRight = .6f;
-		paddingTop = .4f;
-		Dimension ticketSize = new Dimension(30, 20);
-		for (int i = 0; i < tickets; i++) {
-		    long seed = 200 * (i + 1);
-		    Ticket ticket = new Ticket("#" + Helpers.getNumberBetweenBySeed(1, 10, seed));
-		    Point ticketPosition = new Point();
-		    ticketPosition.x = Helpers.getNumberBetweenBySeed((int) (screenWidth * paddingLeft),
-			    (int) (screenWidth * paddingRight), seed);
-		    ticketPosition.y = Helpers.getNumberBetweenBySeed((int) (screenHeight * paddingTop),
-			    (int) (screenHeight * paddingBottom), seed);
-		    ticket.setPosition(ticketPosition);
-		    ticket.setSize(ticketSize.width, ticketSize.height);
-		    System.out.println(ticket.getPosition());
-		    this.tickets.add(ticket);
-		}
 	    }
 	}
     }
 
     @Override
     public void onClientDisconnect(String clientName, String message) {
-
-	// TODO Auto-generated method stub
 	System.out.println("Disconnected on Game Panel: " + clientName);
 	Iterator<Player> iter = players.iterator();
 	while (iter.hasNext()) {
@@ -145,10 +97,8 @@ public class GamePanel extends BaseGamePanel implements Event {
 	// players.clear();
 	Iterator<Player> iter = players.iterator();
 	while (iter.hasNext()) {
-	    Player p = iter.next();
-	    // if (p != myPlayer) {
+	    iter.next();
 	    iter.remove();
-	    // }
 	}
 	myPlayer = null;
 	System.out.println("Cleared players");
@@ -372,5 +322,99 @@ public class GamePanel extends BaseGamePanel implements Event {
 	System.out.println(this.getSize());
 	this.invalidate();
 	this.repaint();
+    }
+
+    @Override
+    public void onGetChair(String chairName, Point position, Point dimension, boolean isAvailable) {
+	// TODO Auto-generated method stub
+	boolean exists = false;
+	System.out.println("Available " + (isAvailable ? "true" : "false"));
+	Iterator<Chair> iter = chairs.iterator();
+	while (iter.hasNext()) {
+	    Chair c = iter.next();
+	    if (c.getName().equalsIgnoreCase(chairName)) {
+		exists = true;
+		// for now will fill in player as empty player so it's !null
+		// the player set only matters for the server
+		if (isAvailable) {
+		    c.setPlayer(null);
+		}
+		else {
+		    c.setPlayer(new Player());
+		}
+		break;
+	    }
+	}
+	if (!exists) {
+	    Chair c = new Chair(chairName);
+	    c.setPosition(position);
+	    c.setSize(dimension.x, dimension.y);
+	    if (isAvailable) {
+		c.setPlayer(null);
+	    }
+	    else {
+		c.setPlayer(new Player());
+	    }
+	    chairs.add(c);
+	}
+    }
+
+    @Override
+    public void onResetChairs() {
+	// TODO Auto-generated method stub
+	Iterator<Chair> iter = chairs.iterator();
+	while (iter.hasNext()) {
+	    Chair c = iter.next();
+	    c.setPlayer(null);
+	    iter.remove();
+	}
+    }
+
+    @Override
+    public void onGetTicket(String ticketName, Point position, Point dimension, boolean isAvailable) {
+	// TODO Auto-generated method stub
+	boolean exists = false;
+	Iterator<Ticket> iter = tickets.iterator();
+	while (iter.hasNext()) {
+	    Ticket t = iter.next();
+	    if (t.getName().equalsIgnoreCase(ticketName)) {
+		exists = true;
+		// for now will fill in player as empty player so it's !null
+		// the player set only matters for the server
+		if (isAvailable) {
+		    t.setPlayer(null);
+		}
+		else {
+		    t.setPlayer(new Player());
+		}
+		break;
+	    }
+	}
+	if (!exists) {
+	    Ticket t = new Ticket(ticketName);
+	    t.setPosition(position);
+	    t.setSize(dimension.x, dimension.y);
+	    if (isAvailable) {
+		t.setPlayer(null);
+	    }
+	    else {
+		t.setPlayer(new Player());
+	    }
+	    tickets.add(t);
+	}
+    }
+
+    @Override
+    public void onResetTickets() {
+	// TODO Auto-generated method stub
+	Iterator<Ticket> iter = tickets.iterator();
+	while (iter.hasNext()) {
+	    Ticket t = iter.next();
+	    if (t.holder != null) {
+		t.holder.takeTicket();
+	    }
+	    t.setPlayer(null);
+	    iter.remove();
+	}
     }
 }

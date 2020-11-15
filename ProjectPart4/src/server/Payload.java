@@ -74,7 +74,7 @@ public class Payload implements Serializable {
     boolean flag = false;// 1 bit
 
     public void setFlag(boolean flag) {
-	this.flag = false;
+	this.flag = flag;
     }
 
     public boolean getFlag() {

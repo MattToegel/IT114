@@ -16,6 +16,15 @@ public class Player extends GameObject implements Serializable {
     Color color = Color.RED;
     Point nameOffset = new Point(0, 5);
     int ticket = -1;
+    boolean isReady = false;
+
+    public void setReady(boolean r) {
+	isReady = r;
+    }
+
+    public boolean isReady() {
+	return isReady;
+    }
 
     public boolean hasTicket() {
 	return ticket > -1;

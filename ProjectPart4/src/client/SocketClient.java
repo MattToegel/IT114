@@ -171,6 +171,47 @@ public enum SocketClient {
 	}
     }
 
+    private void sendChair(String name, Point position, Point dimension, boolean flag) {
+	Iterator<Event> iter = events.iterator();
+	while (iter.hasNext()) {
+	    Event e = iter.next();
+	    if (e != null) {
+		e.onGetChair(name, position, dimension, flag);
+
+	    }
+	}
+    }
+
+    private void sendResetChairs() {
+	Iterator<Event> iter = events.iterator();
+	while (iter.hasNext()) {
+	    Event e = iter.next();
+	    if (e != null) {
+		e.onResetChairs();
+	    }
+	}
+    }
+
+    private void sendTicket(String name, Point position, Point dimension, boolean flag) {
+	Iterator<Event> iter = events.iterator();
+	while (iter.hasNext()) {
+	    Event e = iter.next();
+	    if (e != null) {
+		e.onGetTicket(name, position, dimension, flag);
+	    }
+	}
+    }
+
+    private void sendResetTickets() {
+	Iterator<Event> iter = events.iterator();
+	while (iter.hasNext()) {
+	    Event e = iter.next();
+	    if (e != null) {
+		e.onResetTickets();
+	    }
+	}
+    }
+
     /***
      * Determine any special logic for different PayloadTypes
      * 
@@ -203,6 +244,24 @@ public enum SocketClient {
 	    break;
 	case SYNC_GAME_SIZE:
 	    sendSize(p.getPoint());
+	    break;
+	case SYNC_CHAIR:
+	    // we'll use null to reset and not null to add
+	    if (p.getMessage() != null) {
+		sendChair(p.getMessage(), p.getPoint(), p.getPoint2(), p.getFlag());
+	    }
+	    else {
+		sendResetChairs();
+	    }
+	    break;
+	case SYNC_TICKET:
+	    // we'll use null to reset and not null to add
+	    if (p.getMessage() != null) {
+		sendTicket(p.getMessage(), p.getPoint(), p.getPoint2(), p.getFlag());
+	    }
+	    else {
+		sendResetTickets();
+	    }
 	    break;
 	default:
 	    log.log(Level.WARNING, "unhandled payload on client" + p);

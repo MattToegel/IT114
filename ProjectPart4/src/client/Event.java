@@ -18,4 +18,12 @@ public interface Event {
     void onGetRoom(String roomName);
 
     void onResize(Point p);
+
+    void onGetChair(String chairName, Point position, Point dimension, boolean isAvailable);
+
+    void onResetChairs();
+
+    void onGetTicket(String ticketName, Point position, Point dimension, boolean isAvailable);
+
+    void onResetTickets();
 }

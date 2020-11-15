@@ -424,4 +424,28 @@ public class ClientUI extends JFrame implements Event {
 	// ignore it here, I'm sending it to resize the game area
 	resizeTexts();
     }
+
+    @Override
+    public void onGetChair(String chairName, Point position, Point dimension, boolean flag) {
+	// TODO Auto-generated method stub
+
+    }
+
+    @Override
+    public void onResetChairs() {
+	// TODO Auto-generated method stub
+
+    }
+
+    @Override
+    public void onGetTicket(String ticketName, Point position, Point dimension, boolean flag) {
+	// TODO Auto-generated method stub
+
+    }
+
+    @Override
+    public void onResetTickets() {
+	// TODO Auto-generated method stub
+
+    }
 }

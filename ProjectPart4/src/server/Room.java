@@ -24,6 +24,7 @@ public class Room extends BaseGamePanel implements AutoCloseable {
     private final static String COMMAND_TRIGGER = "/";
     private final static String CREATE_ROOM = "createroom";
     private final static String JOIN_ROOM = "joinroom";
+    private final static String READY = "ready";
     private List<ClientPlayer> clients = new ArrayList<ClientPlayer>();
     static Dimension gameAreaSize = new Dimension(800, 800);
     private List<Chair> chairs = new ArrayList<Chair>();
@@ -79,6 +80,7 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 	    chairPosition.y = (int) ((screenHeight * paddingTop) + (chairSpacing * (i / 2)));
 	    chair.setPosition(chairPosition);
 	    chair.setSize(chairSize.width, chairSize.height);
+	    chair.setPlayer(null);
 	    this.chairs.add(chair);
 	}
 
@@ -114,6 +116,7 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 	for (int i = 0; i < tickets; i++) {
 	    Ticket ticket = new Ticket("#" + Helpers.getNumberBetween(1, 10));
 	    Point ticketPosition = new Point();
+	    ticket.setPlayer(null);
 	    ticketPosition.x = Helpers.getNumberBetween((int) (screenWidth * paddingLeft),
 		    (int) (screenWidth * paddingRight));
 	    ticketPosition.y = Helpers.getNumberBetween((int) (screenHeight * paddingTop),
@@ -293,6 +296,17 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 	}
     }
 
+    private ClientPlayer getCP(ServerThread client) {
+	Iterator<ClientPlayer> iter = clients.iterator();
+	while (iter.hasNext()) {
+	    ClientPlayer cp = iter.next();
+	    if (cp.client == client) {
+		return cp;
+	    }
+	}
+	return null;
+    }
+
     /***
      * Helper function to process messages to trigger different functionality.
      * 
@@ -313,16 +327,30 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 		    command = command.toLowerCase();
 		}
 		String roomName;
+		ClientPlayer cp = null;
 		switch (command) {
 		case CREATE_ROOM:
 		    roomName = comm2[1];
-		    createRoom(roomName, client);
+		    cp = getCP(client);
+		    if (cp != null) {
+			createRoom(roomName, cp.client);
+		    }
 		    wasCommand = true;
 		    break;
 		case JOIN_ROOM:
 		    roomName = comm2[1];
-		    joinRoom(roomName, client);
+		    cp = getCP(client);
+		    if (cp != null) {
+			joinRoom(roomName, cp.client);
+		    }
 		    wasCommand = true;
+		    break;
+		case READY:
+		    cp = getCP(client);
+		    if (cp != null) {
+			cp.player.setReady(true);
+			readyCheck();
+		    }
 		    break;
 		}
 	    }
@@ -331,6 +359,26 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 	    e.printStackTrace();
 	}
 	return wasCommand;
+    }
+
+    private void readyCheck() {
+	Iterator<ClientPlayer> iter = clients.iterator();
+	int total = clients.size();
+	int ready = 0;
+	while (iter.hasNext()) {
+	    ClientPlayer cp = iter.next();
+	    if (cp != null && cp.player.isReady()) {
+		ready++;
+	    }
+	}
+	if (ready >= total && chairs.size() == 0) {
+	    // start
+	    System.out.println("Everyone's ready, let's do this!");
+	    generateSeats();
+	    generateTickets();
+	    syncChairs();
+	    syncTickets();
+	}
     }
 
     protected void sendConnectionStatus(ServerThread client, boolean isConnect, String message) {
