@@ -25,7 +25,7 @@ public class Room extends BaseGamePanel implements AutoCloseable {
     private final static String CREATE_ROOM = "createroom";
     private final static String JOIN_ROOM = "joinroom";
     private List<ClientPlayer> clients = new ArrayList<ClientPlayer>();
-    static Dimension gameAreaSize = new Dimension(400, 600);
+    static Dimension gameAreaSize = new Dimension(800, 800);
     private List<Chair> chairs = new ArrayList<Chair>();
     private List<Ticket> tickets = new ArrayList<Ticket>();
 
@@ -142,6 +142,16 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 	}
     }
 
+    private void syncGameSize() {
+	Iterator<ClientPlayer> iter = clients.iterator();
+	while (iter.hasNext()) {
+	    ClientPlayer cp = iter.next();
+	    if (cp != null) {
+		cp.client.sendGameAreaSize(gameAreaSize);
+	    }
+	}
+    }
+
     protected synchronized void addClient(ServerThread client) {
 	client.setCurrentRoom(this);
 	boolean exists = false;
@@ -189,6 +199,7 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 	    // calculate random start position
 	    Point startPos = Room.getRandomStartPosition();
 	    cp.player.setPosition(startPos);
+	    cp.client.sendGameAreaSize(gameAreaSize);
 	    // tell our client of our server determined position
 	    cp.client.sendPosition(cp.client.getClientName(), startPos);
 	    // tell everyone else about our server determiend position
@@ -197,6 +208,7 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 	    updateClientList(cp.client);
 	    // get dir/pos of existing players
 	    updatePlayers(cp.client);
+
 	}
     }
 

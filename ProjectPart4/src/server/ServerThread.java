@@ -154,6 +154,13 @@ public class ServerThread extends Thread {
 	return sendPayload(payload);
     }
 
+    protected boolean sendGameAreaSize(Dimension roomSize) {
+	Payload payload = new Payload();
+	payload.setPayloadType(PayloadType.SYNC_GAME_SIZE);
+	payload.setPoint(new Point(roomSize.width, roomSize.height));
+	return sendPayload(payload);
+    }
+
     private boolean sendPayload(Payload p) {
 	try {
 	    out.writeObject(p);

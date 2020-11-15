@@ -64,8 +64,8 @@ public class ClientUI extends JFrame implements Event {
 	});
 	roomsMenu.add(roomsSearch);
 	menu.add(roomsMenu);
-	windowSize.width *= .8;
-	windowSize.height *= .8;
+	windowSize.width *= .85;
+	windowSize.height *= .85;
 	setPreferredSize(windowSize);
 	setSize(windowSize);// This is needed for setLocationRelativeTo()
 	setLocationRelativeTo(null);
@@ -163,6 +163,12 @@ public class ClientUI extends JFrame implements Event {
 	JScrollPane scroll = new JScrollPane(textArea);
 	scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 	scroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
+	// updated to be 30% of screen width
+	Dimension d = new Dimension((int) (windowSize.width * .3), windowSize.height);
+	scroll.setPreferredSize(d);
+	scroll.setMinimumSize(d);
+	scroll.setMaximumSize(d);
+
 	panel.add(scroll, BorderLayout.CENTER);
 
 	JPanel input = new JPanel();
@@ -201,9 +207,11 @@ public class ClientUI extends JFrame implements Event {
 	JScrollPane scroll = new JScrollPane(userPanel);
 	scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 	scroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
-
-	Dimension d = new Dimension(100, windowSize.height);
+	// updated to be 10% of screen width
+	Dimension d = new Dimension((int) (windowSize.width * .1), windowSize.height);
 	scroll.setPreferredSize(d);
+	scroll.setMinimumSize(d);
+	scroll.setMaximumSize(d);
 
 	textArea.getParent().getParent().getParent().add(scroll, BorderLayout.EAST);
     }
@@ -267,7 +275,8 @@ public class ClientUI extends JFrame implements Event {
 	entry.setEditable(false);
 	// entry.setLayout(null);
 	entry.setText(str);
-	Dimension d = new Dimension(textArea.getSize().width, calcHeightForText(str));
+	int areaWidth = textArea.getSize().width;
+	Dimension d = new Dimension(areaWidth, calcHeightForText(str));
 	// attempt to lock all dimensions
 	entry.setMinimumSize(d);
 	entry.setPreferredSize(d);
@@ -275,9 +284,32 @@ public class ClientUI extends JFrame implements Event {
 	textArea.add(entry);
 
 	pack();
+	resizeTexts();
 	// System.out.println(entry.getSize());
 	JScrollBar sb = ((JScrollPane) textArea.getParent().getParent()).getVerticalScrollBar();
 	sb.setValue(sb.getMaximum());
+    }
+
+    void resizeTexts() {
+	// attempts to fix sizing of messages when text area gets resized
+	// sort of works so good enough for my example
+	int areaWidth = textArea.getSize().width;
+	int cc = textArea.getComponents().length;
+	if (cc > 1) {
+	    // if we have more than 1 text item
+	    Component test = textArea.getComponent(cc - 2);
+	    // check if the test width is different than our container
+	    if (areaWidth != test.getWidth()) {
+		// if so let's try to resize all the components to be the same width
+		for (Component c : textArea.getComponents()) {
+		    Dimension current = c.getSize();
+		    Dimension updated = new Dimension(areaWidth, current.height);
+		    c.setPreferredSize(updated);
+		    c.setMinimumSize(updated);
+		    c.setMaximumSize(updated);
+		}
+	    }
+	}
     }
 
     void next() {
@@ -384,5 +416,12 @@ public class ClientUI extends JFrame implements Event {
 	    roomsPanel.addRoom(roomName);
 	    pack();
 	}
+    }
+
+    @Override
+    public void onResize(Point p) {
+	// TODO Auto-generated method stub
+	// ignore it here, I'm sending it to resize the game area
+	resizeTexts();
     }
 }

@@ -16,4 +16,6 @@ public interface Event {
     void onSyncPosition(String clientName, Point position);
 
     void onGetRoom(String roomName);
+
+    void onResize(Point p);
 }
