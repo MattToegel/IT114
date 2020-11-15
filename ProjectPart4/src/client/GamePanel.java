@@ -68,12 +68,14 @@ public class GamePanel extends BaseGamePanel implements Event {
 		int players = 15;
 		final int chairs = Helpers.getNumberBetween(players, (int) (players * 1.5));
 		final Dimension chairSize = new Dimension(25, 25);
-		final float paddingLeft = .1f;
-		final float paddingRight = .9f;
-		final float paddingTop = .1f;
+		float paddingLeft = .1f;
+		float paddingRight = .9f;
+		float paddingTop = .1f;
+		float paddingBottom = .6f;
 		final float chairSpacing = chairSize.height * 1.75f;
 		final int chairHalfWidth = (int) (chairSize.width * .5);
 		final int screenWidth = getSize().width;
+		final int screenHeight = getSize().height;
 		for (int i = 0; i < chairs; i++) {
 		    Chair chair = new Chair("Chair " + (i + 1));
 		    Point chairPosition = new Point();
@@ -89,16 +91,18 @@ public class GamePanel extends BaseGamePanel implements Event {
 		    this.chairs.add(chair);
 		}
 		int tickets = 15;
-
-		Dimension ticketSize = new Dimension(20, 10);
+		paddingLeft = .4f;
+		paddingRight = .6f;
+		paddingTop = .4f;
+		Dimension ticketSize = new Dimension(30, 20);
 		for (int i = 0; i < tickets; i++) {
 		    long seed = 200 * (i + 1);
 		    Ticket ticket = new Ticket("#" + Helpers.getNumberBetweenBySeed(1, 10, seed));
 		    Point ticketPosition = new Point();
 		    ticketPosition.x = Helpers.getNumberBetweenBySeed((int) (screenWidth * paddingLeft),
 			    (int) (screenWidth * paddingRight), seed);
-		    ticketPosition.y = Helpers.getNumberBetweenBySeed((int) (screenWidth * paddingLeft),
-			    (int) (screenWidth * paddingRight), seed);
+		    ticketPosition.y = Helpers.getNumberBetweenBySeed((int) (screenHeight * paddingTop),
+			    (int) (screenHeight * paddingBottom), seed);
 		    ticket.setPosition(ticketPosition);
 		    ticket.setSize(ticketSize.width, ticketSize.height);
 		    System.out.println(ticket.getPosition());

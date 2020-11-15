@@ -1,5 +1,6 @@
 package server;
 
+import java.awt.Dimension;
 import java.awt.Point;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -122,6 +123,34 @@ public class ServerThread extends Thread {
 	// using same payload type as a response trigger
 	payload.setPayloadType(PayloadType.GET_ROOMS);
 	payload.setMessage(room);
+	return sendPayload(payload);
+    }
+
+    protected boolean sendChair(String chairName, Point chairPosition, Dimension chairSize, boolean isAvailable) {
+	Payload payload = new Payload();
+	payload.setPayloadType(PayloadType.SYNC_CHAIR);
+	payload.setMessage(chairName);
+	if (chairPosition != null) {
+	    payload.setPoint(chairPosition);
+	}
+	if (chairSize != null) {
+	    payload.setPoint2(new Point(chairSize.width, chairSize.height));
+	}
+	payload.setFlag(isAvailable);
+	return sendPayload(payload);
+    }
+
+    protected boolean sendTicket(String ticketName, Point ticketPosition, Dimension ticketSize, boolean isAvailable) {
+	Payload payload = new Payload();
+	payload.setPayloadType(PayloadType.SYNC_TICKET);
+	payload.setMessage(ticketName);
+	if (ticketPosition != null) {
+	    payload.setPoint(ticketPosition);
+	}
+	if (ticketSize != null) {
+	    payload.setPoint2(new Point(ticketSize.width, ticketSize.height));
+	}
+	payload.setFlag(isAvailable);
 	return sendPayload(payload);
     }
 

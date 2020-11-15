@@ -9,8 +9,11 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import client.Chair;
 import client.Player;
+import client.Ticket;
 import core.BaseGamePanel;
+import core.Helpers;
 
 public class Room extends BaseGamePanel implements AutoCloseable {
     private static SocketServer server;// used to refer to accessible server functions
@@ -23,6 +26,8 @@ public class Room extends BaseGamePanel implements AutoCloseable {
     private final static String JOIN_ROOM = "joinroom";
     private List<ClientPlayer> clients = new ArrayList<ClientPlayer>();
     static Dimension gameAreaSize = new Dimension(400, 600);
+    private List<Chair> chairs = new ArrayList<Chair>();
+    private List<Ticket> tickets = new ArrayList<Ticket>();
 
     public Room(String name, boolean delayStart) {
 	super(delayStart);
@@ -49,6 +54,92 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 	startPos.x = (int) (Math.random() * gameAreaSize.width);
 	startPos.y = (int) (Math.random() * gameAreaSize.height);
 	return startPos;
+    }
+
+    private void generateSeats() {
+	int players = clients.size();
+	final int chairs = Helpers.getNumberBetween(players, (int) (players * 1.5));
+	final Dimension chairSize = new Dimension(25, 25);
+	final float paddingLeft = .1f;
+	final float paddingRight = .9f;
+	final float paddingTop = .1f;
+	final float chairSpacing = chairSize.height * 1.75f;
+	final int chairHalfWidth = (int) (chairSize.width * .5);
+	final int screenWidth = gameAreaSize.width;
+	final int screenHeight = gameAreaSize.height;
+	for (int i = 0; i < chairs; i++) {
+	    Chair chair = new Chair("Chair " + (i + 1));
+	    Point chairPosition = new Point();
+	    if (i % 2 == 0) {
+		chairPosition.x = (int) ((screenWidth * paddingRight) - chairHalfWidth);
+	    }
+	    else {
+		chairPosition.x = (int) (screenWidth * paddingLeft);
+	    }
+	    chairPosition.y = (int) ((screenHeight * paddingTop) + (chairSpacing * (i / 2)));
+	    chair.setPosition(chairPosition);
+	    chair.setSize(chairSize.width, chairSize.height);
+	    this.chairs.add(chair);
+	}
+
+    }
+
+    private void syncChairs() {
+	// fairest way seems to be syncing 1 chair at a time across all players
+	Iterator<Chair> chairIter = chairs.iterator();
+	while (chairIter.hasNext()) {
+	    Chair chair = chairIter.next();
+	    if (chair != null) {
+		Iterator<ClientPlayer> iter = clients.iterator();
+		while (iter.hasNext()) {
+		    ClientPlayer cp = iter.next();
+		    if (cp != null) {
+			cp.client.sendChair(chair.getName(), chair.getPosition(), chair.getSize(), chair.isAvailable());
+		    }
+		}
+	    }
+	}
+    }
+
+    private void generateTickets() {
+	int players = clients.size();
+	final int tickets = Helpers.getNumberBetween(players, (int) (players * 1.5));
+	final int screenWidth = gameAreaSize.width;
+	final int screenHeight = gameAreaSize.height;
+	final float paddingLeft = .4f;
+	final float paddingRight = .6f;
+	final float paddingTop = .4f;
+	final float paddingBottom = .6f;
+	Dimension ticketSize = new Dimension(30, 20);
+	for (int i = 0; i < tickets; i++) {
+	    Ticket ticket = new Ticket("#" + Helpers.getNumberBetween(1, 10));
+	    Point ticketPosition = new Point();
+	    ticketPosition.x = Helpers.getNumberBetween((int) (screenWidth * paddingLeft),
+		    (int) (screenWidth * paddingRight));
+	    ticketPosition.y = Helpers.getNumberBetween((int) (screenHeight * paddingTop),
+		    (int) (screenHeight * paddingBottom));
+	    ticket.setPosition(ticketPosition);
+	    ticket.setSize(ticketSize.width, ticketSize.height);
+	    this.tickets.add(ticket);
+	}
+    }
+
+    private void syncTickets() {
+	// fairest way seems to be syncing 1 ticket at a time across all players
+	Iterator<Ticket> ticketIter = tickets.iterator();
+	while (ticketIter.hasNext()) {
+	    Ticket ticket = ticketIter.next();
+	    if (ticket != null) {
+		Iterator<ClientPlayer> iter = clients.iterator();
+		while (iter.hasNext()) {
+		    ClientPlayer cp = iter.next();
+		    if (cp != null) {
+			cp.client.sendTicket(ticket.getName(), ticket.getPosition(), ticket.getSize(),
+				ticket.isAvailable());
+		    }
+		}
+	    }
+	}
     }
 
     protected synchronized void addClient(ServerThread client) {

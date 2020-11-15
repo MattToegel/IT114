@@ -13,27 +13,28 @@ public class Ticket extends GameObject implements Serializable {
      * 
      */
     private static final long serialVersionUID = -6088251166673414031L;
-    Color color = Color.YELLOW;
-    Point nameOffset = new Point(-10, -5);
-    Player seated = null;
+    Color color = Color.DARK_GRAY;
+    Point nameOffset = new Point(0, -5);
+    Player holder = null;
 
     public Ticket(String name) {
 	setName(name);
     }
 
     public boolean isAvailable() {
-	return seated == null;
+	return holder == null;
     }
 
     public void setPlayer(Player p) {
-	seated = p;
+	holder = p;
     }
 
     @Override
     public void setSize(int x, int y) {
 	super.setSize(x, y);
-	nameOffset.x = -x / 2;
-	nameOffset.y = y / 2;
+	// division used are just magic numbers, played with it until it looked ok
+	nameOffset.x = (int) (x / 3);
+	nameOffset.y = (int) (y / 1.5f);
     }
 
     /**

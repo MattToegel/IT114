@@ -48,6 +48,10 @@ public abstract class GameObject implements Serializable {
 	size.height = Math.max(0, height);
     }
 
+    public Dimension getSize() {
+	return size;
+    }
+
     public void setName(String name) {
 	this.name = name;
     }
