@@ -104,15 +104,16 @@ public class Room extends BaseGamePanel implements AutoCloseable {
     }
 
     private void generateTickets() {
-	int players = clients.size();
+	int players = clients.size() + 1;
 	final int tickets = Helpers.getNumberBetween(players, (int) (players * 1.5));
 	final int screenWidth = gameAreaSize.width;
 	final int screenHeight = gameAreaSize.height;
-	final float paddingLeft = .4f;
-	final float paddingRight = .6f;
-	final float paddingTop = .4f;
-	final float paddingBottom = .6f;
+	final float paddingLeft = .3f;
+	final float paddingRight = .7f;
+	final float paddingTop = .3f;
+	final float paddingBottom = .7f;
 	Dimension ticketSize = new Dimension(30, 20);
+	System.out.println("Tickets to be made: " + tickets);
 	for (int i = 0; i < tickets; i++) {
 	    Ticket ticket = new Ticket("#" + Helpers.getNumberBetween(1, 10));
 	    Point ticketPosition = new Point();
@@ -125,6 +126,7 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 	    ticket.setSize(ticketSize.width, ticketSize.height);
 	    this.tickets.add(ticket);
 	}
+	System.out.println("Tickets made: " + this.tickets.size());
     }
 
     private void syncTickets() {
