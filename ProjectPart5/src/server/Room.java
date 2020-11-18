@@ -316,8 +316,8 @@ public class Room extends BaseGamePanel implements AutoCloseable {
      * @param client  The sender of the message (since they'll be the ones
      *                triggering the actions)
      */
-    private boolean processCommands(String message, ServerThread client) {
-	boolean wasCommand = false;
+    private String processCommands(String message, ServerThread client) {
+	String response = null;
 	try {
 	    if (message.indexOf(COMMAND_TRIGGER) > -1) {
 		String[] comm = message.split(COMMAND_TRIGGER);
@@ -337,7 +337,6 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 		    if (cp != null) {
 			createRoom(roomName, cp.client);
 		    }
-		    wasCommand = true;
 		    break;
 		case JOIN_ROOM:
 		    roomName = comm2[1];
@@ -345,7 +344,6 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 		    if (cp != null) {
 			joinRoom(roomName, cp.client);
 		    }
-		    wasCommand = true;
 		    break;
 		case READY:
 		    cp = getCP(client);
@@ -353,6 +351,7 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 			cp.player.setReady(true);
 			readyCheck();
 		    }
+		    response = "Ready to go!";
 		    break;
 		}
 	    }
@@ -360,7 +359,7 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 	catch (Exception e) {
 	    e.printStackTrace();
 	}
-	return wasCommand;
+	return response;
     }
 
     private void readyCheck() {
@@ -405,10 +404,12 @@ public class Room extends BaseGamePanel implements AutoCloseable {
      */
     protected void sendMessage(ServerThread sender, String message) {
 	log.log(Level.INFO, getName() + ": Sending message to " + clients.size() + " clients");
-	if (processCommands(message, sender)) {
+	String resp = processCommands(message, sender);
+	if (resp == null) {
 	    // it was a command, don't broadcast
 	    return;
 	}
+	message = resp;
 	Iterator<ClientPlayer> iter = clients.iterator();
 	while (iter.hasNext()) {
 	    ClientPlayer client = iter.next();
