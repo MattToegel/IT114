@@ -294,6 +294,7 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 
     protected void createRoom(String room, ServerThread client) {
 	if (server.createNewRoom(room)) {
+	    sendMessage(client, "Created a new room");
 	    joinRoom(room, client);
 	}
     }
@@ -353,7 +354,15 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 		    }
 		    response = "Ready to go!";
 		    break;
+		default:
+		    // not a command, let's fix this function from eating messages
+		    response = message;
+		    break;
 		}
+	    }
+	    else {
+		// not a command, let's fix this function from eating messages
+		response = message;
 	    }
 	}
 	catch (Exception e) {

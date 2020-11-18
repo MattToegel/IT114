@@ -41,14 +41,18 @@ public class RoomsPanel extends JPanel {
 	scroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
 	this.setLayout(new BorderLayout());
 
-	// part 2
+	// part 2 - looks like I added the below before to a different commit/branch
+	// create a tabbled panel that'll let us change between search and create
 	JTabbedPane tabbedPane = new JTabbedPane();
+	// create the search section (label and input)
 	JLabel searchLabel = new JLabel("Search");
 	JTextField search = new JTextField();
+	// let us submit the search via the enter key
 	search.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), "sendAction");
 	search.getActionMap().put("sendAction", new AbstractAction() {
 	    public void actionPerformed(ActionEvent actionEvent) {
 		String query = search.getText();
+		// only search if the string isn't empty
 		if (!query.isEmpty()) {
 		    removeAllRooms();
 		    SocketClient.INSTANCE.sendGetRooms(query);
@@ -58,13 +62,15 @@ public class RoomsPanel extends JPanel {
 	Dimension d = new Dimension(this.getSize().width, 40);
 	search.setPreferredSize(d);
 	search.setMaximumSize(d);
-
+	// create the "create" label and input
 	JLabel createLabel = new JLabel("Create");
 	JTextField create = new JTextField();
+	// trigger it on enter key
 	create.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), "sendAction");
 	create.getActionMap().put("sendAction", new AbstractAction() {
 	    public void actionPerformed(ActionEvent actionEvent) {
 		String query = create.getText();
+		// send the request only if a value was entered
 		if (!query.isEmpty()) {
 		    SocketClient.INSTANCE.sendCreateRoom(query);
 		}
