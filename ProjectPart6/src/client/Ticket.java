@@ -29,11 +29,22 @@ public class Ticket extends GameObject implements Serializable {
 	holder = p;
     }
 
+    public Player getHolder() {
+	return holder;
+    }
+
+    public String getHolderName() {
+	if (holder == null) {
+	    return null;
+	}
+	return holder.getName();
+    }
+
     @Override
     public void setSize(int x, int y) {
 	super.setSize(x, y);
-	// division used are just magic numbers, played with it until it looked ok
-	nameOffset.x = (int) (x / 3);
+	// math used are just magic numbers, played with it until it looked ok
+	nameOffset.x = (int) (x * .1);
 	nameOffset.y = (int) (y / 1.5f);
     }
 
@@ -46,6 +57,12 @@ public class Ticket extends GameObject implements Serializable {
 	// super
 	if (super.draw(g)) {
 	    g.setColor(color);
+	    if (holder != null) {
+		// TODO this fixes it!
+		// position = holder.getPosition();
+		position.x = holder.getPosition().x;
+		position.y = holder.getPosition().y;
+	    }
 	    g.fillRect(position.x, position.y, size.width, size.height);
 	    g.setColor(Color.WHITE);
 	    g.setFont(new Font("Monospaced", Font.PLAIN, 12));

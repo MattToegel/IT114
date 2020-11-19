@@ -23,7 +23,7 @@ public interface Event {
 
     void onResetChairs();
 
-    void onGetTicket(String ticketName, Point position, Point dimension, boolean isAvailable);
+    void onGetTicket(String ticketName, Point position, Point dimension, String holder);// boolean isAvailable);
 
     void onResetTickets();
 }

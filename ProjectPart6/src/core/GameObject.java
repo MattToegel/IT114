@@ -129,6 +129,18 @@ public abstract class GameObject implements Serializable {
 	return position;
     }
 
+    /***
+     * Generates a new point representing the center of the object. Safe to edit.
+     * 
+     * @return
+     */
+    public Point getCenter() {
+	Point p = (Point) position.clone();
+	p.x += size.width * .5;
+	p.y += size.height * .5;
+	return p;
+    }
+
     /**
      * Checks if previous position differs from current position
      * 
