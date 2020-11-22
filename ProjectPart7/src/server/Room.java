@@ -96,14 +96,26 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 	while (chairIter.hasNext()) {
 	    Chair chair = chairIter.next();
 	    if (chair != null) {
-		Iterator<ClientPlayer> iter = clients.iterator();
-		while (iter.hasNext()) {
-		    ClientPlayer cp = iter.next();
-		    if (cp != null) {
-			cp.client.sendChair(chair.getName(), chair.getPosition(), chair.getSize(), chair.isAvailable());
-		    }
-		}
+		syncChair(chair);
 	    }
+	}
+    }
+
+    private void resetChairs() {
+	Iterator<ClientPlayer> iter = clients.iterator();
+	while (iter.hasNext()) {
+	    ClientPlayer cp = iter.next();
+	    if (cp != null) {
+		if (cp.player.isSitting()) {
+		    cp.player.unsit();
+		}
+		cp.client.sendChair(null, null, null, null);
+	    }
+	}
+	Iterator<Chair> citer = chairs.iterator();
+	while (citer.hasNext()) {
+	    citer.next();
+	    citer.remove();
 	}
     }
 
@@ -146,6 +158,24 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 	}
     }
 
+    private void resetTickets() {
+	Iterator<ClientPlayer> iter = clients.iterator();
+	while (iter.hasNext()) {
+	    ClientPlayer cp = iter.next();
+	    if (cp != null) {
+		if (cp.player.hasTicket()) {
+		    cp.player.takeTicket();
+		}
+		cp.client.sendTicket(null, null, null, null);
+	    }
+	}
+	Iterator<Ticket> ticketIterator = tickets.iterator();
+	while (ticketIterator.hasNext()) {
+	    ticketIterator.next();
+	    ticketIterator.remove();
+	}
+    }
+
     private void syncTicket(Ticket ticket) {
 	if (ticket != null) {
 	    Iterator<ClientPlayer> iter = clients.iterator();
@@ -155,6 +185,19 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 		    // changed to pass holder name
 		    cp.client.sendTicket(ticket.getName(), ticket.getPosition(), ticket.getSize(),
 			    ticket.getHolderName());
+		}
+	    }
+	}
+    }
+
+    private void syncChair(Chair chair) {
+	if (chair != null) {
+	    Iterator<ClientPlayer> iter = clients.iterator();
+	    while (iter.hasNext()) {
+		ClientPlayer cp = iter.next();
+		if (cp != null) {
+		    // changed to pass holder name
+		    cp.client.sendChair(chair.getName(), chair.getPosition(), chair.getSize(), chair.getSitterName());
 		}
 	    }
 	}
@@ -312,8 +355,32 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 	}
     }
 
+    private boolean takeASeat(ClientPlayer cp) {
+	if (cp.player.hasTicket()) {
+	    // check seats since we have a ticket in hand
+	    Iterator<Chair> iter = chairs.iterator();
+	    while (iter.hasNext()) {
+		Chair c = iter.next();
+		if (c != null && c.isAvailable()) {
+		    int dist = (int) ((c.getSize().width * .5) + (cp.player.getSize().width * .5));
+		    Point p = cp.player.getCenter();
+		    Point chairp = c.getCenter();
+
+		    if (chairp.distanceSq(p) <= (dist * dist)) {
+			// chair is within range, do the sit :)
+			c.setPlayer(cp.player);
+			cp.player.setChair(c);
+			syncChair(c);
+			return true;
+		    }
+
+		}
+	    }
+	}
+	return false;
+    }
+
     protected synchronized void doPickup(ServerThread client) {
-	System.out.println(client);
 	ClientPlayer cp = getCP(client);
 	if (cp != null) {
 	    // TODO reject too frequent request (keep this value in sync with client)
@@ -323,6 +390,10 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 		return;
 	    }
 	    cp.player.setLastAction(currentMs);
+	    if (takeASeat(cp)) {
+		// we sat or are sitting, no need to do anything else
+		return;
+	    }
 	    Iterator<Ticket> iter = tickets.iterator();
 	    Ticket currentlyHeld = cp.player.takeTicket();
 	    String chName = null;
@@ -340,6 +411,7 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 
 			Point p = cp.player.getCenter();
 			Point tp = t.getCenter();
+			System.out.println(getName());
 			System.out.println("P: " + p);
 			System.out.println("T: " + tp);
 			System.out.println("Dist: " + tp.distance(p));
@@ -416,6 +488,13 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 		    response = "Ready to go!";
 
 		    break;
+		case "reset":// TODO for testing purposes, don't forget to delete when done testing
+		    resetChairs();
+		    resetTickets();
+		    break;
+		case "start":// TODO for testing purposes, don't forget to delete when done testing
+		    readyCheck();
+		    break;
 		default:
 		    // not a command, let's fix this function from eating messages
 		    response = message;
@@ -446,7 +525,8 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 	if (ready >= total && chairs.size() == 0) {
 	    // start
 	    System.out.println("Everyone's ready, let's do this!");
-
+	    resetChairs();
+	    resetTickets();
 	    generateSeats();
 	    generateTickets();
 	    syncChairs();

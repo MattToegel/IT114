@@ -95,6 +95,8 @@ public class GamePanel extends BaseGamePanel implements Event {
 
     @Override
     public void onChangeRoom() {
+	onResetChairs();
+	onResetTickets();
 	// don't clear, since we're using iterators to loop, remove via iterator
 	// players.clear();
 	Iterator<Player> iter = players.iterator();
@@ -102,6 +104,7 @@ public class GamePanel extends BaseGamePanel implements Event {
 	    iter.next();
 	    iter.remove();
 	}
+
 	myPlayer = null;
 	System.out.println("Cleared players");
     }
@@ -139,24 +142,28 @@ public class GamePanel extends BaseGamePanel implements Event {
      */
     private void applyControls() {
 	if (myPlayer != null) {
+
 	    int x = 0, y = 0;
-	    if (KeyStates.W) {
-		y = -1;
-	    }
-	    if (KeyStates.S) {
-		y = 1;
-	    }
-	    if (!KeyStates.W && !KeyStates.S) {
-		y = 0;
-	    }
-	    if (KeyStates.A) {
-		x = -1;
-	    }
-	    else if (KeyStates.D) {
-		x = 1;
-	    }
-	    if (!KeyStates.A && !KeyStates.D) {
-		x = 0;
+	    // block input if we're sitting
+	    if (!myPlayer.isSitting()) {
+		if (KeyStates.W) {
+		    y = -1;
+		}
+		if (KeyStates.S) {
+		    y = 1;
+		}
+		if (!KeyStates.W && !KeyStates.S) {
+		    y = 0;
+		}
+		if (KeyStates.A) {
+		    x = -1;
+		}
+		else if (KeyStates.D) {
+		    x = 1;
+		}
+		if (!KeyStates.A && !KeyStates.D) {
+		    x = 0;
+		}
 	    }
 	    boolean changed = myPlayer.setDirection(x, y);
 	    if (changed) {
@@ -286,7 +293,7 @@ public class GamePanel extends BaseGamePanel implements Event {
 	    @Override
 	    public void actionPerformed(ActionEvent e) {
 		// TODO Auto-generated method stub
-		if (myPlayer != null) {
+		if (myPlayer != null && !myPlayer.isSitting()) {
 		    if (myPlayer.getLastAction() < 0L || myPlayer.getTimeBetweenLastAction(e.getWhen()) >= 500) {
 			myPlayer.setLastAction(e.getWhen());
 			System.out.println("Sending action " + myPlayer.getLastAction());
@@ -357,10 +364,10 @@ public class GamePanel extends BaseGamePanel implements Event {
     }
 
     @Override
-    public void onGetChair(String chairName, Point position, Point dimension, boolean isAvailable) {
+    public void onGetChair(String chairName, Point position, Point dimension, String sitter) {
 	// TODO Auto-generated method stub
 	boolean exists = false;
-	System.out.println("Available " + (isAvailable ? "true" : "false"));
+	System.out.println("Available " + (sitter != null ? "true" : "false"));
 	Iterator<Chair> iter = chairs.iterator();
 	while (iter.hasNext()) {
 	    Chair c = iter.next();
@@ -368,11 +375,16 @@ public class GamePanel extends BaseGamePanel implements Event {
 		exists = true;
 		// for now will fill in player as empty player so it's !null
 		// the player set only matters for the server
-		if (isAvailable) {
+		Player p = c.getSitter();
+		if (p != null) {
+		    p.unsit();
+		}
+		if (sitter == null) {
+
 		    c.setPlayer(null);
 		}
 		else {
-		    c.setPlayer(new Player());
+		    setSitter(c, sitter);
 		}
 		break;
 	    }
@@ -381,11 +393,11 @@ public class GamePanel extends BaseGamePanel implements Event {
 	    Chair c = new Chair(chairName);
 	    c.setPosition(position);
 	    c.setSize(dimension.x, dimension.y);
-	    if (isAvailable) {
+	    if (sitter == null) {
 		c.setPlayer(null);
 	    }
 	    else {
-		c.setPlayer(new Player());
+		setSitter(c, sitter);
 	    }
 	    chairs.add(c);
 	}
@@ -397,8 +409,24 @@ public class GamePanel extends BaseGamePanel implements Event {
 	Iterator<Chair> iter = chairs.iterator();
 	while (iter.hasNext()) {
 	    Chair c = iter.next();
+	    Player p = c.getSitter();
+	    if (p != null) {
+		p.unsit();
+	    }
 	    c.setPlayer(null);
 	    iter.remove();
+	}
+    }
+
+    void setSitter(Chair c, String sitter) {
+	Iterator<Player> piter = players.iterator();
+	while (piter.hasNext()) {
+	    Player p = piter.next();
+	    if (p != null && p.getName().equalsIgnoreCase(sitter)) {
+		c.setPlayer(p);
+		p.setChair(c);
+		break;
+	    }
 	}
     }
 

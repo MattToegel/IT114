@@ -443,7 +443,7 @@ public class ClientUI extends JFrame implements Event {
     }
 
     @Override
-    public void onGetChair(String chairName, Point position, Point dimension, boolean flag) {
+    public void onGetChair(String chairName, Point position, Point dimension, String flag) {
 	// TODO Auto-generated method stub
 
     }

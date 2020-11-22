@@ -19,7 +19,7 @@ public interface Event {
 
     void onResize(Point p);
 
-    void onGetChair(String chairName, Point position, Point dimension, boolean isAvailable);
+    void onGetChair(String chairName, Point position, Point dimension, String sitter);
 
     void onResetChairs();
 

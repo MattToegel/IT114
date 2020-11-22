@@ -20,7 +20,8 @@ public abstract class BaseGamePanel extends JPanel {
     public boolean isServer = false;
     // by setting this we can have the instance awake() but not start until
     // startGameLoop() is called
-    public static boolean delayGameLoop = false;
+    public boolean delayGameLoop = false;// removed static ref, was "breaking" new game rooms since prelobby set it to
+					 // true
     private final static Logger log = Logger.getLogger(BaseGamePanel.class.getName());
     Thread gameLoop;
 

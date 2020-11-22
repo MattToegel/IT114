@@ -16,6 +16,7 @@ public class Player extends GameObject implements Serializable {
     Color color = Color.RED;
     Point nameOffset = new Point(0, 5);
     Ticket ticket = null;
+    Chair chair = null;
     boolean isReady = false;
     long lastAction = -1L;
 
@@ -44,23 +45,28 @@ public class Player extends GameObject implements Serializable {
     }
 
     public void setTicket(Ticket n) {
-	/*
-	 * if (n == null) { System.out.println("Setting null ticket?"); ticket = null;
-	 * return; } ticket = n.clone();
-	 */
 	ticket = n;
     }
 
     public Ticket takeTicket() {
-	// Java doesn't clone, it passes reference for objects
-	// https://www.geeksforgeeks.org/clone-method-in-java-2/
 	if (ticket == null) {
 	    return null;
 	}
 	Ticket t = ticket;
 	ticket = null;
-	System.out.println("ticket is null?" + (t == null ? "yes" : "no"));
 	return t;
+    }
+
+    public void setChair(Chair c) {
+	chair = c;
+    }
+
+    public boolean isSitting() {
+	return chair != null;
+    }
+
+    public void unsit() {
+	chair = null;
     }
 
     /**

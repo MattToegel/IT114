@@ -29,6 +29,17 @@ public class Chair extends GameObject implements Serializable {
 	seated = p;
     }
 
+    public Player getSitter() {
+	return seated;
+    }
+
+    public String getSitterName() {
+	if (seated == null) {
+	    return null;
+	}
+	return seated.getName();
+    }
+
     /**
      * Gets called by the game engine to draw the current location/size
      */
@@ -41,7 +52,8 @@ public class Chair extends GameObject implements Serializable {
 	    g.drawRect(position.x, position.y, size.width, size.height);
 	    g.setColor(Color.WHITE);
 	    g.setFont(new Font("Monospaced", Font.PLAIN, 12));
-	    g.drawString((isAvailable() ? "Available" : "Taken"), position.x + nameOffset.x, position.y + nameOffset.y);
+	    g.drawString((isAvailable() ? "Available" : "Taken: " + getSitterName()), position.x + nameOffset.x,
+		    position.y + nameOffset.y);
 	}
 	return true;
     }

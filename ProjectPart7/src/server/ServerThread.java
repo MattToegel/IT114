@@ -126,7 +126,7 @@ public class ServerThread extends Thread {
 	return sendPayload(payload);
     }
 
-    protected boolean sendChair(String chairName, Point chairPosition, Dimension chairSize, boolean isAvailable) {
+    protected boolean sendChair(String chairName, Point chairPosition, Dimension chairSize, String sitter) {
 	Payload payload = new Payload();
 	payload.setPayloadType(PayloadType.SYNC_CHAIR);
 	payload.setMessage(chairName);
@@ -136,7 +136,7 @@ public class ServerThread extends Thread {
 	if (chairSize != null) {
 	    payload.setPoint2(new Point(chairSize.width, chairSize.height));
 	}
-	payload.setFlag(isAvailable);
+	payload.setClientName(sitter);
 	return sendPayload(payload);
     }
 
