@@ -47,6 +47,7 @@ public class Countdown {
 
     public Countdown(String message, int duration, Consumer<?> callback) {
 	this(message, duration);
+	this.callback = callback;
     }
 
     public Countdown(String message, int duration) {

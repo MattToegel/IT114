@@ -471,4 +471,16 @@ public class ClientUI extends JFrame implements Event {
 	// TODO Auto-generated method stub
 
     }
+
+    @Override
+    public void onToggleLock(boolean isLocked) {
+	// TODO Auto-generated method stub
+
+    }
+
+    @Override
+    public void onUpdateTicketCollector(int chairIndex) {
+	// TODO Auto-generated method stub
+
+    }
 }

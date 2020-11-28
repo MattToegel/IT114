@@ -224,6 +224,26 @@ public enum SocketClient {
 	}
     }
 
+    private void sendToggleLock(boolean isLocked) {
+	Iterator<Event> iter = events.iterator();
+	while (iter.hasNext()) {
+	    Event e = iter.next();
+	    if (e != null) {
+		e.onToggleLock(isLocked);
+	    }
+	}
+    }
+
+    private void sendUpdateCollector(int chairIndex) {
+	Iterator<Event> iter = events.iterator();
+	while (iter.hasNext()) {
+	    Event e = iter.next();
+	    if (e != null) {
+		e.onUpdateTicketCollector(chairIndex);
+	    }
+	}
+    }
+
     /***
      * Determine any special logic for different PayloadTypes
      * 
@@ -278,6 +298,12 @@ public enum SocketClient {
 	    break;
 	case SET_COUNTDOWN:
 	    sendCountdown(p.getMessage(), p.getNumber());
+	    break;
+	case TOGGLE_LOCK:
+	    sendToggleLock(p.getFlag());
+	    break;
+	case UPDATE_COLLECTOR:
+	    sendUpdateCollector(p.getNumber());
 	    break;
 	default:
 	    log.log(Level.WARNING, "unhandled payload on client" + p);

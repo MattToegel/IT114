@@ -28,4 +28,8 @@ public interface Event {
     void onResetTickets();
 
     void onSetCountdown(String message, int duration);
+
+    void onToggleLock(boolean isLocked);
+
+    void onUpdateTicketCollector(int chairIndex);
 }

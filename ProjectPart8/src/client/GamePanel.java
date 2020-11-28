@@ -26,6 +26,7 @@ import javax.swing.KeyStroke;
 
 import core.BaseGamePanel;
 import core.Countdown;
+import core.Helpers;
 
 public class GamePanel extends BaseGamePanel implements Event {
 
@@ -41,6 +42,9 @@ public class GamePanel extends BaseGamePanel implements Event {
     private final static Logger log = Logger.getLogger(GamePanel.class.getName());
     Dimension gameAreaSize = new Dimension();
     Countdown timer;
+    TicketCollector ticketCollector;
+    Point target = new Point();
+    int chairIndex = -1;
 
     public void setPlayerName(String name) {
 	playerUsername = name;
@@ -144,11 +148,11 @@ public class GamePanel extends BaseGamePanel implements Event {
      * Gets the current state of input to apply movement to our player
      */
     private void applyControls() {
-	if (myPlayer != null) {
+	if (myPlayer != null && !myPlayer.isKicked) {
 
 	    int x = 0, y = 0;
 	    // block input if we're sitting
-	    if (!myPlayer.isSitting()) {
+	    if (!myPlayer.isSitting() && !myPlayer.isLocked()) {
 		if (KeyStates.W) {
 		    y = -1;
 		}
@@ -190,13 +194,47 @@ public class GamePanel extends BaseGamePanel implements Event {
 		p.move();
 	    }
 	}
+	if (ticketCollector != null) {
+	    if (chairIndex > -1) {
+		// TODO this creates a lot of garbage Points each frame (refactor)
+		// one new Point for getCenter() and one new Point from method call
+		Point dir = Helpers.getDirectionBetween(target, ticketCollector.getCenter());
+		ticketCollector.setDirection(dir.x, dir.y);
+	    }
+
+	    ticketCollector.move();
+	}
     }
 
     @Override
     public void lateUpdate() {
 	// stuff that should happen at a slightly different time than stuff in normal
 	// update()
+	if (ticketCollector != null && ticketCollector.isActive()) {
+	    if (chairIndex > -1 && chairIndex < chairs.size()) {
+		Chair c = chairs.get(chairIndex);
+		int dist = (int) ((c.getSize().width) + (ticketCollector.getSize().width));
+		if (c.getCenter().distanceSq(ticketCollector.getCenter()) <= (dist * dist)) {
+		    ticketCollector.setDirection(0, 0);
+		    ticketCollector.setChatSide(target.x > ticketCollector.getCenter().x ? -1 : 1);
+		    ticketCollector.showChat(true, "Tickets Please!");
+		    chairIndex = -1;
+		    // test kick
+		    Point p = Helpers.getDirectionBetween(myPlayer.getCenter(), ticketCollector.getCenter());
+		    System.out.println("Kick dir: " + p);
+		    myPlayer.setDirection(p.x, p.y);
+		    myPlayer.isKicked = true;
 
+		}
+	    }
+	    else {// move off screen
+		if (ticketCollector.getCenter().distanceSq(target) <= 25) {
+		    ticketCollector.setDirection(0, 0);
+		    ticketCollector.setActive(false);
+		    chairIndex = -1;
+		}
+	    }
+	}
     }
 
     @Override
@@ -206,6 +244,9 @@ public class GamePanel extends BaseGamePanel implements Event {
 	drawChairs(g);
 	drawTickets(g);
 	drawPlayers(g);
+	if (ticketCollector != null) {
+	    ticketCollector.draw(g);
+	}
 	drawText(g);
 	drawUI((Graphics2D) g);
     }
@@ -262,8 +303,18 @@ public class GamePanel extends BaseGamePanel implements Event {
 	drawTimer(g2);
 	Stroke oldStroke = g2.getStroke();
 	g2.setStroke(new BasicStroke(2));
-	g2.drawRect(0, 0, gameAreaSize.width, gameAreaSize.height);
+	// showing border with padding
+	// need to subtract the padding from left/top in addition to the desired padding
+	// on bottom/right
+	g2.drawRect(5, 5, gameAreaSize.width - 10, gameAreaSize.height - 10);
 	g2.setStroke(oldStroke);
+    }
+
+    private void setupTicketCollector() {
+	if (ticketCollector == null) {
+	    ticketCollector = new TicketCollector();
+	    ticketCollector.setName("Ticket Collector");
+	}
     }
 
     @Override
@@ -515,5 +566,53 @@ public class GamePanel extends BaseGamePanel implements Event {
 	    System.out.println("expired");
 	    System.out.println(x);
 	});
+    }
+
+    @Override
+    public void onToggleLock(boolean isLocked) {
+	// TODO Auto-generated method stub
+	Iterator<Player> iter = players.iterator();
+	while (iter.hasNext()) {
+	    Player p = iter.next();
+	    if (p != null) {
+		p.setLocked(isLocked);
+		if (isLocked) {
+		    p.setDirection(0, 0);
+		}
+		p.isKicked = false;
+	    }
+	}
+
+    }
+
+    @Override
+    public void onUpdateTicketCollector(int chairIndex) {
+	// TODO Auto-generated method stub
+
+	setupTicketCollector();
+	ticketCollector.setActive(true);
+	if (chairIndex == 0) {
+	    ticketCollector.setPosition(new Point((int) (gameAreaSize.width * .45), (int) (gameAreaSize.height * .15)));
+	}
+	if (chairIndex > -1 && chairIndex < chairs.size()) {
+	    Chair c = chairs.get(chairIndex);
+	    if (c != null) {
+		if (target == null) {
+		    target = new Point();
+		}
+		target.x = c.getCenter().x;
+		target.y = c.getCenter().y;
+		Point dir = Helpers.getDirectionBetween(target, ticketCollector.getCenter());
+		ticketCollector.setDirection(dir.x, dir.y);
+	    }
+	    this.chairIndex = chairIndex;
+	}
+	else {
+	    target.x = (int) (gameAreaSize.width * .45);
+	    target.y = -50;
+	    this.chairIndex = 100;
+	    Point dir = Helpers.getDirectionBetween(target, ticketCollector.getCenter());
+	    ticketCollector.setDirection(dir.x, dir.y);
+	}
     }
 }

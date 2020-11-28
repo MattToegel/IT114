@@ -12,6 +12,7 @@ import java.util.logging.Logger;
 import client.Chair;
 import client.Player;
 import client.Ticket;
+import client.TicketCollector;
 import core.BaseGamePanel;
 import core.Countdown;
 import core.Helpers;
@@ -34,6 +35,10 @@ public class Room extends BaseGamePanel implements AutoCloseable {
     static Dimension gameAreaSize = new Dimension(800, 800);
     private List<Chair> chairs = new ArrayList<Chair>();
     private List<Ticket> tickets = new ArrayList<Ticket>();
+    private TicketCollector ticketCollector;
+    private int chairIndex = -1;
+    private Point target = new Point();
+    private int lastChairIndex = -1;
 
     public Room(String name, boolean delayStart) {
 	super(delayStart);
@@ -526,14 +531,9 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 	if (ready >= total && chairs.size() == 0) {
 	    // start
 	    System.out.println("Everyone's ready, let's do this!");
-	    resetChairs();
-	    resetTickets();
-	    generateSeats();
-	    generateTickets();
-	    syncChairs();
-	    syncTickets();
+
 	    sendSystemMessage("Let the games begin!");
-	    sendCountdown("Grab a Ticket", 30);
+	    nextRound("Grab a ticket and pick a seat", 15);
 	}
     }
 
@@ -576,10 +576,78 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 	}
     }
 
-    protected void sendCountdown(String message, int duration) {
+    protected void sendUpdateTicketCollector(int chairIndex) {
+	Iterator<ClientPlayer> iter = clients.iterator();
+	while (iter.hasNext()) {
+	    ClientPlayer client = iter.next();
+	    boolean messageSent = client.client.sendUpdateTicketCollector(chairIndex);
+	    if (!messageSent) {
+		iter.remove();
+		log.log(Level.INFO, "Removed client " + client.client.getId());
+	    }
+	}
+    }
+
+    private void moveOffScreen() {
+	target.x = (int) (gameAreaSize.width * .45);
+	target.y = -50;
+	this.chairIndex = 100;
+	Point dir = Helpers.getDirectionBetween(target, ticketCollector.getCenter());
+	ticketCollector.setDirection(dir.x, dir.y);
+	sendUpdateTicketCollector(chairIndex);
+    }
+
+    private void nextChair() {
+	setupTicketCollector();
+	ticketCollector.setActive(true);
+	if (lastChairIndex < 0) {
+	    sendToggleLockPosition(true);
+	    ticketCollector.setPosition(new Point((int) (gameAreaSize.width * .45), (int) (gameAreaSize.height * .15)));
+	    lastChairIndex = 0;
+	}
+	chairIndex = lastChairIndex;
+	if (ticketCollector != null && chairIndex < chairs.size()) {
+	    Chair c = chairs.get(chairIndex);
+	    if (c != null) {
+		if (target == null) {
+		    target = new Point();
+		}
+		target.x = c.getCenter().x;
+		target.y = c.getCenter().y;
+		Point dir = Helpers.getDirectionBetween(target, ticketCollector.getCenter());
+		ticketCollector.setDirection(dir.x, dir.y);
+	    }
+	}
+	sendUpdateTicketCollector(chairIndex);
+    }
+
+    void nextRound(String message, int duration) {
+	resetChairs();
+	resetTickets();
+	generateSeats();
+	generateTickets();
+	syncChairs();
+	syncTickets();
+	Iterator<ClientPlayer> iter = clients.iterator();
+	while (iter.hasNext()) {
+	    ClientPlayer cp = iter.next();
+	    if (cp != null) {
+		sendPositionSync(cp.client, cp.player.getPosition());
+	    }
+	}
+	sendToggleLockPosition(false);
+	chairIndex = -1;
+	lastChairIndex = -1;
 	new Countdown(message, duration, (x) -> {
-	    System.out.println("Next stage");
+	    System.out.println("Next Chair" + x);
+
+	    nextChair();
 	});
+	sendCountdown(message, duration);
+    }
+
+    protected void sendCountdown(String message, int duration) {
+
 	Iterator<ClientPlayer> iter = clients.iterator();
 	while (iter.hasNext()) {
 	    ClientPlayer client = iter.next();
@@ -660,6 +728,20 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 	}
     }
 
+    protected void sendToggleLockPosition(boolean isLocked) {
+	Iterator<ClientPlayer> iter = clients.iterator();
+	while (iter.hasNext()) {
+	    ClientPlayer client = iter.next();
+	    client.player.setLocked(isLocked);
+	    boolean messageSent = client.client.sendToggleLockAll(isLocked);
+
+	    if (!messageSent) {
+		iter.remove();
+		log.log(Level.INFO, "Removed client " + client.client.getId());
+	    }
+	}
+    }
+
     public List<String> getRooms(String search) {
 	return server.getRooms(search);
     }
@@ -716,6 +798,13 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 
     }
 
+    private void setupTicketCollector() {
+	if (ticketCollector == null) {
+	    ticketCollector = new TicketCollector();
+	    ticketCollector.setName("Ticket Collector");
+	}
+    }
+
     @Override
     public void update() {
 	// We'll make the server authoritative
@@ -724,14 +813,23 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 	Iterator<ClientPlayer> iter = clients.iterator();
 	while (iter.hasNext()) {
 	    ClientPlayer p = iter.next();
-	    if (p != null) {
+	    if (p != null && !p.player.isLocked()) {
 		// have the server-side player calc their potential new position
 		p.player.move();
 		// determine if we should sync this player's position to all other players
 		checkPositionSync(p);
 	    }
 	}
+	if (ticketCollector != null) {
+	    if (chairIndex > -1) {
+		// TODO this creates a lot of garbage Points each frame (refactor)
+		// one new Point for getCenter() and one new Point from method call
+		Point dir = Helpers.getDirectionBetween(target, ticketCollector.getCenter());
+		ticketCollector.setDirection(dir.x, dir.y);
+	    }
 
+	    ticketCollector.move();
+	}
     }
 
     // don't call this more than once per frame
@@ -747,6 +845,37 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 
     @Override
     public void lateUpdate() {
+	if (ticketCollector != null && ticketCollector.isActive()) {
+	    if (chairIndex > -1 && chairIndex < chairs.size()) {
+		Chair c = chairs.get(chairIndex);
+		int dist = (int) ((c.getSize().width) + (ticketCollector.getSize().width));
+		if (c.getCenter().distanceSq(ticketCollector.getCenter()) <= (dist * dist)) {
+		    ticketCollector.setDirection(0, 0);
+		    // ticketCollector.setChatSide(target.x > ticketCollector.getCenter().x ? -1 :
+		    // 1);
+		    // ticketCollector.showChat(true, "Tickets Please!");
+		    chairIndex = -1;
+		    lastChairIndex++;
+		    new Countdown("", 2, (x) -> {
+			System.out.println("Next chair lateUpdate()");
+			if (lastChairIndex < chairs.size()) {
+			    nextChair();
+			}
+			else {
+			    moveOffScreen();
+			}
+		    });
+		}
+	    }
+	    else {
+		if (ticketCollector.getCenter().distanceSq(target) <= 25) {
+		    ticketCollector.setDirection(0, 0);
+		    ticketCollector.setActive(false);
+		    chairIndex = -1;
+		    nextRound("Grab a ticket and pick a seat", 15);
+		}
+	    }
+	}
 	nextFrame();
     }
 
