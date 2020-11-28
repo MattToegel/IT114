@@ -25,6 +25,7 @@ import javax.swing.InputMap;
 import javax.swing.KeyStroke;
 
 import core.BaseGamePanel;
+import core.Countdown;
 
 public class GamePanel extends BaseGamePanel implements Event {
 
@@ -39,6 +40,7 @@ public class GamePanel extends BaseGamePanel implements Event {
     List<Ticket> tickets;
     private final static Logger log = Logger.getLogger(GamePanel.class.getName());
     Dimension gameAreaSize = new Dimension();
+    Countdown timer;
 
     public void setPlayerName(String name) {
 	playerUsername = name;
@@ -107,6 +109,7 @@ public class GamePanel extends BaseGamePanel implements Event {
 
 	myPlayer = null;
 	System.out.println("Cleared players");
+
     }
 
     @Override
@@ -128,7 +131,7 @@ public class GamePanel extends BaseGamePanel implements Event {
     @Override
     public void start() {
 	// TODO goes on server side, here for testing
-
+	timer = new Countdown("Test", 10);
     }
 
     @Override
@@ -246,7 +249,17 @@ public class GamePanel extends BaseGamePanel implements Event {
 
     }
 
+    private void drawTimer(Graphics2D g2) {
+	if (timer != null) {
+	    g2.setColor(Color.WHITE);
+	    g2.setFont(new Font("Monospaced", Font.PLAIN, 18));
+
+	    g2.drawString(timer.getTimeMessage(), (int) (gameAreaSize.width * .45), 50);
+	}
+    }
+
     private void drawUI(Graphics2D g2) {
+	drawTimer(g2);
 	Stroke oldStroke = g2.getStroke();
 	g2.setStroke(new BasicStroke(2));
 	g2.drawRect(0, 0, gameAreaSize.width, gameAreaSize.height);
@@ -490,5 +503,17 @@ public class GamePanel extends BaseGamePanel implements Event {
 	    t.setPlayer(null);
 	    iter.remove();
 	}
+    }
+
+    @Override
+    public void onSetCountdown(String message, int duration) {
+	// TODO Auto-generated method stub
+	if (timer != null) {
+	    timer.cancel();
+	}
+	timer = new Countdown(message, duration, (x) -> {
+	    System.out.println("expired");
+	    System.out.println(x);
+	});
     }
 }

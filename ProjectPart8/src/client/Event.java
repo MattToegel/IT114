@@ -26,4 +26,6 @@ public interface Event {
     void onGetTicket(String ticketName, Point position, Point dimension, String holder);// boolean isAvailable);
 
     void onResetTickets();
+
+    void onSetCountdown(String message, int duration);
 }

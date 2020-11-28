@@ -214,6 +214,16 @@ public enum SocketClient {
 	}
     }
 
+    private void sendCountdown(String message, int duration) {
+	Iterator<Event> iter = events.iterator();
+	while (iter.hasNext()) {
+	    Event e = iter.next();
+	    if (e != null) {
+		e.onSetCountdown(message, duration);
+	    }
+	}
+    }
+
     /***
      * Determine any special logic for different PayloadTypes
      * 
@@ -265,6 +275,9 @@ public enum SocketClient {
 	    else {
 		sendResetTickets();
 	    }
+	    break;
+	case SET_COUNTDOWN:
+	    sendCountdown(p.getMessage(), p.getNumber());
 	    break;
 	default:
 	    log.log(Level.WARNING, "unhandled payload on client" + p);

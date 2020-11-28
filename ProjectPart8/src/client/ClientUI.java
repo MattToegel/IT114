@@ -465,4 +465,10 @@ public class ClientUI extends JFrame implements Event {
 	// TODO Auto-generated method stub
 
     }
+
+    @Override
+    public void onSetCountdown(String message, int duration) {
+	// TODO Auto-generated method stub
+
+    }
 }

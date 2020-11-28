@@ -13,6 +13,7 @@ import client.Chair;
 import client.Player;
 import client.Ticket;
 import core.BaseGamePanel;
+import core.Countdown;
 import core.Helpers;
 
 public class Room extends BaseGamePanel implements AutoCloseable {
@@ -532,6 +533,7 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 	    syncChairs();
 	    syncTickets();
 	    sendSystemMessage("Let the games begin!");
+	    sendCountdown("Grab a Ticket", 30);
 	}
     }
 
@@ -567,6 +569,21 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 	while (iter.hasNext()) {
 	    ClientPlayer client = iter.next();
 	    boolean messageSent = client.client.send(sender.getClientName(), message);
+	    if (!messageSent) {
+		iter.remove();
+		log.log(Level.INFO, "Removed client " + client.client.getId());
+	    }
+	}
+    }
+
+    protected void sendCountdown(String message, int duration) {
+	new Countdown(message, duration, (x) -> {
+	    System.out.println("Next stage");
+	});
+	Iterator<ClientPlayer> iter = clients.iterator();
+	while (iter.hasNext()) {
+	    ClientPlayer client = iter.next();
+	    boolean messageSent = client.client.sendCountdown(message, duration);
 	    if (!messageSent) {
 		iter.remove();
 		log.log(Level.INFO, "Removed client " + client.client.getId());
