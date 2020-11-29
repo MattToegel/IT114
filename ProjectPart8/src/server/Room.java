@@ -558,7 +558,9 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 	while (iter.hasNext()) {
 	    ClientPlayer c = iter.next();
 	    boolean messageSent = c.client.sendConnectionStatus(client.getClientName(), isConnect, message);
-	    removeStale(iter, messageSent);
+	    if (!messageSent) {
+		iter.remove();
+	    }
 	}
     }
 
@@ -582,7 +584,9 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 	while (iter.hasNext()) {
 	    ClientPlayer client = iter.next();
 	    boolean messageSent = client.client.send(sender.getClientName(), message);
-	    removeStale(iter, messageSent);
+	    if (!messageSent) {
+		iter.remove();
+	    }
 	}
     }
 
@@ -591,7 +595,9 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 	while (iter.hasNext()) {
 	    ClientPlayer client = iter.next();
 	    boolean messageSent = client.client.sendUpdateTicketCollector(chairIndex);
-	    removeStale(iter, messageSent);
+	    if (!messageSent) {
+		iter.remove();
+	    }
 	}
     }
 
@@ -678,7 +684,9 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 	while (iter.hasNext()) {
 	    ClientPlayer client = iter.next();
 	    boolean messageSent = client.client.sendCountdown(message, duration);
-	    removeStale(iter, messageSent);
+	    if (!messageSent) {
+		iter.remove();
+	    }
 	}
     }
 
@@ -688,7 +696,9 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 	while (iter.hasNext()) {
 	    ClientPlayer client = iter.next();
 	    boolean messageSent = client.client.send((from == null ? "[Announcer]" : from), message);
-	    removeStale(iter, messageSent);
+	    if (!messageSent) {
+		iter.remove();
+	    }
 	}
     }
 
@@ -721,7 +731,9 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 	    while (iter.hasNext()) {
 		ClientPlayer client = iter.next();
 		boolean messageSent = client.client.sendDirection(sender.getClientName(), dir);
-		removeStale(iter, messageSent);
+		if (!messageSent) {
+		    iter.remove();
+		}
 	    }
 
 	}
@@ -738,7 +750,9 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 	while (iter.hasNext()) {
 	    ClientPlayer client = iter.next();
 	    boolean messageSent = client.client.sendPosition(sender.getClientName(), pos);
-	    removeStale(iter, messageSent);
+	    if (!messageSent) {
+		iter.remove();
+	    }
 	}
     }
 
@@ -748,7 +762,9 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 	    ClientPlayer client = iter.next();
 	    client.player.setLocked(isLocked);
 	    boolean messageSent = client.client.sendToggleLockAll(isLocked);
-	    removeStale(iter, messageSent);
+	    if (!messageSent) {
+		iter.remove();
+	    }
 	}
     }
 
@@ -757,14 +773,9 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 	while (iter.hasNext()) {
 	    ClientPlayer cp = iter.next();
 	    boolean messageSent = cp.client.sendKickPlayer(clientName);
-	    removeStale(iter, messageSent);
-	}
-    }
-
-    @SuppressWarnings("rawtypes")
-    private void removeStale(Iterator iter, boolean sent) {
-	if (!sent) {
-	    iter.remove();
+	    if (!messageSent) {
+		iter.remove();
+	    }
 	}
     }
 
