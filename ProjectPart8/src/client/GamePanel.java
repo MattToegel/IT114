@@ -249,22 +249,30 @@ public class GamePanel extends BaseGamePanel implements Event {
 	drawUI((Graphics2D) g);
     }
 
+    boolean chairsResetting = false;
+
     private synchronized void drawChairs(Graphics g) {
-	Iterator<Chair> iter = chairs.iterator();
-	while (iter.hasNext()) {
-	    Chair c = iter.next();
-	    if (c != null) {
-		c.draw(g);
+	if (!chairsResetting) {
+	    Iterator<Chair> iter = chairs.iterator();
+	    while (iter.hasNext()) {
+		Chair c = iter.next();
+		if (c != null) {
+		    c.draw(g);
+		}
 	    }
 	}
     }
 
+    boolean ticketsResetting = false;
+
     private synchronized void drawTickets(Graphics g) {
-	Iterator<Ticket> iter = tickets.iterator();
-	while (iter.hasNext()) {
-	    Ticket t = iter.next();
-	    if (t != null) {
-		t.draw(g);
+	if (!ticketsResetting) {
+	    Iterator<Ticket> iter = tickets.iterator();
+	    while (iter.hasNext()) {
+		Ticket t = iter.next();
+		if (t != null) {
+		    t.draw(g);
+		}
 	    }
 	}
     }
@@ -468,6 +476,7 @@ public class GamePanel extends BaseGamePanel implements Event {
 
     @Override
     public void onResetChairs() {
+	chairsResetting = true;
 	// TODO Auto-generated method stub
 	Iterator<Chair> iter = chairs.iterator();
 	while (iter.hasNext()) {
@@ -479,6 +488,7 @@ public class GamePanel extends BaseGamePanel implements Event {
 	    c.setPlayer(null);
 	    iter.remove();
 	}
+	chairsResetting = false;
     }
 
     void setSitter(Chair c, String sitter) {
@@ -544,6 +554,7 @@ public class GamePanel extends BaseGamePanel implements Event {
     @Override
     public void onResetTickets() {
 	// TODO Auto-generated method stub
+	ticketsResetting = true;
 	Iterator<Ticket> iter = tickets.iterator();
 	while (iter.hasNext()) {
 	    Ticket t = iter.next();
@@ -553,6 +564,7 @@ public class GamePanel extends BaseGamePanel implements Event {
 	    t.setPlayer(null);
 	    iter.remove();
 	}
+	ticketsResetting = false;
     }
 
     @Override
