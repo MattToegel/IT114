@@ -186,6 +186,13 @@ public class ServerThread extends Thread {
 	return sendPayload(p);
     }
 
+    protected boolean sendKickPlayer(String clientName) {
+	Payload p = new Payload();
+	p.setPayloadType(PayloadType.KICK_PLAYER);
+	p.setClientName(clientName);
+	return sendPayload(p);
+    }
+
     private boolean sendPayload(Payload p) {
 	try {
 	    out.writeObject(p);

@@ -4,13 +4,17 @@ import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Point;
+import java.util.List;
 
 import core.Countdown;
+import core.Helpers;
 
 public class TicketCollector extends Player {
-    Point chatOffset = new Point(40, -20);
-    String chat = "Tickets Please!";
-    boolean showChat = false;
+    private Point chatOffset = new Point(40, -20);
+    private String chat = "Tickets Please!";
+    private boolean showChat = false;
+    private int sum = 0;
+    private int hiddenValue = 0;
     /**
      * 
      */
@@ -28,6 +32,24 @@ public class TicketCollector extends Player {
 	new Countdown("", 2, (x) -> {
 	    showChat = false;
 	});
+    }
+
+    public void loadTickets(List<Ticket> tickets) {
+	sum = 0;
+	for (Ticket t : tickets) {
+	    sum += t.getValue();
+	}
+	System.out.println("Ticket sum: " + sum);
+	hiddenValue = Helpers.getNumberBetween(1, sum);
+    }
+
+    public boolean isTicketValid(Ticket t) {
+	hiddenValue -= t.getValue();
+	if (hiddenValue <= 0) {
+	    hiddenValue = Helpers.getNumberBetween(1, sum);
+	    return false;
+	}
+	return true;
     }
 
     @Override

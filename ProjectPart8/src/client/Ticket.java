@@ -13,12 +13,21 @@ public class Ticket extends GameObject implements Serializable {
      * 
      */
     private static final long serialVersionUID = -6088251166673414031L;
-    Color color = Color.DARK_GRAY;
-    Point nameOffset = new Point(0, -5);
+    private Color color = Color.DARK_GRAY;
+    private Point nameOffset = new Point(0, -5);
     Player holder = null;
+    private int value = 0;
 
     public Ticket(String name) {
 	setName(name);
+    }
+
+    public void setValue(int v) {
+	value = v;
+    }
+
+    public int getValue() {
+	return value;
     }
 
     public boolean isAvailable() {

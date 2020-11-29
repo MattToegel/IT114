@@ -244,6 +244,16 @@ public enum SocketClient {
 	}
     }
 
+    private void sendKick(String clientName) {
+	Iterator<Event> iter = events.iterator();
+	while (iter.hasNext()) {
+	    Event e = iter.next();
+	    if (e != null) {
+		e.onPlayerKicked(clientName);
+	    }
+	}
+    }
+
     /***
      * Determine any special logic for different PayloadTypes
      * 
@@ -304,6 +314,9 @@ public enum SocketClient {
 	    break;
 	case UPDATE_COLLECTOR:
 	    sendUpdateCollector(p.getNumber());
+	    break;
+	case KICK_PLAYER:
+	    sendKick(p.getClientName());
 	    break;
 	default:
 	    log.log(Level.WARNING, "unhandled payload on client" + p);

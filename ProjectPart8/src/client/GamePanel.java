@@ -219,11 +219,6 @@ public class GamePanel extends BaseGamePanel implements Event {
 		    ticketCollector.setChatSide(target.x > ticketCollector.getCenter().x ? -1 : 1);
 		    ticketCollector.showChat(true, "Tickets Please!");
 		    chairIndex = -1;
-		    // test kick
-		    Point p = Helpers.getDirectionBetween(myPlayer.getCenter(), ticketCollector.getCenter());
-		    System.out.println("Kick dir: " + p);
-		    myPlayer.setDirection(p.x, p.y);
-		    myPlayer.isKicked = true;
 
 		}
 	    }
@@ -614,5 +609,21 @@ public class GamePanel extends BaseGamePanel implements Event {
 	    Point dir = Helpers.getDirectionBetween(target, ticketCollector.getCenter());
 	    ticketCollector.setDirection(dir.x, dir.y);
 	}
+    }
+
+    @Override
+    public void onPlayerKicked(String clientName) {
+	Iterator<Player> iter = players.iterator();
+	while (iter.hasNext()) {
+	    Player p = iter.next();
+	    if (p != null && p.getName().equalsIgnoreCase(clientName)) {
+		Point d = Helpers.getDirectionBetween(p.getCenter(), ticketCollector.getCenter());
+		System.out.println("Kick dir: " + p);
+		p.setDirection(d.x, d.y);
+		p.isKicked = true;
+		break;
+	    }
+	}
+
     }
 }

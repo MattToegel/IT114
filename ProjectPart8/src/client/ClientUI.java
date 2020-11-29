@@ -483,4 +483,10 @@ public class ClientUI extends JFrame implements Event {
 	// TODO Auto-generated method stub
 
     }
+
+    @Override
+    public void onPlayerKicked(String clientName) {
+	// TODO Auto-generated method stub
+	addMessage(String.format("<i>%s didn't have a valid ticket</i>", clientName));
+    }
 }
