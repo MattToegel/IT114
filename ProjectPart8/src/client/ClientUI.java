@@ -429,7 +429,7 @@ public class ClientUI extends JFrame implements Event {
     }
 
     public static void main(String[] args) {
-	ClientUI ui = new ClientUI("My UI");
+	ClientUI ui = new ClientUI("Tickets Please");
 	if (ui != null) {
 	    log.log(Level.FINE, "Started");
 	}
