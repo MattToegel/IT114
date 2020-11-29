@@ -239,8 +239,9 @@ public class GamePanel extends BaseGamePanel implements Event {
 	setBackground(Color.BLACK);
 	((Graphics2D) g).setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 	drawChairs(g);
-	drawTickets(g);
 	drawPlayers(g);
+	drawTickets(g);
+
 	if (ticketCollector != null) {
 	    ticketCollector.draw(g);
 	}
