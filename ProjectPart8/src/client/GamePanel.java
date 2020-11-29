@@ -67,7 +67,7 @@ public class GamePanel extends BaseGamePanel implements Event {
 	    }
 	}
 	if (!exists) {
-	    Player p = new Player();
+	    Player p = new Player(false);
 	    p.setName(clientName);
 	    players.add(p);
 	    // want .equals here instead of ==
@@ -148,7 +148,7 @@ public class GamePanel extends BaseGamePanel implements Event {
      * Gets the current state of input to apply movement to our player
      */
     private void applyControls() {
-	if (myPlayer != null && !myPlayer.isKicked) {
+	if (myPlayer != null && !myPlayer.isKicked()) {
 
 	    int x = 0, y = 0;
 	    // block input if we're sitting
@@ -186,6 +186,7 @@ public class GamePanel extends BaseGamePanel implements Event {
      * This is just an estimate/hint until we receive a position sync from the
      * server
      */
+
     private void localMovePlayers() {
 	Iterator<Player> iter = players.iterator();
 	while (iter.hasNext()) {
@@ -198,6 +199,7 @@ public class GamePanel extends BaseGamePanel implements Event {
 	    if (chairIndex > -1) {
 		// TODO this creates a lot of garbage Points each frame (refactor)
 		// one new Point for getCenter() and one new Point from method call
+		// TODO also jitters in some cases, but I'll live with it
 		Point dir = Helpers.getDirectionBetween(target, ticketCollector.getCenter());
 		ticketCollector.setDirection(dir.x, dir.y);
 	    }
@@ -288,9 +290,10 @@ public class GamePanel extends BaseGamePanel implements Event {
     private void drawTimer(Graphics2D g2) {
 	if (timer != null) {
 	    g2.setColor(Color.WHITE);
-	    g2.setFont(new Font("Monospaced", Font.PLAIN, 18));
+	    g2.setFont(new Font("Monospaced", Font.PLAIN, 22));
 
-	    g2.drawString(timer.getTimeMessage(), (int) (gameAreaSize.width * .45), 50);
+	    g2.drawString(timer.getTimeMessage(),
+		    (int) (gameAreaSize.width * .45) - (timer.getTimeMessage().length() * 6), 50);
 	}
     }
 
@@ -307,7 +310,7 @@ public class GamePanel extends BaseGamePanel implements Event {
 
     private void setupTicketCollector() {
 	if (ticketCollector == null) {
-	    ticketCollector = new TicketCollector();
+	    ticketCollector = new TicketCollector(false);
 	    ticketCollector.setName("Ticket Collector");
 	}
     }
@@ -570,12 +573,20 @@ public class GamePanel extends BaseGamePanel implements Event {
 	while (iter.hasNext()) {
 	    Player p = iter.next();
 	    if (p != null) {
+		if (p.isLocked() && !isLocked) {
+		    p.setDirection(0, 0);
+		}
 		p.setLocked(isLocked);
 		if (isLocked) {
 		    p.setDirection(0, 0);
 		}
-		p.isKicked = false;
+
+		p.setKicked(false);
 	    }
+	}
+	if (!isLocked) {
+	    // here's an ok time to sort the players list in the UI
+	    ClientUI.Instance.resortUserList(players);
 	}
 
     }
@@ -620,7 +631,7 @@ public class GamePanel extends BaseGamePanel implements Event {
 		Point d = Helpers.getDirectionBetween(p.getCenter(), ticketCollector.getCenter());
 		System.out.println("Kick dir: " + p);
 		p.setDirection(d.x, d.y);
-		p.isKicked = true;
+		p.setKicked(true);
 		break;
 	    }
 	}

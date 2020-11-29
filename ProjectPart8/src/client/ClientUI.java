@@ -49,8 +49,10 @@ public class ClientUI extends JFrame implements Event {
     String username;
     RoomsPanel roomsPanel;
     JMenuBar menu;
+    public static ClientUI Instance;
 
     public ClientUI(String title) {
+	Instance = this;
 	setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 	menu = new JMenuBar();
 	JMenu roomsMenu = new JMenu("Actions");
@@ -244,8 +246,8 @@ public class ClientUI extends JFrame implements Event {
 	this.add(roomsPanel, "rooms");
     }
 
-    void addClient(String name) {
-	User u = new User(name);
+    void addClient(String name, int score) {
+	User u = new User(name, score);
 	Dimension p = new Dimension(userPanel.getSize().width, 30);
 	u.setPreferredSize(p);
 	u.setMinimumSize(p);
@@ -260,6 +262,25 @@ public class ClientUI extends JFrame implements Event {
 	client.removeAll();
 	userPanel.revalidate();
 	userPanel.repaint();
+    }
+
+    public void resortUserList(List<Player> players) {
+	Iterator<User> iter = users.iterator();
+	while (iter.hasNext()) {
+	    User u = iter.next();
+	    if (u != null) {
+		removeClient(u);
+		iter.remove();
+	    }
+	}
+	players.sort((o1, o2) -> o1.getKicks() - o2.getKicks());
+	Iterator<Player> iter2 = players.iterator();
+	while (iter2.hasNext()) {
+	    Player p = iter2.next();
+	    if (p != null) {
+		addClient(p.getName(), p.getKicks());
+	    }
+	}
     }
 
     /***
@@ -368,7 +389,7 @@ public class ClientUI extends JFrame implements Event {
     @Override
     public void onClientConnect(String clientName, String message) {
 	log.log(Level.INFO, String.format("%s: %s", clientName, message));
-	addClient(clientName);
+	addClient(clientName, 0);
 	if (message != null && !message.isBlank()) {
 	    self.addMessage(String.format("%s: %s", clientName, message));
 	}

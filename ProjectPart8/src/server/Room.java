@@ -39,6 +39,7 @@ public class Room extends BaseGamePanel implements AutoCloseable {
     private int chairIndex = -1;
     private Point target = new Point();
     private int lastChairIndex = -1;
+    private final int collectionDelay = 20;
 
     public Room(String name, boolean delayStart) {
 	super(delayStart);
@@ -232,7 +233,7 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 		exists = true;
 		if (c.player == null) {
 		    log.log(Level.WARNING, "Client " + client.getClientName() + " player was null, creating");
-		    Player p = new Player();
+		    Player p = new Player(true);
 		    p.setName(client.getClientName());
 		    c.player = p;
 		    syncClient(c);
@@ -247,7 +248,7 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 	else {
 	    // create a player reference for this client
 	    // so server can determine position
-	    Player p = new Player();
+	    Player p = new Player(true);
 	    p.setName(client.getClientName());
 	    // add Player and Client reference to ClientPlayer object reference
 	    ClientPlayer cp = new ClientPlayer(client, p);
@@ -549,7 +550,7 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 	if (ready >= total && chairs.size() == 0) {
 	    // start
 	    sendSystemMessage("Conductor", "Proceeding to the next station...");
-	    nextRound("Grab a ticket and pick a seat", 15);
+	    nextRound("Grab a ticket and pick a seat", collectionDelay);
 	}
     }
 
@@ -633,7 +634,10 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 	    }
 	}
 	sendUpdateTicketCollector(chairIndex);
-	kickInvalidPlayers();
+	if (chairIndex == 0) {
+	    // only kick people without a ticket if it's before checking the first chair
+	    kickInvalidPlayers();
+	}
     }
 
     void kickInvalidPlayers() {
@@ -662,15 +666,18 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 		ClientPlayer cp = iter.next();
 		if (cp != null) {
 		    sendPositionSync(cp.client, cp.player.getPosition());
+		    sendDirectionSync(cp.client, new Point(0, 0));
 		}
 	    }
 	    sendToggleLockPosition(false);
 	    chairIndex = -1;
 	    lastChairIndex = -1;
 	    // TODO countdown to trigger ticket collection
+	    // set it server side
 	    new Countdown(message, duration, (x) -> {
 		nextChair();
 	    });
+	    // set it client side (for visual countdown)
 	    sendCountdown(message, duration);
 	}
 	else {
@@ -679,7 +686,6 @@ public class Room extends BaseGamePanel implements AutoCloseable {
     }
 
     protected void sendCountdown(String message, int duration) {
-
 	Iterator<ClientPlayer> iter = clients.iterator();
 	while (iter.hasNext()) {
 	    ClientPlayer client = iter.next();
@@ -835,7 +841,7 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 
     private void setupTicketCollector() {
 	if (ticketCollector == null) {
-	    ticketCollector = new TicketCollector();
+	    ticketCollector = new TicketCollector(true);
 	    ticketCollector.setName("Ticket Collector");
 	    ticketCollector.loadTickets(tickets);
 	}
@@ -868,17 +874,6 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 	}
     }
 
-    // don't call this more than once per frame
-    private void nextFrame() {
-	// we'll do basic frame tracking so we can trigger events
-	// less frequently than each frame
-	// update frame counter and prevent overflow
-	if (Long.MAX_VALUE - 5 <= frame) {
-	    frame = Long.MIN_VALUE;
-	}
-	frame++;
-    }
-
     @Override
     public void lateUpdate() {
 	if (ticketCollector != null && ticketCollector.isActive()) {
@@ -887,21 +882,20 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 		int dist = (int) ((c.getSize().width) + (ticketCollector.getSize().width));
 		if (c.getCenter().distanceSq(ticketCollector.getCenter()) <= (dist * dist)) {
 		    ticketCollector.setDirection(0, 0);
-		    // ticketCollector.setChatSide(target.x > ticketCollector.getCenter().x ? -1 :
-		    // 1);
-		    // ticketCollector.showChat(true, "Tickets Please!");
 		    if (!c.isAvailable()) {
 			Player p = c.getSitter();
 			if (p != null) {
 			    Ticket t = p.takeTicket();
 			    if (t != null) {
 				if (!ticketCollector.isTicketValid(t)) {
-				    sendKickPlayer(p.getName());
-				    sendSystemMessage(ticketCollector.getName(),
-					    p.getName() + " didn't have a valid ticket");
+				    new Countdown("", 1, (x) -> {
+					sendKickPlayer(p.getName());
+					sendSystemMessage(ticketCollector.getName(), "Get out freeloader!");
+					sendSystemMessage(null, p.getName() + " has been kicked off the train");
+				    });
 				}
 				else {
-				    sendSystemMessage(ticketCollector.getName(), p.getName() + " had a valid ticket");
+				    sendSystemMessage(ticketCollector.getName(), p.getName() + ", thank you.");
 				}
 			    }
 			}
@@ -924,11 +918,10 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 		    ticketCollector.setDirection(0, 0);
 		    ticketCollector.setActive(false);
 		    chairIndex = -1;
-		    nextRound("Grab a ticket and pick a seat", 15);
+		    nextRound("Grab a ticket and pick a seat", collectionDelay);
 		}
 	    }
 	}
-	nextFrame();
     }
 
     @Override

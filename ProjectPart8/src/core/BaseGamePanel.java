@@ -57,6 +57,8 @@ public abstract class BaseGamePanel extends JPanel {
 		    while (isRunning) {
 			bgp.update();
 			bgp.lateUpdate();
+			nextFrame();
+
 			if (!isServer) {
 			    bgp.repaint();
 			}
@@ -104,5 +106,18 @@ public abstract class BaseGamePanel extends JPanel {
 
     // forces subclasses to determine listeners
     public abstract void attachListeners();
+
+    // don't call this more than once per frame
+    protected long frame = 0;
+
+    protected void nextFrame() {
+	// we'll do basic frame tracking so we can trigger events
+	// less frequently than each frame
+	// update frame counter and prevent overflow
+	if (Long.MAX_VALUE - 5 <= frame) {
+	    frame = Long.MIN_VALUE;
+	}
+	frame++;
+    }
 
 }
