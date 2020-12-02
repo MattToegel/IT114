@@ -12,11 +12,11 @@ public class User extends JPanel {
     private JEditorPane nameField;
     private JTextField scoreField;
 
-    public User(String name, int score) {
+    public User(String name, int score, String wrapper) {
 	this.name = name;
 	nameField = new JEditorPane();
 	nameField.setContentType("text/html");
-	nameField.setText("<b>" + name + "</b>");
+	nameField.setText(String.format(wrapper, name));
 	nameField.setEditable(false);
 	scoreField = new JTextField();
 	scoreField.setText("" + score);

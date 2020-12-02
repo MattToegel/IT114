@@ -247,7 +247,7 @@ public class ClientUI extends JFrame implements Event {
     }
 
     void addClient(String name, int score) {
-	User u = new User(name, score);
+	User u = new User(name, score, "<font color=purple>%s</font>");
 	Dimension p = new Dimension(userPanel.getSize().width, 30);
 	u.setPreferredSize(p);
 	u.setMinimumSize(p);
