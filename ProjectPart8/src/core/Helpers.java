@@ -18,6 +18,7 @@ public class Helpers {
 	return random.nextInt(max - min) + min;
     }
 
+    // gets a random number based on a passed in Random seed
     public static int getNumberBetweenBySeed(int min, int max, long seed) {
 	random.setSeed(seed);
 	return random.nextInt(max - min) + min;
