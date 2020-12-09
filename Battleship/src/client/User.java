@@ -27,10 +27,6 @@ public class User extends JPanel {
 	this.add(scoreField, BorderLayout.EAST);
     }
 
-    public void setName(String name, String wrapper) {
-	nameField.setText(String.format(wrapper, name));
-    }
-
     public String getName() {
 	return name;
     }

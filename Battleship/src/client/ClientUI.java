@@ -510,20 +510,4 @@ public class ClientUI extends JFrame implements Event {
 	// TODO Auto-generated method stub
 	addMessage(String.format("<i>%s didn't have a valid ticket</i>", clientName));
     }
-
-    public void onIsMuted(String clientName, boolean isMuted) {
-	Iterator<User> iter = users.iterator();
-	while (iter.hasNext()) {
-	    User u = iter.next();
-	    if (u.getName().equalsIgnoreCase(clientName)) {
-		if (isMuted) {
-		    u.setName(clientName, "<color=red>%s</color>");
-		}
-		else {
-		    u.setName(clientName, "%s");
-		}
-		break;
-	    }
-	}
-    }
 }

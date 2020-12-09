@@ -23,22 +23,7 @@ public class ServerThread extends Thread {
     List<String> mutedClients = new ArrayList<String>();
 
     public boolean isMuted(String clientName) {
-	clientName = clientName.trim().toLowerCase();
 	return mutedClients.contains(clientName);
-    }
-
-    public void mute(String name) {
-	name = name.trim().toLowerCase();
-	if (!isMuted(name)) {
-	    mutedClients.add(name);
-	}
-    }
-
-    public void unmute(String name) {
-	name = name.trim().toLowerCase();
-	if (isMuted(name)) {
-	    mutedClients.remove(name);
-	}
     }
 
     public String getClientName() {

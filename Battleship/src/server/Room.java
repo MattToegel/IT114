@@ -40,6 +40,15 @@ public class Room extends BaseGamePanel implements AutoCloseable {
     private Point target = new Point();
     private int lastChairIndex = -1;
     private final int collectionDelay = 20;
+    int[][] grid = new int[7][7];
+
+    public void checkGrid(int x, int y) {
+	// check if point is in grid (not out of bounds)
+	// check if point has been chosen
+	// can use -1 for free, 1 for hit, 0 for miss
+	grid[x][y] = 1; // or 0;
+	// broadcast new update so clients can update their local grid
+    }
 
     public Room(String name, boolean delayStart) {
 	super(delayStart);
@@ -514,24 +523,6 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 		case "start":// TODO for testing purposes, don't forget to delete when done testing
 		    readyCheck();
 		    break;
-		case "mute":
-		    // person we extracted
-		    String mutedDude = "";
-		    sendPrivateMessage(client, new ArrayList<String>(), "You have been muted");
-		    break;
-		case "unmute":
-		    // person we extracted
-		    String unmutedDude = "";
-		    sendPrivateMessage(client, new ArrayList<String>(), "You have been unmuted");
-		    break;
-		case "pm":
-		    // TODO extract clients from message, save to array with
-		    String clientName = "";
-		    clientName = clientName.trim().toLowerCase();
-		    List<String> clients = new ArrayList<String>();
-		    sendPrivateMessage(client, clients, message);
-		    response = null;
-		    break;
 		default:
 		    // not a command, let's fix this function from eating messages
 		    response = message;
@@ -540,26 +531,7 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 	    }
 	    else {
 		// not a command, let's fix this function from eating messages
-		// response = message;
-		String alteredMessage = message;
-
-		if (alteredMessage.indexOf("@@") > -1) {
-		    String[] s1 = alteredMessage.split("@@");
-		    String m = "";
-		    // m += s1[0];
-		    for (int i = 0; i < s1.length; i++) {
-			if (i % 2 == 0) {
-			    m += s1[i];
-			}
-			else {
-			    m += "<b>" + s1[i] + "</b>";
-			}
-			System.out.println(s1[i]);
-		    }
-		    // m += s1[s1.length - 1];
-		    alteredMessage = m;
-		}
-		response = alteredMessage;
+		response = message;
 	    }
 	}
 	catch (Exception e) {
@@ -625,22 +597,6 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 	    if (!messageSent) {
 		iter.remove();
 	    }
-	}
-    }
-
-    protected void sendPrivateMessage(ServerThread sender, List<String> dest, String message) {
-
-	Iterator<ClientPlayer> iter = clients.iterator();
-	while (iter.hasNext()) {
-	    ClientPlayer client = iter.next();
-	    if (dest.contains(client.client.getClientName().toLowerCase())) {
-		boolean messageSent = client.client.send(sender.getClientName(), message);
-		if (!messageSent) {
-		    iter.remove();
-		}
-		break;
-	    }
-
 	}
     }
 
