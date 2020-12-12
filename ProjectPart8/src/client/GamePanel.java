@@ -650,4 +650,16 @@ public class GamePanel extends BaseGamePanel implements Event {
 	}
 
     }
+
+    @Override
+    public void onIsMuted(String clientName, boolean isMuted) {
+	// TODO Auto-generated method stub
+
+    }
+
+    @Override
+    public void onIsTyping(String clientName, boolean isTyping) {
+	// TODO Auto-generated method stub
+
+    }
 }

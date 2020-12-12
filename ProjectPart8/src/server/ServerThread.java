@@ -7,6 +7,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Level;
@@ -31,6 +32,7 @@ public class ServerThread extends Thread {
 	name = name.trim().toLowerCase();
 	if (!isMuted(name)) {
 	    mutedClients.add(name);
+	    save();
 	}
     }
 
@@ -38,7 +40,18 @@ public class ServerThread extends Thread {
 	name = name.trim().toLowerCase();
 	if (isMuted(name)) {
 	    mutedClients.remove(name);
+	    save();
 	}
+    }
+
+    void save() {
+	String data = clientName + ":" + String.join(",", mutedClients);
+	System.out.println(data);
+    }
+
+    void load() {
+	String dataFromFile = "";
+	mutedClients = Arrays.asList(dataFromFile.split(","));
     }
 
     public String getClientName() {
@@ -214,6 +227,14 @@ public class ServerThread extends Thread {
 	return sendPayload(p);
     }
 
+    protected boolean syncIsTyping(String clientName, boolean isTyping) {
+	Payload p = new Payload();
+	p.setPayloadType(PayloadType.TYPING);
+	p.setClientName(clientName);
+	p.setFlag(isTyping);
+	return sendPayload(p);
+    }
+
     private boolean sendPayload(Payload p) {
 	try {
 	    out.writeObject(p);
@@ -284,6 +305,9 @@ public class ServerThread extends Thread {
 	    break;
 	case PICKUP_TICKET:
 	    currentRoom.doPickup(this);
+	    break;
+	case TYPING:
+	    currentRoom.broadcastIsTyping(this, p.getFlag());
 	    break;
 	default:
 	    log.log(Level.INFO, "Unhandled payload on server: " + p);

@@ -254,6 +254,16 @@ public enum SocketClient {
 	}
     }
 
+    private void triggerIstyping(String clientName, boolean isTyping) {
+	Iterator<Event> iter = events.iterator();
+	while (iter.hasNext()) {
+	    Event e = iter.next();
+	    if (e != null) {
+		e.onIsTyping(clientName, isTyping);
+	    }
+	}
+    }
+
     /***
      * Determine any special logic for different PayloadTypes
      * 
@@ -317,6 +327,8 @@ public enum SocketClient {
 	    break;
 	case KICK_PLAYER:
 	    sendKick(p.getClientName());
+	case TYPING:
+	    triggerIstyping(p.getClientName(), p.getFlag());
 	    break;
 	default:
 	    log.log(Level.WARNING, "unhandled payload on client" + p);
@@ -405,6 +417,13 @@ public enum SocketClient {
     public void syncPickupTicket() {
 	Payload p = new Payload();
 	p.setPayloadType(PayloadType.PICKUP_TICKET);
+	sendPayload(p);
+    }
+
+    public void sendIsTyping(boolean isTyping) {
+	Payload p = new Payload();
+	p.setPayloadType(PayloadType.TYPING);
+	p.setFlag(isTyping);
 	sendPayload(p);
     }
 

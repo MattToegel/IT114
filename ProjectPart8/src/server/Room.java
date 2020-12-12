@@ -221,6 +221,16 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 	}
     }
 
+    public void broadcastIsTyping(ServerThread client, boolean isTyping) {
+	Iterator<ClientPlayer> iter = clients.iterator();
+	while (iter.hasNext()) {
+	    ClientPlayer cp = iter.next();
+	    if (cp != null) {
+		cp.client.syncIsTyping(client.getClientName(), isTyping);
+	    }
+	}
+    }
+
     protected synchronized void addClient(ServerThread client) {
 	client.setCurrentRoom(this);
 	boolean exists = false;
@@ -529,6 +539,7 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 		    String clientName = "";
 		    clientName = clientName.trim().toLowerCase();
 		    List<String> clients = new ArrayList<String>();
+		    clients.add(clientName);
 		    sendPrivateMessage(client, clients, message);
 		    response = null;
 		    break;

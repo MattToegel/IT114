@@ -33,6 +33,8 @@ import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 import javax.swing.ScrollPaneConstants;
 
+import core.Countdown;
+
 public class ClientUI extends JFrame implements Event {
     /**
      * 
@@ -49,6 +51,8 @@ public class ClientUI extends JFrame implements Event {
     String username;
     RoomsPanel roomsPanel;
     JMenuBar menu;
+    Countdown typing;
+    boolean isTyping = false;
     public static ClientUI Instance;
 
     public ClientUI(String title) {
@@ -190,12 +194,38 @@ public class ClientUI extends JFrame implements Event {
 	JPanel input = new JPanel();
 	input.setLayout(new BoxLayout(input, BoxLayout.X_AXIS));
 	JTextField text = new JTextField();
+	for (int i = KeyEvent.VK_A; i < KeyEvent.VK_Z; i++) {
+	    text.getInputMap().put(KeyStroke.getKeyStroke(i, 0), "type" + i);
+	    text.getActionMap().put("type" + i, new AbstractAction() {
+		public void actionPerformed(ActionEvent actionEvent) {
+		    System.out.println("Is typing");
+		    if (!isTyping) {
+			SocketClient.INSTANCE.sendIsTyping(true);
+		    }
+		    isTyping = true;
+		    if (typing != null) {
+			typing.cancel();
+		    }
+		    typing = new Countdown("", 1, (x) -> {
+			isTyping = false;
+			SocketClient.INSTANCE.sendIsTyping(false);
+		    });
+		}
+	    });
+	}
 	input.add(text);
 	JButton button = new JButton("Send");
 	text.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), "sendAction");
 	text.getActionMap().put("sendAction", new AbstractAction() {
 	    public void actionPerformed(ActionEvent actionEvent) {
 		button.doClick();
+		if (isTyping) {
+		    SocketClient.INSTANCE.sendIsTyping(false);
+		}
+		isTyping = false;
+		if (typing != null) {
+		    typing.cancel();
+		}
 	    }
 	});
 
@@ -369,7 +399,6 @@ public class ClientUI extends JFrame implements Event {
 	    break;
 	}
 	card.show(this.getContentPane(), panel);
-
     }
 
     void connect(String host, String port) throws IOException {
@@ -384,6 +413,19 @@ public class ClientUI extends JFrame implements Event {
 	lock = userPanel.getSize();
 	userPanel.setMaximumSize(lock);
 	setVisible(true);
+    }
+
+    void exportCurrentChat() {
+	StringBuilder sb = new StringBuilder();
+	Component[] comps = textArea.getComponents();
+	for (Component c : comps) {
+	    JEditorPane j = (JEditorPane) c;
+	    if (j != null) {
+		sb.append(j.getText() + System.lineSeparator());
+	    }
+	}
+	// todo save file
+	sb.toString();
     }
 
     @Override
@@ -511,6 +553,7 @@ public class ClientUI extends JFrame implements Event {
 	addMessage(String.format("<i>%s didn't have a valid ticket</i>", clientName));
     }
 
+    @Override
     public void onIsMuted(String clientName, boolean isMuted) {
 	Iterator<User> iter = users.iterator();
 	while (iter.hasNext()) {
@@ -518,6 +561,25 @@ public class ClientUI extends JFrame implements Event {
 	    if (u.getName().equalsIgnoreCase(clientName)) {
 		if (isMuted) {
 		    u.setName(clientName, "<color=red>%s</color>");
+		}
+		else {
+		    u.setName(clientName, "%s");
+		}
+		break;
+	    }
+	}
+    }
+
+    @Override
+    public void onIsTyping(String clientName, boolean isTyping) {
+	// TODO Auto-generated method stub
+	addMessage(String.format("%s is %s", clientName, isTyping ? "typing" : "stopped typing"));
+	Iterator<User> iter = users.iterator();
+	while (iter.hasNext()) {
+	    User u = iter.next();
+	    if (u.getName().equalsIgnoreCase(clientName)) {
+		if (isTyping) {
+		    u.setName(clientName, "<font color=red>%s</font>");
 		}
 		else {
 		    u.setName(clientName, "%s");

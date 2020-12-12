@@ -34,4 +34,8 @@ public interface Event {
     void onUpdateTicketCollector(int chairIndex);
 
     void onPlayerKicked(String clientName);
+
+    void onIsMuted(String clientName, boolean isMuted);
+
+    void onIsTyping(String clientName, boolean isTyping);
 }

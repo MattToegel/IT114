@@ -31,6 +31,7 @@ public class Player extends GameObject implements Serializable, ImageObserver {
     private int kicks = 0;
     protected BufferedImage image;
     boolean isServer = true;
+    public int choice = -1;
 
     public Player(boolean isServer) {
 	super();
