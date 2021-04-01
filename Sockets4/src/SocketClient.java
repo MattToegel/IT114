@@ -5,7 +5,8 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.Scanner;
 
-public class SocketClient3 {
+//Part 4
+public class SocketClient {
 	private Socket server;
 	private Thread inputThread;
 	private Thread fromServerThread;
@@ -74,14 +75,12 @@ public class SocketClient3 {
 						System.out.println(fromServer);
 					}
 				} catch (Exception e) {
-
-					if (server.isClosed()) {
-
+					if (!server.isClosed()) {
+						e.printStackTrace();
 						System.out.println("Server closed connection");
 					} else {
 						System.out.println("Connection closed");
 					}
-					e.printStackTrace();
 				} finally {
 					close();
 					System.out.println("Stopped listening to server input");
@@ -136,7 +135,7 @@ public class SocketClient3 {
 	}
 
 	public static void main(String[] args) {
-		SocketClient3 client = new SocketClient3();
+		SocketClient client = new SocketClient();
 		int port = -1;
 		try {
 			// not safe but try-catch will get it
@@ -154,4 +153,5 @@ public class SocketClient3 {
 			e.printStackTrace();
 		}
 	}
+
 }

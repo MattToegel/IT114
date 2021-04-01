@@ -40,7 +40,6 @@ public class SocketClient2 {
 					line = si.nextLine();
 					if (!"quit".equalsIgnoreCase(line)) {
 						out.println(line);
-						out.println(line + " (second send)");
 					} else {
 						break;
 					}

@@ -5,10 +5,11 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.Scanner;
 
-public class SocketClient3 {
+public class SocketClient implements AutoCloseable {
 	private Socket server;
 	private Thread inputThread;
 	private Thread fromServerThread;
+	private String clientName;
 
 	public void connect(String address, int port) {
 		try {
@@ -21,24 +22,63 @@ public class SocketClient3 {
 		}
 	}
 
+	private void readUsername(Scanner si) {
+		System.out.println("Please enter a username and press enter...");
+		clientName = si.nextLine();
+	}
+
+	private Payload buildMessage(String message) {
+		Payload payload = new Payload();
+		payload.setPayloadType(PayloadType.MESSAGE);
+		payload.setClientName(clientName);
+		payload.setMessage(message);
+		return payload;
+	}
+
+	private Payload buildConnectionStatus(String name, boolean isConnect) {
+		Payload payload = new Payload();
+		if (isConnect) {
+			payload.setPayloadType(PayloadType.CONNECT);
+		} else {
+			payload.setPayloadType(PayloadType.DISCONNECT);
+		}
+		payload.setClientName(name);
+		return payload;
+	}
+
+	private void sendPayload(Payload p, ObjectOutputStream out) {
+		try {
+			out.writeObject(p);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+
 	private void listenForKeyboard(Scanner si, ObjectOutputStream out) {
+		if (inputThread != null) {
+			System.out.println("Input Listener is likely already running");
+			return;
+		}
 		// Thread to listen for keyboard input so main thread isn't blocked
 		inputThread = new Thread() {
 			@Override
 			public void run() {
 				try {
+					readUsername(si);
+					sendPayload(buildConnectionStatus(clientName, true), out);
 
 					while (!server.isClosed()) {
 						System.out.println("Waiting for input");
 						String line = si.nextLine();// this line causes a problem due to blocking IO when the server
-													// terminates
+						// terminates
 						if (!"quit".equalsIgnoreCase(line) && line != null) {
 							// grab line and write it to the stream
-							out.writeObject(line);// technically a String is an object so this works
+							sendPayload(buildMessage(line), out);
 						} else {
 							System.out.println("Stopping input thread");
 							// we're quitting so tell server we disconnected so it can broadcast
-							out.writeObject("bye");
+							sendPayload(buildConnectionStatus(clientName, false), out);
 							break;
 						}
 						try {
@@ -60,28 +100,27 @@ public class SocketClient3 {
 	}
 
 	private void listenForServerMessage(ObjectInputStream in) {
+		if (fromServerThread != null) {
+			System.out.println("Server Listener is likely already running");
+			return;
+		}
 		// Thread to listen for responses from server so it doesn't block main thread
 		fromServerThread = new Thread() {
 			@Override
 			public void run() {
 				try {
-					String fromServer;
-					// while we're connected, listen for strings from server
-					while (!server.isClosed() && (fromServer = (String) in.readObject()) != null) {
-						// keep this one as sysout otherwise if we turn of System.out.println we'll not
-						// see
-						// messages
-						System.out.println(fromServer);
+					Payload fromServer;
+					// while we're connected, listen for Payloads from server
+					while (!server.isClosed() && (fromServer = (Payload) in.readObject()) != null) {
+						processPayload(fromServer);
 					}
 				} catch (Exception e) {
-
-					if (server.isClosed()) {
-
+					if (!server.isClosed()) {
+						e.printStackTrace();
 						System.out.println("Server closed connection");
 					} else {
 						System.out.println("Connection closed");
 					}
-					e.printStackTrace();
 				} finally {
 					close();
 					System.out.println("Stopped listening to server input");
@@ -89,6 +128,29 @@ public class SocketClient3 {
 			}
 		};
 		fromServerThread.start();// start the thread
+	}
+
+	/***
+	 * Determine any special logic for different PayloadTypes
+	 * 
+	 * @param p
+	 */
+	private void processPayload(Payload p) {
+		switch (p.getPayloadType()) {
+		case CONNECT:
+			System.out.println(p.getClientName() + ": " + p.getMessage());
+			break;
+		case DISCONNECT:
+			System.out.println(p.getClientName() + ": " + p.getMessage());
+			break;
+		case MESSAGE:
+			System.out.println(p.getClientName() + ": " + p.getMessage());
+			break;
+		default:
+			System.out.println("Unhandled payload on client: " + p);
+			break;
+
+		}
 	}
 
 	public void start() throws IOException {
@@ -124,7 +186,8 @@ public class SocketClient3 {
 		}
 	}
 
-	private void close() {
+	@Override
+	public void close() {
 		if (server != null && !server.isClosed()) {
 			try {
 				server.close();
@@ -136,7 +199,7 @@ public class SocketClient3 {
 	}
 
 	public static void main(String[] args) {
-		SocketClient3 client = new SocketClient3();
+
 		int port = -1;
 		try {
 			// not safe but try-catch will get it
@@ -144,14 +207,14 @@ public class SocketClient3 {
 		} catch (Exception e) {
 			System.out.println("Invalid port");
 		}
-		if (port == -1) {
-			return;
-		}
-		client.connect("128.235.208.75", port);
-		try {
-			client.start();
-		} catch (IOException e) {
-			e.printStackTrace();
+		if (port > -1) {
+			try (SocketClient client = new SocketClient();) {
+				client.connect("127.0.0.1", port);
+				client.start();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 		}
 	}
+
 }
