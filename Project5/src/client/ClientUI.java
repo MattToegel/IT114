@@ -416,4 +416,10 @@ public class ClientUI extends JFrame implements Event {
 		// ignore it here, I'm sending it to resize the game area
 		resizeTexts();
 	}
+
+	@Override
+	public void onShipPlaced(int shipType, int x, int y, int life) {
+		// TODO Auto-generated method stub
+		
+	}
 }

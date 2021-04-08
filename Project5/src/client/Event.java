@@ -18,4 +18,6 @@ public interface Event {
 	void onGetRoom(String roomName);
 
 	void onResize(Point p);
+	
+	void onShipPlaced(int shipType, int x, int y, int life);
 }

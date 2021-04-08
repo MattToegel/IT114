@@ -15,8 +15,10 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import common.GameState;
 import common.Player;
 import common.Ship;
+import common.ShipType;
 import core.BaseGamePanel;
 
 public class GamePanel extends BaseGamePanel implements Event {
@@ -35,6 +37,9 @@ public class GamePanel extends BaseGamePanel implements Event {
 	Dimension gameAreaSize = new Dimension();
 	private final static Logger log = Logger.getLogger(GamePanel.class.getName());
 	private Cursor cursor = new Cursor(50, 50);
+	private GameState gameState = GameState.LOBBY;
+	private int maxShips = 10;
+	private int placedShips = 0;
 
 	public void setPlayerName(String name) {
 		playerUsername = name;
@@ -72,7 +77,6 @@ public class GamePanel extends BaseGamePanel implements Event {
 	@Override
 	public void onClientDisconnect(String clientName, String message) {
 
-		// TODO Auto-generated method stub
 		System.out.println("Disconnected on Game Panel: " + clientName);
 		Iterator<Player> iter = players.iterator();
 		while (iter.hasNext()) {
@@ -86,7 +90,6 @@ public class GamePanel extends BaseGamePanel implements Event {
 
 	@Override
 	public void onMessageReceive(String clientName, String message) {
-		// TODO Auto-generated method stub
 		System.out.println("Message on Game Panel");
 
 	}
@@ -95,13 +98,9 @@ public class GamePanel extends BaseGamePanel implements Event {
 	public void onChangeRoom() {
 		// don't clear, since we're using iterators to loop, remove via iterator
 		// players.clear();
-		Iterator<Player> iter = players.iterator();
-		while (iter.hasNext()) {
-			Player p = iter.next();
-			// if (p != myPlayer) {
-			iter.remove();
-			// }
-		}
+		clearPlayers();
+		clearShips();
+		clearMarkers();
 		myPlayer = null;
 		System.out.println("Cleared players");
 	}
@@ -118,15 +117,16 @@ public class GamePanel extends BaseGamePanel implements Event {
 
 	@Override
 	public void update() {
-		applyControls();
-		localMovePlayers();
+		// don't need these for battleship
+		// applyControls();
+		// localMovePlayers();
 	}
 
 	/**
 	 * Gets the current state of input to apply movement to our player
 	 */
 	private void applyControls() {
-
+		// not used in battleship
 		if (myPlayer != null) {
 			int x = 0, y = 0;
 			if (KeyStates.W) {
@@ -190,6 +190,31 @@ public class GamePanel extends BaseGamePanel implements Event {
 		}
 	}
 
+	private void clearPlayers() {
+		Iterator<Player> iter = players.iterator();
+		while (iter.hasNext()) {
+			Player p = iter.next();
+			iter.remove();
+		}
+	}
+
+	private void clearShips() {
+
+		Iterator<Ship> iter = ships.iterator();
+		while (iter.hasNext()) {
+			Ship s = iter.next();
+			iter.remove();
+		}
+	}
+
+	private void clearMarkers() {
+		Iterator<Marker> iter = markers.iterator();
+		while (iter.hasNext()) {
+			Marker m = iter.next();
+			iter.remove();
+		}
+	}
+
 	private synchronized void drawMarkers(Graphics g) {
 		Iterator<Marker> iter = markers.iterator();
 		while (iter.hasNext()) {
@@ -228,6 +253,42 @@ public class GamePanel extends BaseGamePanel implements Event {
 		}
 	}
 
+	private void handleMouseClick(MouseEvent e) {
+		switch (gameState) {
+
+		case LOBBY:
+			break;
+		case PLACEMENT:
+			sendPlaceShip(e);
+			break;
+		case TURNS:
+			break;
+		case POST_GAME:
+			break;
+		default:
+			break;
+		}
+	}
+
+	/// ship network
+	private void sendPlaceShip(MouseEvent e) {
+		if (placedShips < maxShips) {
+			SocketClient.INSTANCE.sendShipPlacement(e.getPoint());
+			// we'll assume our request will be accepted
+			placedShips++;
+		}
+	}
+	@Override
+	public void onShipPlaced(int shipType, int x, int y, int life) {// From Event
+		ShipType t = ShipType.values()[shipType];
+		Ship s = new Ship();
+		s.setName(t.toString());
+		s.setPosition(new Point(x, y));
+
+		ships.add(s);
+	}
+	/// end ship network
+	
 	@Override
 	public void quit() {
 		log.log(Level.INFO, "GamePanel quit");
@@ -241,45 +302,17 @@ public class GamePanel extends BaseGamePanel implements Event {
 			public void mousePressed(MouseEvent e) {
 				cursor.click(e.getPoint().x, e.getPoint().y);
 				System.out.println("Clicked: " + e.getPoint());
-				/*
-				 * Marker m = new Marker((Math.random() > .5 ? MarkerType.HIT :
-				 * MarkerType.MISS)); m.setPosition(e.getPoint()); m.setSize(10, 10);
-				 * markers.add(m);
-				 */
+				handleMouseClick(e);
+				Marker m = new Marker((Math.random() > .5 ? MarkerType.HIT : MarkerType.MISS));
+				m.setPosition(e.getPoint());
+				m.setSize(10, 10);
+				markers.add(m);
 				/*
 				 * Code here just for sake of example Ship s = new Ship(); s.setName("Gunner");
 				 * s.setPosition(e.getPoint()); ships.add(s);
 				 */
-				Ship s = new Ship();
-				s.setName("Gunner");
-				s.setPosition(e.getPoint());
-				ships.add(s);
 			}
 		});
-		/*
-		 * InputMap im = this.getRootPane().getInputMap();
-		 * im.put(KeyStroke.getKeyStroke(KeyEvent.VK_W, 0, false), "up_pressed");
-		 * im.put(KeyStroke.getKeyStroke(KeyEvent.VK_W, 0, true), "up_released");
-		 * im.put(KeyStroke.getKeyStroke(KeyEvent.VK_S, 0, false), "down_pressed");
-		 * im.put(KeyStroke.getKeyStroke(KeyEvent.VK_S, 0, true), "down_released");
-		 * im.put(KeyStroke.getKeyStroke(KeyEvent.VK_A, 0, false), "left_pressed");
-		 * im.put(KeyStroke.getKeyStroke(KeyEvent.VK_A, 0, true), "left_released");
-		 * im.put(KeyStroke.getKeyStroke(KeyEvent.VK_D, 0, false), "right_pressed");
-		 * im.put(KeyStroke.getKeyStroke(KeyEvent.VK_D, 0, true), "right_released");
-		 * ActionMap am = this.getRootPane().getActionMap();
-		 * 
-		 * am.put("up_pressed", new MoveAction(KeyEvent.VK_W, true));
-		 * am.put("up_released", new MoveAction(KeyEvent.VK_W, false));
-		 * 
-		 * am.put("down_pressed", new MoveAction(KeyEvent.VK_S, true));
-		 * am.put("down_released", new MoveAction(KeyEvent.VK_S, false));
-		 * 
-		 * am.put("left_pressed", new MoveAction(KeyEvent.VK_A, true));
-		 * am.put("left_released", new MoveAction(KeyEvent.VK_A, false));
-		 * 
-		 * am.put("right_pressed", new MoveAction(KeyEvent.VK_D, true));
-		 * am.put("right_released", new MoveAction(KeyEvent.VK_D, false));
-		 */
 	}
 
 	@Override

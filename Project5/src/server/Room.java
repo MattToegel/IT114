@@ -10,6 +10,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import common.Player;
+import common.Ship;
+import common.ShipType;
 import core.BaseGamePanel;
 
 public class Room extends BaseGamePanel implements AutoCloseable {
@@ -24,6 +26,7 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 	private final static String READY = "ready";
 	private List<ClientPlayer> clients = new ArrayList<ClientPlayer>();
 	static Dimension gameAreaSize = new Dimension(400, 600);
+	List<Ship> ships = new ArrayList<Ship>();
 
 	public Room(String name, boolean delayStart) {
 		super(delayStart);
@@ -188,6 +191,18 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 			joinRoom(room, client);
 		}
 	}
+	protected void placeShip(Point coords, ServerThread client) {
+		ClientPlayer cp = getCP(client);
+		Ship s = new Ship();
+		s.setOwner(cp);
+		s.setName(ShipType.GUNNER.toString());//TODO allow various types
+		s.setPosition(coords);//TODO verify in bounds
+		ships.add(s);
+		sendPlacement(s, client);
+	}
+	private void sendPlacement(Ship s, ServerThread owner) {
+		owner.sendShipPlacement(ShipType.valueOf(s.getName()).ordinal(), s.getPosition(),s.getMaxHealth());
+	}
 
 	private ClientPlayer getCP(ServerThread client) {
 		Iterator<ClientPlayer> iter = clients.iterator();
@@ -261,6 +276,9 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 					}
 					response = "Ready to go!";
 					break;
+				case "sayhi":
+					response = "hi";
+					break;
 				default:
 					// not a command, let's fix this function from eating messages
 					response = message;
@@ -304,6 +322,7 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 			return;
 		}
 		message = resp;
+		// map shortcuts to html characters/elements
 		Iterator<ClientPlayer> iter = clients.iterator();
 		while (iter.hasNext()) {
 			ClientPlayer client = iter.next();

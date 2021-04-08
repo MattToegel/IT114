@@ -86,7 +86,7 @@ public enum SocketClient {
 		fromServerThread.start();// start the thread
 	}
 
-	private void sendOnClientConnect(String name, String message) {
+	private void receiveClientConnect(String name, String message) {
 		Iterator<Event> iter = events.iterator();
 		while (iter.hasNext()) {
 			Event e = iter.next();
@@ -96,7 +96,7 @@ public enum SocketClient {
 		}
 	}
 
-	private void sendOnClientDisconnect(String name, String message) {
+	private void receiveClientDisconnect(String name, String message) {
 		Iterator<Event> iter = events.iterator();
 		while (iter.hasNext()) {
 			Event e = iter.next();
@@ -106,7 +106,7 @@ public enum SocketClient {
 		}
 	}
 
-	private void sendOnMessage(String name, String message) {
+	private void receiveMessage(String name, String message) {
 		Iterator<Event> iter = events.iterator();
 		while (iter.hasNext()) {
 			Event e = iter.next();
@@ -116,7 +116,7 @@ public enum SocketClient {
 		}
 	}
 
-	private void sendOnChangeRoom() {
+	private void receiveRoomChange() {
 		Iterator<Event> iter = events.iterator();
 		while (iter.hasNext()) {
 			Event e = iter.next();
@@ -126,7 +126,7 @@ public enum SocketClient {
 		}
 	}
 
-	private void sendSyncDirection(String clientName, Point direction) {
+	private void receiveSyncDirection(String clientName, Point direction) {
 		Iterator<Event> iter = events.iterator();
 		while (iter.hasNext()) {
 			Event e = iter.next();
@@ -136,7 +136,7 @@ public enum SocketClient {
 		}
 	}
 
-	private void sendSyncPosition(String clientName, Point position) {
+	private void receiveSyncPosition(String clientName, Point position) {
 		Iterator<Event> iter = events.iterator();
 		while (iter.hasNext()) {
 			Event e = iter.next();
@@ -146,7 +146,7 @@ public enum SocketClient {
 		}
 	}
 
-	private void sendRoom(String roomName) {
+	private void receiveRoom(String roomName) {
 		Iterator<Event> iter = events.iterator();
 		while (iter.hasNext()) {
 			Event e = iter.next();
@@ -156,7 +156,7 @@ public enum SocketClient {
 		}
 	}
 
-	private void sendSize(Point p) {
+	private void receiveSize(Point p) {
 		Iterator<Event> iter = events.iterator();
 		while (iter.hasNext()) {
 			Event e = iter.next();
@@ -165,7 +165,7 @@ public enum SocketClient {
 			}
 		}
 	}
-
+	
 	/***
 	 * Determine any special logic for different PayloadTypes
 	 * 
@@ -175,29 +175,29 @@ public enum SocketClient {
 
 		switch (p.getPayloadType()) {
 		case CONNECT:
-			sendOnClientConnect(p.getClientName(), p.getMessage());
+			receiveClientConnect(p.getClientName(), p.getMessage());
 			break;
 		case DISCONNECT:
-			sendOnClientDisconnect(p.getClientName(), p.getMessage());
+			receiveClientDisconnect(p.getClientName(), p.getMessage());
 			break;
 		case MESSAGE:
-			sendOnMessage(p.getClientName(), p.getMessage());
+			receiveMessage(p.getClientName(), p.getMessage());
 			break;
 		case CLEAR_PLAYERS:
-			sendOnChangeRoom();
+			receiveRoomChange();
 			break;
 		case SYNC_DIRECTION:
-			sendSyncDirection(p.getClientName(), p.getPoint());
+			receiveSyncDirection(p.getClientName(), p.getPoint());
 			break;
 		case SYNC_POSITION:
-			sendSyncPosition(p.getClientName(), p.getPoint());
+			receiveSyncPosition(p.getClientName(), p.getPoint());
 			break;
 		case GET_ROOMS:
 			// reply from ServerThread
-			sendRoom(p.getMessage());
+			receiveRoom(p.getMessage());
 			break;
 		case SYNC_GAME_SIZE:
-			sendSize(p.getPoint());
+			receiveSize(p.getPoint());
 			break;
 
 		default:
@@ -281,7 +281,12 @@ public enum SocketClient {
 		p.setPoint(dir);
 		sendPayload(p);
 	}
-
+	public void sendShipPlacement(Point coord) {
+		Payload p = new Payload();
+		p.setPayloadType(PayloadType.PLACE_SHIP);
+		p.setPoint(coord);
+		sendPayload(p);
+	}
 	/**
 	 * we won't be syncing position from the client since our server is the one
 	 * that'll do it so creating this unused method as a reminder not to use/make it

@@ -6,11 +6,26 @@ import java.awt.FontMetrics;
 import java.awt.Graphics;
 
 import core.GameObject;
+import server.ClientPlayer;
 
 public class Ship extends GameObject {
 	Color color = Color.BLUE;
 	private int health = 3;
 	private int maxHealth = 3;
+	private ClientPlayer owner;//<-- only used server side
+	
+	public void setOwner(ClientPlayer cp) {
+		owner = cp;
+	}
+	public ClientPlayer getOwner() {
+		return owner;
+	}
+	public int getHealth() {
+		return health;
+	}
+	public int getMaxHealth() {
+		return maxHealth;
+	}
 
 	public boolean hit() {
 		return hit(1);

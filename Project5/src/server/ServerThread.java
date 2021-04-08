@@ -132,6 +132,15 @@ public class ServerThread extends Thread {
 		payload.setPoint(new Point(roomSize.width, roomSize.height));
 		return sendPayload(payload);
 	}
+	
+	protected boolean sendShipPlacement(int shipType, Point coords, int health) {
+		Payload p = new Payload();
+		p.setPayloadType(PayloadType.PLACE_SHIP);
+		p.setPoint(coords);
+		p.setMessage(shipType+"");
+		p.setNumber(health);
+		return sendPayload(p);
+	}
 
 	private boolean sendPayload(Payload p) {
 		try {
@@ -199,6 +208,9 @@ public class ServerThread extends Thread {
 			break;
 		case JOIN_ROOM:
 			currentRoom.joinRoom(p.getMessage(), this);
+			break;
+		case PLACE_SHIP:
+			currentRoom.placeShip(p.getPoint(), this);
 			break;
 		default:
 			log.log(Level.INFO, "Unhandled payload on server: " + p);
