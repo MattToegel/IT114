@@ -241,19 +241,14 @@ public class GamePanel extends BaseGamePanel implements Event {
 			public void mousePressed(MouseEvent e) {
 				cursor.click(e.getPoint().x, e.getPoint().y);
 				System.out.println("Clicked: " + e.getPoint());
-				/*
-				 * Marker m = new Marker((Math.random() > .5 ? MarkerType.HIT :
-				 * MarkerType.MISS)); m.setPosition(e.getPoint()); m.setSize(10, 10);
-				 * markers.add(m);
-				 */
+				Marker m = new Marker((Math.random() > .5 ? MarkerType.HIT : MarkerType.MISS));
+				m.setPosition(e.getPoint());
+				m.setSize(10, 10);
+				markers.add(m);
 				/*
 				 * Code here just for sake of example Ship s = new Ship(); s.setName("Gunner");
 				 * s.setPosition(e.getPoint()); ships.add(s);
 				 */
-				Ship s = new Ship();
-				s.setName("Gunner");
-				s.setPosition(e.getPoint());
-				ships.add(s);
 			}
 		});
 		/*

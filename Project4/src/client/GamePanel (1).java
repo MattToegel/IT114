@@ -7,16 +7,17 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.RenderingHints;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
+import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import common.Player;
-import common.Ship;
+import javax.swing.ActionMap;
+import javax.swing.InputMap;
+import javax.swing.KeyStroke;
+
 import core.BaseGamePanel;
 
 public class GamePanel extends BaseGamePanel implements Event {
@@ -26,15 +27,10 @@ public class GamePanel extends BaseGamePanel implements Event {
 	 */
 	private static final long serialVersionUID = -1121202275148798015L;
 	List<Player> players;
-	// player's placed ships and detected ships from hits
-	List<Ship> ships = new ArrayList<Ship>();
-	// local references of where choices were made by local player
-	List<Marker> markers = new ArrayList<Marker>();
 	Player myPlayer;
 	String playerUsername;// caching it so we don't lose it when room is wiped
 	Dimension gameAreaSize = new Dimension();
 	private final static Logger log = Logger.getLogger(GamePanel.class.getName());
-	private Cursor cursor = new Cursor(50, 50);
 
 	public void setPlayerName(String name) {
 		playerUsername = name;
@@ -126,7 +122,6 @@ public class GamePanel extends BaseGamePanel implements Event {
 	 * Gets the current state of input to apply movement to our player
 	 */
 	private void applyControls() {
-
 		if (myPlayer != null) {
 			int x = 0, y = 0;
 			if (KeyStates.W) {
@@ -183,31 +178,6 @@ public class GamePanel extends BaseGamePanel implements Event {
 		((Graphics2D) g).setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 		drawPlayers(g);
 		drawText(g);
-		drawShips(g);
-		drawMarkers(g);
-		if (cursor != null) {
-			cursor.draw(g);
-		}
-	}
-
-	private synchronized void drawMarkers(Graphics g) {
-		Iterator<Marker> iter = markers.iterator();
-		while (iter.hasNext()) {
-			Marker m = iter.next();
-			if (m != null) {
-				m.draw(g);
-			}
-		}
-	}
-
-	private synchronized void drawShips(Graphics g) {
-		Iterator<Ship> iter = ships.iterator();
-		while (iter.hasNext()) {
-			Ship s = iter.next();
-			if (s != null) {
-				s.draw(g);
-			}
-		}
 	}
 
 	private synchronized void drawPlayers(Graphics g) {
@@ -235,51 +205,28 @@ public class GamePanel extends BaseGamePanel implements Event {
 
 	@Override
 	public void attachListeners() {
-		addMouseListener(new MouseAdapter() {
+		InputMap im = this.getRootPane().getInputMap();
+		im.put(KeyStroke.getKeyStroke(KeyEvent.VK_W, 0, false), "up_pressed");
+		im.put(KeyStroke.getKeyStroke(KeyEvent.VK_W, 0, true), "up_released");
+		im.put(KeyStroke.getKeyStroke(KeyEvent.VK_S, 0, false), "down_pressed");
+		im.put(KeyStroke.getKeyStroke(KeyEvent.VK_S, 0, true), "down_released");
+		im.put(KeyStroke.getKeyStroke(KeyEvent.VK_A, 0, false), "left_pressed");
+		im.put(KeyStroke.getKeyStroke(KeyEvent.VK_A, 0, true), "left_released");
+		im.put(KeyStroke.getKeyStroke(KeyEvent.VK_D, 0, false), "right_pressed");
+		im.put(KeyStroke.getKeyStroke(KeyEvent.VK_D, 0, true), "right_released");
+		ActionMap am = this.getRootPane().getActionMap();
 
-			@Override
-			public void mousePressed(MouseEvent e) {
-				cursor.click(e.getPoint().x, e.getPoint().y);
-				System.out.println("Clicked: " + e.getPoint());
-				/*
-				 * Marker m = new Marker((Math.random() > .5 ? MarkerType.HIT :
-				 * MarkerType.MISS)); m.setPosition(e.getPoint()); m.setSize(10, 10);
-				 * markers.add(m);
-				 */
-				/*
-				 * Code here just for sake of example Ship s = new Ship(); s.setName("Gunner");
-				 * s.setPosition(e.getPoint()); ships.add(s);
-				 */
-				Ship s = new Ship();
-				s.setName("Gunner");
-				s.setPosition(e.getPoint());
-				ships.add(s);
-			}
-		});
-		/*
-		 * InputMap im = this.getRootPane().getInputMap();
-		 * im.put(KeyStroke.getKeyStroke(KeyEvent.VK_W, 0, false), "up_pressed");
-		 * im.put(KeyStroke.getKeyStroke(KeyEvent.VK_W, 0, true), "up_released");
-		 * im.put(KeyStroke.getKeyStroke(KeyEvent.VK_S, 0, false), "down_pressed");
-		 * im.put(KeyStroke.getKeyStroke(KeyEvent.VK_S, 0, true), "down_released");
-		 * im.put(KeyStroke.getKeyStroke(KeyEvent.VK_A, 0, false), "left_pressed");
-		 * im.put(KeyStroke.getKeyStroke(KeyEvent.VK_A, 0, true), "left_released");
-		 * im.put(KeyStroke.getKeyStroke(KeyEvent.VK_D, 0, false), "right_pressed");
-		 * im.put(KeyStroke.getKeyStroke(KeyEvent.VK_D, 0, true), "right_released");
-		 * ActionMap am = this.getRootPane().getActionMap();
-		 * 
-		 * am.put("up_pressed", new MoveAction(KeyEvent.VK_W, true));
-		 * am.put("up_released", new MoveAction(KeyEvent.VK_W, false));
-		 * 
-		 * am.put("down_pressed", new MoveAction(KeyEvent.VK_S, true));
-		 * am.put("down_released", new MoveAction(KeyEvent.VK_S, false));
-		 * 
-		 * am.put("left_pressed", new MoveAction(KeyEvent.VK_A, true));
-		 * am.put("left_released", new MoveAction(KeyEvent.VK_A, false));
-		 * 
-		 * am.put("right_pressed", new MoveAction(KeyEvent.VK_D, true));
-		 * am.put("right_released", new MoveAction(KeyEvent.VK_D, false));
-		 */
+		am.put("up_pressed", new MoveAction(KeyEvent.VK_W, true));
+		am.put("up_released", new MoveAction(KeyEvent.VK_W, false));
+
+		am.put("down_pressed", new MoveAction(KeyEvent.VK_S, true));
+		am.put("down_released", new MoveAction(KeyEvent.VK_S, false));
+
+		am.put("left_pressed", new MoveAction(KeyEvent.VK_A, true));
+		am.put("left_released", new MoveAction(KeyEvent.VK_A, false));
+
+		am.put("right_pressed", new MoveAction(KeyEvent.VK_D, true));
+		am.put("right_released", new MoveAction(KeyEvent.VK_D, false));
 	}
 
 	@Override
