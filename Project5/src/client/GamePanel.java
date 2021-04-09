@@ -278,17 +278,18 @@ public class GamePanel extends BaseGamePanel implements Event {
 			placedShips++;
 		}
 	}
+
 	@Override
 	public void onShipPlaced(int shipType, int x, int y, int life) {// From Event
 		ShipType t = ShipType.values()[shipType];
 		Ship s = new Ship();
 		s.setName(t.toString());
 		s.setPosition(new Point(x, y));
-
+		// TODO set life/health
 		ships.add(s);
 	}
 	/// end ship network
-	
+
 	@Override
 	public void quit() {
 		log.log(Level.INFO, "GamePanel quit");
@@ -311,6 +312,10 @@ public class GamePanel extends BaseGamePanel implements Event {
 				 * Code here just for sake of example Ship s = new Ship(); s.setName("Gunner");
 				 * s.setPosition(e.getPoint()); ships.add(s);
 				 */
+				Ship s = new Ship();
+				s.setName("Gunner");
+				s.setPosition(e.getPoint());
+				ships.add(s);
 			}
 		});
 	}

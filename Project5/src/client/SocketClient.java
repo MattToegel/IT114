@@ -165,7 +165,17 @@ public enum SocketClient {
 			}
 		}
 	}
-	
+
+	private void receiveShipPlacement(int shipType, int x, int y, int health) {
+		Iterator<Event> iter = events.iterator();
+		while (iter.hasNext()) {
+			Event e = iter.next();
+			if (e != null) {
+				e.onShipPlaced(shipType, x, y, health);
+			}
+		}
+	}
+
 	/***
 	 * Determine any special logic for different PayloadTypes
 	 * 
@@ -199,7 +209,9 @@ public enum SocketClient {
 		case SYNC_GAME_SIZE:
 			receiveSize(p.getPoint());
 			break;
-
+		case PLACE_SHIP:
+			receiveShipPlacement(Integer.parseInt(p.getMessage()), p.getPoint().x, p.getPoint().y, p.getNumber());
+			break;
 		default:
 			log.log(Level.WARNING, "unhandled payload on client" + p);
 			break;
@@ -281,12 +293,14 @@ public enum SocketClient {
 		p.setPoint(dir);
 		sendPayload(p);
 	}
+
 	public void sendShipPlacement(Point coord) {
 		Payload p = new Payload();
 		p.setPayloadType(PayloadType.PLACE_SHIP);
 		p.setPoint(coord);
 		sendPayload(p);
 	}
+
 	/**
 	 * we won't be syncing position from the client since our server is the one
 	 * that'll do it so creating this unused method as a reminder not to use/make it
