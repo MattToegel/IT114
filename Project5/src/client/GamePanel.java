@@ -70,6 +70,8 @@ public class GamePanel extends BaseGamePanel implements Event {
 			if (clientName.equals(playerUsername)) {
 				System.out.println("Reset myPlayer");
 				myPlayer = p;
+				//TODO for testing
+				gameState = GameState.PLACEMENT;
 			}
 		}
 	}
@@ -287,6 +289,7 @@ public class GamePanel extends BaseGamePanel implements Event {
 		s.setPosition(new Point(x, y));
 		// TODO set life/health
 		ships.add(s);
+		System.out.println(String.format("Placed Ship: %s at %s,%s with %s life", t.toString(), s.getPosition().x, s.getPosition().y, life));
 	}
 	/// end ship network
 
@@ -304,18 +307,18 @@ public class GamePanel extends BaseGamePanel implements Event {
 				cursor.click(e.getPoint().x, e.getPoint().y);
 				System.out.println("Clicked: " + e.getPoint());
 				handleMouseClick(e);
-				Marker m = new Marker((Math.random() > .5 ? MarkerType.HIT : MarkerType.MISS));
+				/*Marker m = new Marker((Math.random() > .5 ? MarkerType.HIT : MarkerType.MISS));
 				m.setPosition(e.getPoint());
 				m.setSize(10, 10);
-				markers.add(m);
+				markers.add(m);*/
 				/*
 				 * Code here just for sake of example Ship s = new Ship(); s.setName("Gunner");
 				 * s.setPosition(e.getPoint()); ships.add(s);
 				 */
-				Ship s = new Ship();
+				/*Ship s = new Ship();
 				s.setName("Gunner");
 				s.setPosition(e.getPoint());
-				ships.add(s);
+				ships.add(s);*/
 			}
 		});
 	}
