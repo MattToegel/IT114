@@ -166,12 +166,12 @@ public enum SocketClient {
 		}
 	}
 
-	private void receiveShipPlacement(int shipType, int x, int y, int health) {
+	private void receiveShipPlacement(int shipType, int shipId, int x, int y, int health) {
 		Iterator<Event> iter = events.iterator();
 		while (iter.hasNext()) {
 			Event e = iter.next();
 			if (e != null) {
-				e.onShipPlaced(shipType, x, y, health);
+				e.onShipPlaced(shipType, shipId, x, y, health);
 			}
 		}
 	}
@@ -185,7 +185,35 @@ public enum SocketClient {
 			}
 		}
 	}
-
+	private void receiveShipStatus(int shipId, int life) {
+		Iterator<Event> iter = events.iterator();
+		while (iter.hasNext()) {
+			Event e = iter.next();
+			if (e != null) {
+				e.onShipStatus(shipId, life);
+			}
+		}
+	}
+	
+	private void receiveAttackRadius(int x, int y, int radius) {
+		Iterator<Event> iter = events.iterator();
+		while (iter.hasNext()) {
+			Event e = iter.next();
+			if (e != null) {
+				e.onAttackRadius(x, y, radius);
+			}
+		}
+	}
+	
+	private void receiveCanAttack(String client, int attacks) {
+		Iterator<Event> iter = events.iterator();
+		while (iter.hasNext()) {
+			Event e = iter.next();
+			if (e != null) {
+				e.onCanAttack(client, attacks);
+			}
+		}
+	}
 	/***
 	 * Determine any special logic for different PayloadTypes
 	 * 
@@ -220,10 +248,19 @@ public enum SocketClient {
 			receiveSize(p.getPoint());
 			break;
 		case PLACE_SHIP:
-			receiveShipPlacement(Integer.parseInt(p.getMessage()), p.getPoint().x, p.getPoint().y, p.getNumber());
+			receiveShipPlacement(Integer.parseInt(p.getMessage()), Integer.parseInt(p.getClientName()), p.getPoint().x, p.getPoint().y, p.getNumber());
 			break;
 		case ATTACK:
 			receiveAttackStatus(p.getNumber(), p.getPoint().x, p.getPoint().y);
+			break;
+		case SHIP_STATUS:
+			receiveShipStatus(Integer.parseInt(p.getClientName()), p.getNumber());
+			break;
+		case ATTACK_RADIUS:
+			receiveAttackRadius(p.getPoint().x, p.getPoint().y, p.getNumber());
+			break;
+		case CAN_ATTACK:
+			receiveCanAttack(p.getClientName(), p.getNumber());
 			break;
 		default:
 			log.log(Level.WARNING, "unhandled payload on client" + p);

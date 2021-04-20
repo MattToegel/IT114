@@ -39,6 +39,7 @@ public class GamePanel extends BaseGamePanel implements Event {
 	Dimension gameAreaSize = new Dimension();
 	private final static Logger log = Logger.getLogger(GamePanel.class.getName());
 	private Cursor cursor = new Cursor(50, 50);
+	private Blast blast;
 	private GameState gameState = GameState.PLACEMENT;
 	private int maxShips = 10;
 	private int placedShips = 0;
@@ -190,6 +191,9 @@ public class GamePanel extends BaseGamePanel implements Event {
 		if (cursor != null) {
 			cursor.draw(g);
 		}
+		if(blast != null) {
+			blast.draw(g);
+		}
 	}
 
 	private void clearPlayers() {
@@ -297,7 +301,26 @@ public class GamePanel extends BaseGamePanel implements Event {
 		markers.add(m);
 		myPlayer.isAttacking(false);
 	}
-
+	@Override
+	public void onShipStatus(int shipId, int life) {
+		Iterator<Ship> iter = ships.iterator();
+		while(iter.hasNext()) {
+			Ship s = iter.next();
+			if(s.getId() == shipId) {
+				s.setHealth(life);
+				break;
+			}
+		}
+	}
+	@Override
+	public void onAttackRadius(int x, int y, int radius) {
+		if(blast == null) {
+			blast = new Blast(x, y, radius);
+		}
+		else {
+			blast.set(x, y, radius);
+		}
+	}
 	///
 	/// ship network
 	private void sendPlaceShip(MouseEvent e) {
@@ -309,11 +332,12 @@ public class GamePanel extends BaseGamePanel implements Event {
 	}
 
 	@Override
-	public void onShipPlaced(int shipType, int x, int y, int life) {// From Event
+	public void onShipPlaced(int shipType, int shipId, int x, int y, int life) {// From Event
 		ShipType t = ShipType.values()[shipType];
 		Ship s = new Ship();
 		s.setName(t.toString());
 		s.setPosition(new Point(x, y));
+		s.setId(shipId);
 		// TODO set life/health
 		ships.add(s);
 		if (ships.size() >= maxShips) {
@@ -392,5 +416,17 @@ public class GamePanel extends BaseGamePanel implements Event {
 		System.out.println(this.getSize());
 		this.invalidate();
 		this.repaint();
+	}
+
+	@Override
+	public void onCanAttack(String client, int attacks) {
+		// TODO Auto-generated method stub
+		Iterator<Player> iter = players.iterator();
+		while(iter.hasNext()) {
+			Player p = iter.next();
+			if(p != null && p.getName().equals(client)) {
+				p.setAttacks(attacks);
+			}
+		}
 	}
 }

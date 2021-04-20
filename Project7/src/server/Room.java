@@ -29,6 +29,7 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 	private List<ClientPlayer> clients = new ArrayList<ClientPlayer>();
 	static Dimension gameAreaSize = new Dimension(400, 600);
 	List<Ship> ships = new ArrayList<Ship>();
+	private int attackingPlayer = -1;
 
 	public Room(String name, boolean delayStart) {
 		super(delayStart);
@@ -194,7 +195,7 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 		}
 	}
 
-	/// shop req/res
+	/// ship req/res
 	protected void placeShip(Point coords, ServerThread client) {
 		ClientPlayer cp = getCP(client);
 		Ship s = new Ship();
@@ -202,11 +203,12 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 		s.setName(ShipType.GUNNER.toString());// TODO allow various types
 		s.setPosition(coords);// TODO verify in bounds
 		ships.add(s);
+		s.setId(ships.size());
 		sendPlacement(s, client);
 	}
 
 	private void sendPlacement(Ship s, ServerThread owner) {
-		owner.sendShipPlacement(ShipType.valueOf(s.getName()).ordinal(), s.getPosition(), s.getMaxHealth());
+		owner.sendShipPlacement(ShipType.valueOf(s.getName()).ordinal(),s.getId(), s.getPosition(), s.getMaxHealth());
 	}
 	/// ship req/res
 
@@ -215,21 +217,49 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 		// TODO only attack ships you don't own
 		Iterator<Ship> iter = ships.iterator();
 		boolean didHit = false;
-		while (iter.hasNext()) {
-			Ship s = iter.next();
-			if (s.getHealth() > 0 && !s.getOwner().client.equals(client)) {
-				if (collision(s, coords, 50)) {
-					didHit = true;
+		ClientPlayer cp = getCP(client);
+		int attacksRemaining = cp.player.getAttacks();
+		if(attacksRemaining > 0) {
+			cp.player.setAttacks(attacksRemaining-1);
+			sendAttackRadius(coords, 50);
+			while (iter.hasNext()) {
+				Ship s = iter.next();
+				if (s.getHealth() > 0 && !s.getOwner().client.equals(client)) {
+					if (collision(s, coords, 50)) {
+						didHit = true;
+						sendShipStatus(s.getOwner().client, s.getId(), s.getHealth());
+					}
 				}
 			}
+			sendAttack(coords, didHit ? MarkerType.HIT : MarkerType.MISS, client);
 		}
-		sendAttack(coords, didHit ? MarkerType.HIT : MarkerType.MISS, client);
+		if(cp.player.getAttacks() <= 0) {
+			setNextPlayer();
+		}
 	}
 
 	private void sendAttack(Point coords, MarkerType marker, ServerThread attacker) {
 		attacker.sendAttackStatus(coords, marker.ordinal());
 	}
-
+	private void sendShipStatus(ServerThread owner, int shipId, int life) {
+		owner.sendShipStatus(shipId, life);
+	}
+	private void sendAttackRadius(Point coords, int radius) {
+		Iterator<ClientPlayer> iter = clients.iterator();
+		while (iter.hasNext()) {
+			ClientPlayer c = iter.next();
+			boolean messageSent = c.client.sendAttackRadius(coords, radius);
+			
+		}
+	}
+	private void sendCanAttack(ServerThread client, int attacks) {
+		Iterator<ClientPlayer> iter = clients.iterator();
+		while (iter.hasNext()) {
+			ClientPlayer c = iter.next();
+			boolean messageSent = c.client.sendCanAttack(client.getClientName(), attacks);
+			
+		}
+	}
 	/// attack req/res
 	boolean collision(Ship ship, Point coords, int blastRadius) {
 		Point p = ship.getCenter();
@@ -278,14 +308,22 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 			// start
 			System.out.println("Everyone's ready, let's do this!");
 			new Countdown("", 5, (x)->{
-				Iterator<ClientPlayer> iter2 = clients.iterator();
+				/*Iterator<ClientPlayer> iter2 = clients.iterator();
 				int total2 = clients.size();
 				System.out.println("Total moving " + total2);
 				boolean isCreated = false;
+				List<ClientPlayer> pending = new ArrayList<ClientPlayer>();
 				while (iter2.hasNext()) {
 					ClientPlayer cp = iter2.next();
 					System.out.println("Moving player");
 					if (cp != null && cp.player.isReady()) {
+						pending.add(cp);
+					}
+				}
+				synchronized(pending) {
+					Iterator<ClientPlayer> p = pending.iterator();
+					while(p.hasNext()) {
+						ClientPlayer cp = p.next();
 						if(!isCreated) {
 							isCreated = true;
 							createRoom("game", cp.client);
@@ -294,15 +332,28 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 							joinRoom("game", cp.client);
 						}
 					}
-				}
+				}*/
 			
 				sendSystemMessage("Commencing Game...");
+				//Note, initial sub 1 since function increments
+				attackingPlayer = (int)(Math.random() * (clients.size()-1)) - 1;
+				setNextPlayer();
 			});
 			
 
 		}
 	}
-
+	private void setNextPlayer() {
+		attackingPlayer++;
+		if(attackingPlayer >= clients.size()) {
+			attackingPlayer = 0;
+		}
+		for(int i = 0; i < clients.size(); i++) {
+			ClientPlayer cp = clients.get(i);
+			cp.player.setAttacks(i==attackingPlayer?1:0);
+			sendCanAttack(cp.client, cp.player.getAttacks());
+		}
+	}
 	/***
 	 * Helper function to process messages to trigger different functionality.
 	 * 
@@ -364,6 +415,21 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 				// good bye bold
 				alteredMessage = alteredMessage.replaceAll("<b>", "").replaceAll("</b>", "");
 				System.out.println("Debold: " + alteredMessage);
+				
+				//skeleton private message
+				//duplicate sendMessage and only "broadcast" it to a client/user
+				//if they are within this list
+				if(alteredMessage.indexOf("@") > -1){
+					String[] ats = alteredMessage.split("@");
+					List<String> usersToWhisper = new ArrayList<String>();
+					for(int i = 0; i < ats.length; i++) {
+						if(i % 2 != 0) {
+							String[] data = ats[i].split(" ");
+							String user = data[0];
+							usersToWhisper.add(user);
+						}
+					}
+				}
 
 				if (alteredMessage.indexOf("*") > -1) {
 					String[] s1 = alteredMessage.split("\\*");

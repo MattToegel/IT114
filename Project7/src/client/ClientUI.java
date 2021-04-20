@@ -421,7 +421,7 @@ public class ClientUI extends JFrame implements Event {
 	}
 
 	@Override
-	public void onShipPlaced(int shipType, int x, int y, int life) {
+	public void onShipPlaced(int shipType, int shipId, int x, int y, int life) {
 		// TODO Auto-generated method stub
 
 	}
@@ -430,5 +430,23 @@ public class ClientUI extends JFrame implements Event {
 	public void onAttackStatus(int markerType, int x, int y) {
 		// TODO Auto-generated method stub
 		self.addMessage(String.format("Attack %s", MarkerType.values()[markerType].toString()));
+	}
+
+	@Override
+	public void onShipStatus(int shipId, int life) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void onAttackRadius(int x, int y, int radius) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void onCanAttack(String client, int attacks) {
+		// TODO Auto-generated method stub
+		
 	}
 }

@@ -133,12 +133,13 @@ public class ServerThread extends Thread {
 		return sendPayload(payload);
 	}
 
-	protected boolean sendShipPlacement(int shipType, Point coords, int health) {
+	protected boolean sendShipPlacement(int shipType, int shipId, Point coords, int health) {
 		Payload p = new Payload();
 		p.setPayloadType(PayloadType.PLACE_SHIP);
 		p.setPoint(coords);
 		p.setMessage(shipType + "");
 		p.setNumber(health);
+		p.setClientName(shipId + "");
 		return sendPayload(p);
 	}
 
@@ -149,7 +150,27 @@ public class ServerThread extends Thread {
 		p.setNumber(markerType);
 		return sendPayload(p);
 	}
-
+	protected boolean sendShipStatus(int shipId, int life) {
+		Payload p = new Payload();
+		p.setPayloadType(PayloadType.SHIP_STATUS);
+		p.setNumber(life);
+		p.setClientName(shipId+"");
+		return sendPayload(p);
+	}
+	protected boolean sendAttackRadius(Point coords, int radius) {
+		Payload p = new Payload();
+		p.setPayloadType(PayloadType.ATTACK_RADIUS);
+		p.setPoint(coords);
+		p.setNumber(radius);
+		return sendPayload(p);
+	}
+	protected boolean sendCanAttack(String clientName, int attacks) {
+		Payload p = new Payload();
+		p.setPayloadType(PayloadType.CAN_ATTACK);
+		p.setClientName(clientName);
+		p.setNumber(attacks);
+		return sendPayload(p);
+	}
 	private boolean sendPayload(Payload p) {
 		try {
 			out.writeObject(p);

@@ -10,9 +10,17 @@ import server.ClientPlayer;
 
 public class Ship extends GameObject {
 	Color color = Color.BLUE;
+	private int id;
 	private int health = 3;
 	private int maxHealth = 3;
 	private ClientPlayer owner;//<-- only used server side
+	
+	public void setId(int id) {
+		this.id = id;
+	}
+	public int getId() {
+		return id;
+	}
 	
 	public void setOwner(ClientPlayer cp) {
 		owner = cp;
@@ -25,6 +33,13 @@ public class Ship extends GameObject {
 	}
 	public int getMaxHealth() {
 		return maxHealth;
+	}
+	
+	public void setHealth(int life) {
+		this.health = life;
+		if(this.health <= 0) {
+			this.isActive = false;
+		}
 	}
 
 	public boolean hit() {

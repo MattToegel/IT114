@@ -19,7 +19,13 @@ public interface Event {
 
 	void onResize(Point p);
 
-	void onShipPlaced(int shipType, int x, int y, int life);
+	void onShipPlaced(int shipType, int shipId, int x, int y, int life);
 
 	void onAttackStatus(int markerType, int x, int y);
+	
+	void onShipStatus(int shipId, int life);
+	
+	void onAttackRadius(int x, int y, int radius);
+	
+	void onCanAttack(String client, int attacks);
 }
