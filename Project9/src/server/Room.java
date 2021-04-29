@@ -32,7 +32,9 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 	static Dimension gameAreaSize = new Dimension(600, 600);
 	List<Ship> ships = new ArrayList<Ship>();
 	private int attackingPlayer = -1;
+	final private int minPlayers = 2;
 	GameState gameState = GameState.LOBBY;
+	private Countdown gameResetter;
 
 	public Room(String name, boolean delayStart) {
 		super(delayStart);
@@ -165,8 +167,26 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 		}
 		if (clients.size() > 0) {
 			sendConnectionStatus(client, false, "left the room " + getName());
+			checkPlayers();
+
 		} else {
 			cleanupEmptyRoom();
+		}
+	}
+
+	private void checkPlayers() {
+		int activePlayers = 0;
+		Iterator<ClientPlayer> iter = clients.iterator();
+		while (iter.hasNext()) {
+			ClientPlayer c = iter.next();
+			if (c.player.isReady() && c.player.getShips() > 0) {
+				activePlayers++;
+			}
+		}
+		if (activePlayers < minPlayers) {
+			// TODO end the game
+			sendSystemMessage("Battle Over, not enough players. Restarting session");
+			resetGame();
 		}
 	}
 
@@ -206,11 +226,16 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 		}
 		if (coords.x >= 0 && coords.x <= gameAreaSize.width && coords.y >= 0 && coords.y <= gameAreaSize.height) {
 			ClientPlayer cp = getCP(client);
+			if (!cp.player.isReady()) {
+				sendSystemMessage("Spectators can't place ships.", cp.client.getClientName());
+				return;
+			}
 			Integer count = cp.player.getShips();// countShipsForPlayer(client);
 			Ship s = null;
 			if (count < 10) {
-				s = new Ship();
+				s = new Ship(true);
 				s.setOwner(cp);
+				s.setSize(50, 50);
 				s.setName(ShipType.GUNNER.toString());// TODO allow various types
 				s.setPosition(coords);// TODO verify in bounds
 				ships.add(s);
@@ -336,6 +361,10 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 	}
 
 	private void resetGame() {
+		if(gameResetter != null) {
+			gameResetter.cancel();
+			gameResetter = null;
+		}
 		// reset server local ships
 		Iterator<Ship> iter = ships.iterator();
 		while (iter.hasNext()) {
@@ -384,9 +413,17 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 				ready++;
 			}
 		}
-		if (ready >= total) {
+		if (ready >= minPlayers) {
 			// start
 			System.out.println("Everyone's ready, let's do this!");
+			if(gameResetter != null) {
+				gameResetter.cancel();
+				gameResetter = null;
+			}
+			gameResetter = new Countdown("", 60*60, (x)->{
+				sendSystemMessage("Game Ending due to extensive duration");
+				resetGame();
+			});
 			new Countdown("", 5, (x) -> {
 				/*
 				 * Iterator<ClientPlayer> iter2 = clients.iterator(); int total2 =
@@ -438,26 +475,32 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 		if (attackingPlayer >= clients.size()) {
 			attackingPlayer = 0;
 		}
+		boolean assignedAttacker = false;
 		for (int i = 0; i < clients.size(); i++) {
 			ClientPlayer cp = clients.get(i);
 			if (cp.player.getShips() > 0) {
 				cp.player.setAttacks(i == attackingPlayer ? 1 : 0);
 				sendCanAttack(cp.client, cp.player.getAttacks());
+				if(i == attackingPlayer) {
+					assignedAttacker = true;
+				}
+			}
+		}
+		if(!assignedAttacker) {
+			Iterator<ClientPlayer> iter = clients.iterator();
+			int playersWithShips = 0;
+			while (iter.hasNext()) {
+				ClientPlayer _cp = iter.next();
+				if (_cp.player.getShips() > 0) {
+					playersWithShips++;
+				}
+			}
+			if (playersWithShips > 1) {
+				// skip players who are "out"
+				setNextPlayer();
 			} else {
-				Iterator<ClientPlayer> iter = clients.iterator();
-				int playersWithShips = 0;
-				while (iter.hasNext()) {
-					ClientPlayer _cp = iter.next();
-					if (_cp.player.getShips() > 0) {
-						playersWithShips++;
-					}
-				}
-				if (playersWithShips > 1) {
-					// skip players who are "out"
-					setNextPlayer();
-				} else {
-					resetGame();
-				}
+				System.out.println("Reset game, not enough players");
+				resetGame();
 			}
 		}
 	}
@@ -615,16 +658,25 @@ public class Room extends BaseGamePanel implements AutoCloseable {
 		}
 	}
 
-	protected void sendSystemMessage(String message) {
+	protected void sendSystemMessage(String message, String target) {
 		Iterator<ClientPlayer> iter = clients.iterator();
 		while (iter.hasNext()) {
 			ClientPlayer client = iter.next();
-			boolean messageSent = client.client.send("[Announcer]", message);
-			if (!messageSent) {
-				iter.remove();
-				log.log(Level.INFO, "Removed client " + client.client.getId());
+			if (target == null || client.client.getClientName().equals(target)) {
+				boolean messageSent = client.client.send("[Announcer]", message);
+				if (!messageSent) {
+					iter.remove();
+					log.log(Level.INFO, "Removed client " + client.client.getId());
+				}
+				if(target != null) {
+					break;
+				}
 			}
 		}
+	}
+
+	protected void sendSystemMessage(String message) {
+		sendSystemMessage(message, null);
 	}
 
 	/**

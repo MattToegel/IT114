@@ -4,16 +4,36 @@ import java.awt.Color;
 import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Image;
+import java.awt.image.BufferedImage;
+import java.awt.image.ImageObserver;
+import java.io.IOException;
+
+import javax.imageio.ImageIO;
 
 import core.GameObject;
 import server.ClientPlayer;
 
-public class Ship extends GameObject {
-	Color color = Color.BLUE;
+public class Ship extends GameObject implements ImageObserver{
+	Color color = Color.BLACK;
 	private int id;
 	private int health = 3;
 	private int maxHealth = 3;
 	private ClientPlayer owner;//<-- only used server side
+	protected BufferedImage image;
+	
+	public Ship(boolean isServer) {
+		if(!isServer) {
+			 try {
+				image = ImageIO.read(getClass().getResource("/images/ship.png"));
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+	}
+	
 	
 	public void setId(int id) {
 		this.id = id;
@@ -63,6 +83,11 @@ public class Ship extends GameObject {
 			int hw = (int) (size.width * .5);
 			int hh = (int) (size.height * .5);
 			g.fillOval(position.x - hw, position.y - hh, size.width, size.height);
+			if (image != null) {
+				g.drawImage(image, position.x - (int)(size.width*.5), position.y - (int)(size.height*.5), size.width, size.height, this);
+		    }
+			
+			
 			String display = name + " (" + health + "/" + maxHealth + ")";
 			g.setColor(Color.WHITE);
 			g.setFont(new Font("Monospaced", Font.CENTER_BASELINE, 12));
@@ -74,4 +99,9 @@ public class Ship extends GameObject {
 		}
 		return true;
 	}
+	 @Override
+	    public boolean imageUpdate(Image img, int infoflags, int x, int y, int width, int height) {
+		// TODO Auto-generated method stub
+		return false;
+	    }
 }

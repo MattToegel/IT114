@@ -367,7 +367,8 @@ public class GamePanel extends BaseGamePanel implements Event {
 	@Override
 	public void onShipPlaced(int shipType, int shipId, int x, int y, int life) {// From Event
 		ShipType t = ShipType.values()[shipType];
-		Ship s = new Ship();
+		Ship s = new Ship(false);
+		s.setSize(50, 50);
 		s.setName(t.toString());
 		s.setPosition(new Point(x, y));
 		s.setId(shipId);
