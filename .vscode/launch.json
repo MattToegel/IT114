@@ -1,0 +1,273 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Launch Server",
+            "request": "launch",
+            "mainClass": "Module4.Part1.Server",
+            "projectName": "IT114_19d02d99"
+        },
+        {
+            "type": "java",
+            "name": "Launch Client",
+            "request": "launch",
+            "mainClass": "Module4.Part1.Client",
+            "projectName": "IT114_19d02d99"
+        },
+        {
+            "type": "java",
+            "name": "Launch Factorial",
+            "request": "launch",
+            "mainClass": "Module3.Factorial",
+            "projectName": "IT114_19d02d99"
+        },
+        {
+            "type": "java",
+            "name": "Launch Recursion",
+            "request": "launch",
+            "mainClass": "Module3.Recursion",
+            "projectName": "IT114_19d02d99"
+        },
+        {
+            "type": "java",
+            "name": "Launch FileSystemSample",
+            "request": "launch",
+            "mainClass": "Module3.FileSystemSample",
+            "projectName": "IT114_19d02d99"
+        },
+        {
+            "type": "java",
+            "name": "Launch NGLauncher",
+            "request": "launch",
+            "mainClass": "Module3.NGLauncher",
+            "projectName": "IT114_19d02d99"
+        },
+        {
+            "type": "java",
+            "name": "Launch Modifiers",
+            "request": "launch",
+            "mainClass": "Module3.Modifiers",
+            "projectName": "IT114_19d02d99"
+        },
+        {
+            "type": "java",
+            "name": "Launch MyClass",
+            "request": "launch",
+            "mainClass": "Module3.MyClass",
+            "projectName": "IT114_19d02d99"
+        },
+        {
+            "type": "java",
+            "name": "Launch NumberGuesser",
+            "request": "launch",
+            "mainClass": "Module3.NumberGuesser",
+            "projectName": "IT114_19d02d99"
+        },
+        {
+            "type": "java",
+            "name": "Launch SaferUserInput",
+            "request": "launch",
+            "mainClass": "Module3.SaferUserInput",
+            "projectName": "IT114_19d02d99"
+        },
+        {
+            "type": "java",
+            "name": "Launch BinaryTree",
+            "request": "launch",
+            "mainClass": "Module3.BinaryTree",
+            "projectName": "IT114_19d02d99"
+        },
+        {
+            "type": "java",
+            "name": "Launch NumberGuesser4",
+            "request": "launch",
+            "mainClass": "Module3.NumberGuesser4",
+            "projectName": "IT114_19d02d99"
+        },
+        {
+            "type": "java",
+            "name": "Launch NumberGuesser3",
+            "request": "launch",
+            "mainClass": "Module3.NumberGuesser3",
+            "projectName": "IT114_19d02d99"
+        },
+        {
+            "type": "java",
+            "name": "Launch NumberGuesser2",
+            "request": "launch",
+            "mainClass": "Module3.NumberGuesser2",
+            "projectName": "IT114_19d02d99"
+        },
+        {
+            "type": "java",
+            "name": "Launch UserInput",
+            "request": "launch",
+            "mainClass": "Module3.UserInput",
+            "projectName": "IT114_19d02d99"
+        },
+        {
+            "type": "java",
+            "name": "Launch CommandLineArgs",
+            "request": "launch",
+            "mainClass": "Module3.CommandLineArgs",
+            "projectName": "IT114_19d02d99"
+        },
+        {
+            "type": "java",
+            "name": "Launch Inf",
+            "request": "launch",
+            "mainClass": "Inf",
+            "projectName": "IT114_19d02d99"
+        },
+        {
+            "type": "java",
+            "name": "Launch Foreach",
+            "request": "launch",
+            "mainClass": "Foreach",
+            "projectName": "IT114_19d02d99"
+        },
+        {
+            "type": "java",
+            "name": "Launch IfTransitionSwitch",
+            "request": "launch",
+            "mainClass": "IfTransitionSwitch",
+            "projectName": "IT114_19d02d99"
+        },
+        {
+            "type": "java",
+            "name": "Launch IfElseIfElse",
+            "request": "launch",
+            "mainClass": "IfElseIfElse",
+            "projectName": "IT114_19d02d99"
+        },
+        {
+            "type": "java",
+            "name": "Launch IfBad",
+            "request": "launch",
+            "mainClass": "IfBad",
+            "projectName": "IT114_19d02d99"
+        },
+        {
+            "type": "java",
+            "name": "Launch BasicIf",
+            "request": "launch",
+            "mainClass": "BasicIf",
+            "projectName": "IT114_19d02d99"
+        },
+        {
+            "type": "java",
+            "name": "Launch Scope",
+            "request": "launch",
+            "mainClass": "Scope",
+            "projectName": "IT114_19d02d99"
+        },
+        {
+            "type": "java",
+            "name": "Launch Precision",
+            "request": "launch",
+            "mainClass": "Precision",
+            "projectName": "IT114_19d02d99"
+        },
+        {
+            "type": "java",
+            "name": "Launch Overflow",
+            "request": "launch",
+            "mainClass": "Overflow",
+            "projectName": "IT114_19d02d99"
+        },
+        {
+            "type": "java",
+            "name": "Launch Vars",
+            "request": "launch",
+            "mainClass": "Vars",
+            "projectName": "IT114_19d02d99"
+        },
+        {
+            "type": "java",
+            "name": "Launch Hello",
+            "request": "launch",
+            "mainClass": "Hello",
+            "projectName": "IT114_19d02d99"
+        },
+        {
+            "type": "java",
+            "name": "Launch ArrayListSample",
+            "request": "launch",
+            "mainClass": "ArrayListSample",
+            "projectName": "IT114_19d02d99"
+        },
+        {
+            "type": "java",
+            "name": "Launch StackSample2",
+            "request": "launch",
+            "mainClass": "StackSample2",
+            "projectName": "IT114_19d02d99"
+        },
+        {
+            "type": "java",
+            "name": "Launch StackSample",
+            "request": "launch",
+            "mainClass": "StackSample",
+            "projectName": "IT114_19d02d99"
+        },
+        {
+            "type": "java",
+            "name": "Launch QueueSample",
+            "request": "launch",
+            "mainClass": "QueueSample",
+            "projectName": "IT114_19d02d99"
+        },
+        {
+            "type": "java",
+            "name": "Launch ArraySample",
+            "request": "launch",
+            "mainClass": "ArraySample",
+            "projectName": "IT114_19d02d99"
+        },
+        {
+            "type": "java",
+            "name": "Launch Shuffle",
+            "request": "launch",
+            "mainClass": "Shuffle",
+            "projectName": "IT114_19d02d99"
+        },
+        {
+            "type": "java",
+            "name": "Launch Problem3",
+            "request": "launch",
+            "mainClass": "Problem3",
+            "projectName": "IT114_19d02d99"
+        },
+        {
+            "type": "java",
+            "name": "Launch Problem2",
+            "request": "launch",
+            "mainClass": "Problem2",
+            "projectName": "IT114_19d02d99"
+        },
+        {
+            "type": "java",
+            "name": "Launch Problem1",
+            "request": "launch",
+            "mainClass": "Problem1",
+            "projectName": "IT114_19d02d99"
+        },
+        {
+            "type": "java",
+            "name": "Launch Current File",
+            "request": "launch",
+            "mainClass": "${file}"
+        },
+        {
+            "type": "java",
+            "name": "Launch MyClass",
+            "request": "launch",
+            "mainClass": "MyClass",
+            "projectName": "IT114_19d02d99"
+        }
+    ]
+}
