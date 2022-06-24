@@ -1,9 +1,14 @@
-package Module6.Part6;
+package Module6.Part6.server;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import Module6.Part6.common.Payload;
+import Module6.Part6.common.PayloadType;
 
 /**
  * A server-side representation of a single client
@@ -16,7 +21,7 @@ public class ServerThread extends Thread {
     // private Server server;// ref to our server so we can call methods on it
     // more easily
     private Room currentRoom;
-
+    private static Logger logger = Logger.getLogger(ServerThread.class.getName());
     private void info(String message) {
         System.out.println(String.format("Thread[%s]: %s", getId(), message));
     }
@@ -78,7 +83,10 @@ public class ServerThread extends Thread {
     private boolean send(Payload payload) {
         // added a boolean so we can see if the send was successful
         try {
+            //TODO add logger
+            logger.log(Level.FINE, "Outgoing payload: " + payload);
             out.writeObject(payload);
+            logger.log(Level.INFO, "Sent payload: " + payload);
             return true;
         } catch (IOException e) {
             info("Error sending message to client (most likely disconnected)");

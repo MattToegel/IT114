@@ -1,4 +1,4 @@
-package Module6.Part6;
+package Module6.Part6.server;
 
 import java.io.IOException;
 import java.net.ServerSocket;

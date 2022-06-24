@@ -1,4 +1,4 @@
-package Module6.Part6;
+package Module6.Part6.client;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -6,8 +6,15 @@ import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.Scanner;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
-public class Client {
+import Module6.Part6.common.Payload;
+import Module6.Part6.common.PayloadType;
+
+//Enum Singleton: https://www.geeksforgeeks.org/advantages-and-disadvantages-of-using-enum-as-singleton-in-java/
+public enum Client {
+    INSTANCE;
 
     Socket server = null;
     ObjectOutputStream out = null;
@@ -18,10 +25,8 @@ public class Client {
     private Thread inputThread;
     private Thread fromServerThread;
     private String clientName = "";
-
-    public Client() {
-        System.out.println("");
-    }
+    private static Logger logger = Logger.getLogger(Client.class.getName());
+    private static IClientEvents events;
 
     public boolean isConnected() {
         if (server == null) {
@@ -42,14 +47,17 @@ public class Client {
      * @param port
      * @return true if connection was successful
      */
-    private boolean connect(String address, int port) {
+    public boolean connect(String address, int port, String username, IClientEvents callback) {
+        // TODO validate
+        this.clientName = username;
+        Client.events = callback;
         try {
             server = new Socket(address, port);
             // channel to send to server
             out = new ObjectOutputStream(server.getOutputStream());
             // channel to listen to server
             in = new ObjectInputStream(server.getInputStream());
-            System.out.println("Client connected");
+            logger.log(Level.INFO, "Client connected");
             listenForServerMessage();
             sendConnect();
         } catch (UnknownHostException e) {
@@ -76,16 +84,19 @@ public class Client {
      * @param text
      * @return
      */
+    @Deprecated
     private boolean isConnection(String text) {
         // https://www.w3schools.com/java/java_regex.asp
         return text.matches(ipAddressPattern)
                 || text.matches(localhostPattern);
     }
 
+    @Deprecated
     private boolean isQuit(String text) {
         return text.equalsIgnoreCase("/quit");
     }
 
+    @Deprecated
     private boolean isName(String text) {
         if (text.startsWith("/name")) {
             String[] parts = text.split(" ");
@@ -107,6 +118,7 @@ public class Client {
      * @param text
      * @return true if a text was a command or triggered a command
      */
+    @Deprecated
     private boolean processCommand(String text) {
         if (isConnection(text)) {
             if (clientName.isBlank()) {
@@ -117,7 +129,7 @@ public class Client {
             // splits on the space after connect (gives us host and port)
             // splits on : to get host as index 0 and port as index 1
             String[] parts = text.trim().replaceAll(" +", " ").split(" ")[1].split(":");
-            connect(parts[0].trim(), Integer.parseInt(parts[1].trim()));
+            connect(parts[0].trim(), Integer.parseInt(parts[1].trim()), null, null);
             return true;
         } else if (isQuit(text)) {
             isRunning = false;
@@ -128,23 +140,33 @@ public class Client {
         return false;
     }
 
-    // Send methods
+    // Send methods TODO add other utility methods for sending here
+    // NOTE: Can change this to protected or public if you plan to separate the
+    // sendConnect action and the socket handshake
     private void sendConnect() throws IOException {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.CONNECT);
         p.setClientName(clientName);
-        out.writeObject(p);
+        send(p);
     }
 
-    private void sendMessage(String message) throws IOException {
+    public void sendMessage(String message) throws IOException {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.MESSAGE);
         p.setMessage(message);
         p.setClientName(clientName);
+        send(p);
+    }
+
+    // keep this private as utility methods should be the only Payload creators
+    private void send(Payload p) throws IOException {
+        logger.log(Level.FINE, "Sending Payload: " + p);
         out.writeObject(p);
+        logger.log(Level.INFO, "Sent Payload: " + p);
     }
 
     // end send methods
+    @Deprecated
     private void listenForKeyboard() {
         inputThread = new Thread() {
             @Override
@@ -189,13 +211,13 @@ public class Client {
             public void run() {
                 try {
                     Payload fromServer;
-
+                    logger.log(Level.INFO, "Listening for server messages");
                     // while we're connected, listen for strings from server
                     while (!server.isClosed() && !server.isInputShutdown()
                             && (fromServer = (Payload) in.readObject()) != null) {
 
                         System.out.println("Debug Info: " + fromServer);
-                        processMessage(fromServer);
+                        processPayload(fromServer);
 
                     }
                     System.out.println("Loop exited");
@@ -215,25 +237,30 @@ public class Client {
         fromServerThread.start();// start the thread
     }
 
-    private void processMessage(Payload p) {
+    private void processPayload(Payload p) {
+        logger.log(Level.FINE, "Received Payload: " + p);
+        if (events == null) {
+            logger.log(Level.FINER, "Events not initialize/set" + p);
+            return;
+        }
         switch (p.getPayloadType()) {
-            case CONNECT:// for now connect,disconnect are all the same
+            case CONNECT:
+                events.onClientConnect(p.getClientName(), p.getMessage());
+                break;
             case DISCONNECT:
-                System.out.println(String.format("*%s %s*",
-                        p.getClientName(),
-                        p.getMessage()));
+                events.onClientDisconnect(p.getClientName(), p.getMessage());
                 break;
             case MESSAGE:
-                System.out.println(String.format("%s: %s",
-                        p.getClientName(),
-                        p.getMessage()));
+                events.onMessageReceive(p.getClientName(), p.getMessage());
                 break;
             default:
+                logger.log(Level.WARNING, "Unhandled payload type");
                 break;
 
         }
     }
 
+    @Deprecated
     public void start() throws IOException {
         listenForKeyboard();
     }
@@ -278,15 +305,17 @@ public class Client {
         }
     }
 
-    public static void main(String[] args) {
-        Client client = new Client();
-
-        try {
-            // if start is private, it's valid here since this main is part of the class
-            client.start();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
+    /*
+     * public static void main(String[] args) {
+     * Client client = new Client();
+     * 
+     * try {
+     * // if start is private, it's valid here since this main is part of the class
+     * client.start();
+     * } catch (IOException e) {
+     * e.printStackTrace();
+     * }
+     * }
+     */
 
 }
