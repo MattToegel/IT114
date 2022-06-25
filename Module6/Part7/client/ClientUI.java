@@ -12,6 +12,7 @@ import java.awt.event.ComponentEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.io.IOException;
+import java.util.Hashtable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -28,21 +29,30 @@ import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import javax.swing.ScrollPaneConstants;
 
-public class ClientUI extends JFrame implements IClientEvents{
+import Module6.Part7.common.Constants;
+
+public class ClientUI extends JFrame implements IClientEvents {
     CardLayout card = null;// accessible so we can call next() and previous()
     Container container;// accessible to be passed to card methods
     String originalTitle = null;
-    private static Logger logger = Logger.getLogger(Client.class.getName());
+    private static Logger logger = Logger.getLogger(ClientUI.class.getName());
     private JPanel currentCardPanel = null;
     private JPanel chatArea = null;
+    private JPanel userListArea = null;
     private Card currentCard = Card.CONNECT;
 
     private String host;
     private int port;
     private String username;
-    private enum Card{
+
+    private enum Card {
         CONNECT, USER_INFO, CHAT
     }
+
+    private Hashtable<Long, String> userList = new Hashtable<Long, String>();
+
+    private long myId = Constants.DEFAULT_CLIENT_ID;
+
     public ClientUI(String title) {
         super(title);// call the parent's constructor
         originalTitle = title;
@@ -152,7 +162,7 @@ public class ClientUI extends JFrame implements IClientEvents{
         nButton.addActionListener((event) -> {
 
             boolean isValid = true;
-            
+
             try {
                 username = userValue.getText();
                 if (username.trim().length() == 0) {
@@ -189,6 +199,32 @@ public class ClientUI extends JFrame implements IClientEvents{
         parent.setName(Card.USER_INFO.name());
         this.add(Card.USER_INFO.name(), parent);// JFrame
 
+    }
+
+    private JPanel createUserListPanel() {
+        JPanel parent = new JPanel(
+                new BorderLayout(10, 10));
+        JPanel wrapper = new JPanel();
+        wrapper.setLayout(new BoxLayout(wrapper, BoxLayout.Y_AXIS));
+        JPanel content = new JPanel();
+        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
+        content.setAlignmentY(Component.BOTTOM_ALIGNMENT);
+
+        // wraps a viewport to provide scroll capabilities
+        JScrollPane scroll = new JScrollPane(content);
+        scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        scroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
+        // scroll.setBorder(BorderFactory.createEmptyBorder());
+        // no need to add content specifically because scroll wraps it
+
+        userListArea = content;
+
+        wrapper.add(scroll);
+        parent.add(wrapper, BorderLayout.CENTER);
+        // set the dimensions based on the frame size
+        int w = (int) Math.ceil(this.getWidth() * .3f);
+        parent.setPreferredSize(new Dimension(w, this.getHeight()));
+        return parent;
     }
 
     private void createChatScreen() {
@@ -239,10 +275,9 @@ public class ClientUI extends JFrame implements IClientEvents{
             try {
                 String text = textValue.getText().trim();
                 if (text.length() > 0) {
-                    //addText(text, content);
                     Client.INSTANCE.sendMessage(text);
                     textValue.setText("");// clear the original text
-                    
+
                     // debugging
                     logger.log(Level.FINEST, "Content: " + content.getSize());
                     logger.log(Level.FINEST, "Parent: " + parent.getSize());
@@ -256,15 +291,63 @@ public class ClientUI extends JFrame implements IClientEvents{
         });
         chatArea = content;
         input.add(button);
+        parent.add(createUserListPanel(), BorderLayout.EAST);
         parent.add(input, BorderLayout.SOUTH);
         parent.setName(Card.CHAT.name());
         this.add(Card.CHAT.name(), parent);
-        
+
     }
 
-    private void addText(String text, JPanel content) {
+    private void addUserListItem(long clientId, String clientName) {
+        logger.log(Level.INFO, "Adding user to list: " + clientName);
+        JPanel content = userListArea;
+        logger.log(Level.INFO, "Userlist: " + content.getSize());
+        JEditorPane textContainer = new JEditorPane("text/plain", clientName);
+        textContainer.setName(clientId + "");
+        // sizes the panel to attempt to take up the width of the container
+        // and expand in height based on word wrapping
+        textContainer.setLayout(null);
+        textContainer.setPreferredSize(
+                new Dimension(content.getWidth(), calcHeightForText(clientName, content.getWidth())));
+        textContainer.setMaximumSize(textContainer.getPreferredSize());
+        textContainer.setEditable(false);
+        // remove background and border (comment these out to see what it looks like
+        // otherwise)
+        textContainer.setOpaque(false);
+        textContainer.setBorder(BorderFactory.createEmptyBorder());
+        textContainer.setBackground(new Color(0, 0, 0, 0));
+        // add to container and tell the layout to revalidate
+        content.add(textContainer);
+        content.revalidate();
+    }
+
+    private void removeUserListItem(long clientId) {
+        logger.log(Level.INFO, "removing user list item for id " + clientId);
+        Component[] cs = userListArea.getComponents();
+        for (Component c : cs) {
+            if (c.getName().equals(clientId + "")) {
+                userListArea.remove(c);
+                userListArea.revalidate();
+                userListArea.repaint();
+                break;
+            }
+        }
+    }
+
+    private void clearUserList() {
+        Component[] cs = userListArea.getComponents();
+        for (Component c : cs) {
+            userListArea.remove(c);
+        }
+        userListArea.revalidate();
+        userListArea.repaint();
+    }
+
+    private void addText(String text) {
+        JPanel content = chatArea;
         // add message
         JEditorPane textContainer = new JEditorPane("text/plain", text);
+
         // sizes the panel to attempt to take up the width of the container
         // and expand in height based on word wrapping
         textContainer.setLayout(null);
@@ -282,28 +365,31 @@ public class ClientUI extends JFrame implements IClientEvents{
         content.revalidate();
 
     }
-    void next(){
+
+    void next() {
         card.next(container);
-        for(Component c : container.getComponents()){
-            if(c.isVisible()){
-                currentCardPanel = (JPanel)c;
+        for (Component c : container.getComponents()) {
+            if (c.isVisible()) {
+                currentCardPanel = (JPanel) c;
                 currentCard = Enum.valueOf(Card.class, currentCardPanel.getName());
                 break;
             }
         }
         System.out.println(currentCardPanel.getName());
     }
-    void previous(){
+
+    void previous() {
         card.previous(container);
-        for(Component c : container.getComponents()){
-            if(c.isVisible()){
-                currentCardPanel = (JPanel)c;
+        for (Component c : container.getComponents()) {
+            if (c.isVisible()) {
+                currentCardPanel = (JPanel) c;
                 currentCard = Enum.valueOf(Card.class, currentCardPanel.getName());
                 break;
             }
         }
         System.out.println(currentCardPanel.getName());
     }
+
     /***
      * Attempts to calculate the necessary dimensions for a potentially wrapped
      * string of text. This isn't perfect and some extra whitespace above or below
@@ -315,7 +401,7 @@ public class ClientUI extends JFrame implements IClientEvents{
     private int calcHeightForText(String str, int width) {
         FontMetrics metrics = container.getGraphics().getFontMetrics(container.getFont());
         int hgt = metrics.getHeight();
-        logger.log(Level.FINEST,"Font height: " + hgt);
+        logger.log(Level.FINEST, "Font height: " + hgt);
         int adv = metrics.stringWidth(str);
         final int PIXEL_PADDING = 6;
         Dimension size = new Dimension(adv, hgt + PIXEL_PADDING);
@@ -331,27 +417,87 @@ public class ClientUI extends JFrame implements IClientEvents{
         new ClientUI("Client");
     }
 
-    @Override
-    public void onClientConnect(String clientName, String message) {
-        if(currentCard == Card.CHAT){
-            addText(String.format("*%s %s*", clientName, message), chatArea);
+    private String mapClientId(long clientId) {
+        String clientName = userList.get(clientId);
+        if (clientName == null) {
+            clientName = "Server";
+        }
+        return clientName;
+    }
+
+    /**
+     * Used to handle new client connects/disconnects or existing client lists (one
+     * by one)
+     * 
+     * @param clientId
+     * @param clientName
+     * @param isConnect
+     */
+    private synchronized void processClientConnectionStatus(long clientId, String clientName, boolean isConnect) {
+        if (isConnect) {
+            if (!userList.containsKey(clientId)) {
+                userList.put(clientId, clientName);
+                addUserListItem(clientId, String.format("%s (%s)", clientName, clientId));
+            }
+        } else {
+            if (userList.containsKey(clientId)) {
+                userList.remove(clientId);
+                removeUserListItem(clientId);
+            }
+            if (clientId == myId) {
+                myId = Constants.DEFAULT_CLIENT_ID;
+                previous();
+            }
         }
     }
 
     @Override
-    public void onClientDisconnect(String clientName, String message) {
-        if(currentCard == Card.CHAT){
-            addText(String.format("*%s %s*", clientName, message), chatArea);
+    public void onClientConnect(long clientId, String clientName, String message) {
+        if (currentCard == Card.CHAT) {
+            processClientConnectionStatus(clientId, clientName, true);
+            addText(String.format("*%s %s*", clientName, message));
         }
     }
 
     @Override
-    public void onMessageReceive(String clientName, String message) {
-        if(currentCard == Card.CHAT){
-            addText(String.format("%s: %s", clientName, message), chatArea);
+    public void onClientDisconnect(long clientId, String clientName, String message) {
+        if (currentCard == Card.CHAT) {
+            processClientConnectionStatus(clientId, clientName, false);
+            addText(String.format("*%s %s*", clientName, message));
+        }
+    }
+
+    @Override
+    public void onMessageReceive(long clientId, String message) {
+        if (currentCard == Card.CHAT) {
+            String clientName = mapClientId(clientId);
+            addText(String.format("%s: %s", clientName, message));
             // scroll down on new message
-            JScrollBar vertical = ((JScrollPane)chatArea.getParent().getParent()).getVerticalScrollBar();
+            JScrollBar vertical = ((JScrollPane) chatArea.getParent().getParent()).getVerticalScrollBar();
             vertical.setValue(vertical.getMaximum());
         }
+    }
+
+    @Override
+    public void onReceiveClientId(long id) {
+        if (myId == Constants.DEFAULT_CLIENT_ID) {
+            myId = id;
+        } else {
+            logger.log(Level.WARNING, "Received client id after already being set, this shouldn't happen");
+        }
+    }
+
+    @Override
+    public void onResetUserList() {
+        userList.clear();
+        clearUserList();
+    }
+
+    @Override
+    public void onSyncClient(long clientId, String clientName) {
+        if (currentCard == Card.CHAT) {
+            processClientConnectionStatus(clientId, clientName, true);
+        }
+
     }
 }

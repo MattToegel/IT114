@@ -9,8 +9,8 @@ import java.util.Scanner;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import Module6.Part6.common.Payload;
-import Module6.Part6.common.PayloadType;
+import Module6.Part7.common.Payload;
+import Module6.Part7.common.PayloadType;
 
 //Enum Singleton: https://www.geeksforgeeks.org/advantages-and-disadvantages-of-using-enum-as-singleton-in-java/
 public enum Client {
@@ -245,13 +245,22 @@ public enum Client {
         }
         switch (p.getPayloadType()) {
             case CONNECT:
-                events.onClientConnect(p.getClientName(), p.getMessage());
+                events.onClientConnect(p.getClientId(), p.getClientName(), p.getMessage());
                 break;
             case DISCONNECT:
-                events.onClientDisconnect(p.getClientName(), p.getMessage());
+                events.onClientDisconnect(p.getClientId(), p.getClientName(), p.getMessage());
                 break;
             case MESSAGE:
-                events.onMessageReceive(p.getClientName(), p.getMessage());
+                events.onMessageReceive(p.getClientId(), p.getMessage());
+                break;
+            case CLIENT_ID:
+                events.onReceiveClientId(p.getClientId());
+                break;
+            case RESET_USER_LIST:
+                events.onResetUserList();
+                break;
+            case SYNC_CLIENT:
+                events.onSyncClient(p.getClientId(), p.getClientName());
                 break;
             default:
                 logger.log(Level.WARNING, "Unhandled payload type");

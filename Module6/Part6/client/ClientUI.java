@@ -32,7 +32,7 @@ public class ClientUI extends JFrame implements IClientEvents{
     CardLayout card = null;// accessible so we can call next() and previous()
     Container container;// accessible to be passed to card methods
     String originalTitle = null;
-    private static Logger logger = Logger.getLogger(Client.class.getName());
+    private static Logger logger = Logger.getLogger(ClientUI.class.getName());
     private JPanel currentCardPanel = null;
     private JPanel chatArea = null;
     private Card currentCard = Card.CONNECT;

@@ -5,7 +5,9 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
 
 public class Server {
     int port = 3001;
@@ -13,6 +15,11 @@ public class Server {
     // private List<ServerThread> clients = new ArrayList<ServerThread>();
     private List<Room> rooms = new ArrayList<Room>();
     private Room lobby = null;// default room
+    private long nextClientId = 1;
+
+    private Queue<ServerThread> incomingClients = new LinkedList<ServerThread>();
+    // https://www.geeksforgeeks.org/killing-threads-in-java/
+    private volatile boolean isRunning = false;
 
     private void start(int port) {
         this.port = port;
@@ -22,6 +29,8 @@ public class Server {
             System.out.println("Server is listening on port " + port);
             // Reference server statically
             Room.server = this;// all rooms will have the same reference
+            isRunning = true;
+            startQueueManager();
             // create a lobby on start
             lobby = new Room("Lobby");
             rooms.add(lobby);
@@ -31,8 +40,7 @@ public class Server {
                     System.out.println("Client connected");
                     ServerThread sClient = new ServerThread(incoming_client, lobby);
                     sClient.start();
-
-                    joinRoom("lobby", sClient);
+                    incomingClients.add(sClient);
                     incoming_client = null;
 
                 }
@@ -43,6 +51,47 @@ public class Server {
         } finally {
             System.out.println("closing server socket");
         }
+    }
+
+    void startQueueManager() {
+        // Queue manager thread to wait for the ServerThread thread to start
+        // before officially handing them off to a room and opening them for
+        // communication
+        new Thread() {
+            @Override
+            public void run() {
+                // slight delay to let potentially new client to finish
+                // binding input/output streams
+                // comment out the Thread.sleep to see what happens
+                while (isRunning) {
+                    try {
+                        Thread.sleep(5);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                    if (incomingClients.size() > 0) {
+                        ServerThread ic = incomingClients.peek();
+                        if (ic != null) {
+                            //wait for the thread to start and for the client to send the client name (username)
+                            if (ic.isRunning() && ic.getClientName() != null) {
+                                handleIncomingClient(ic);
+                                incomingClients.poll();
+                            }
+                        }
+                    }
+                }
+            }
+        }.start();
+    }
+
+    void handleIncomingClient(ServerThread client) {
+        client.setClientId(nextClientId);// server reference
+        client.sendClientId(nextClientId);// client reference
+        nextClientId++;
+        if (nextClientId < 0) {// will use overflow to reset our counter
+            nextClientId = 1;
+        }
+        joinRoom("lobby", client);
     }
 
     /***
@@ -69,19 +118,17 @@ public class Server {
      * @return true if reassign worked; false if new room doesn't exist
      */
     protected synchronized boolean joinRoom(String roomName, ServerThread client) {
-        Room newRoom = roomName.equalsIgnoreCase("lobby")?lobby:getRoom(roomName);
+        Room newRoom = roomName.equalsIgnoreCase("lobby") ? lobby : getRoom(roomName);
         Room oldRoom = client.getCurrentRoom();
         if (newRoom != null) {
-            if (oldRoom != null) {
+            if (oldRoom != null && oldRoom != newRoom) {
                 System.out.println(client.getName() + " leaving room " + oldRoom.getName());
                 oldRoom.removeClient(client);
+                client.sendResetUserList();
             }
             System.out.println(client.getName() + " joining room " + newRoom.getName());
             newRoom.addClient(client);
             return true;
-        } else {
-            client.sendMessage("Server",
-                    String.format("Room %s wasn't found, please try another", roomName));
         }
         return false;
     }
