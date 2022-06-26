@@ -10,7 +10,6 @@ import java.util.logging.Logger;
 import Module6.Part8.common.Constants;
 
 public class Room implements AutoCloseable {
-	protected static Server server;// used to refer to accessible server functions
 	private String name;
 	private List<ServerThread> clients = Collections.synchronizedList(new ArrayList<ServerThread>());
 	private boolean isRunning = false;
@@ -36,6 +35,10 @@ public class Room implements AutoCloseable {
 		return name;
 	}
 
+	public boolean isRunning() {
+		return isRunning;
+	}
+
 	protected synchronized void addClient(ServerThread client) {
 		if (!isRunning) {
 			return;
@@ -46,6 +49,7 @@ public class Room implements AutoCloseable {
 		} else {
 			clients.add(client);
 			sendConnectionStatus(client, true);
+			sendRoomJoined(client);
 			sendUserListToClient(client);
 		}
 	}
@@ -118,17 +122,25 @@ public class Room implements AutoCloseable {
 	}
 
 	// Command helper methods
+
+	protected static void getRooms(String query, ServerThread client) {
+		String[] rooms = Server.INSTANCE.getRooms(query).toArray(new String[0]);
+		client.sendRoomsList(rooms, null);
+	}
+
 	protected static void createRoom(String roomName, ServerThread client) {
-		if (server.createNewRoom(roomName)) {
+		if (Server.INSTANCE.createNewRoom(roomName)) {
 			Room.joinRoom(roomName, client);
 		} else {
 			client.sendMessage(Constants.DEFAULT_CLIENT_ID, String.format("Room %s already exists", roomName));
+			client.sendRoomsList(null, String.format("Room %s already exists", roomName));
 		}
 	}
 
 	protected static void joinRoom(String roomName, ServerThread client) {
-		if (!server.joinRoom(roomName, client)) {
+		if (!Server.INSTANCE.joinRoom(roomName, client)) {
 			client.sendMessage(Constants.DEFAULT_CLIENT_ID, String.format("Room %s doesn't exist", roomName));
+			client.sendRoomsList(null, String.format("Room %s doesn't exist", roomName));
 		}
 	}
 
@@ -170,6 +182,8 @@ public class Room implements AutoCloseable {
 	}
 
 	protected synchronized void sendUserListToClient(ServerThread receiver) {
+		logger.log(Level.INFO, String.format("Room[%s] Syncing client list of %s to %s", getName(), clients.size(),
+				receiver.getClientName()));
 		synchronized (clients) {
 			Iterator<ServerThread> iter = clients.iterator();
 			while (iter.hasNext()) {
@@ -187,10 +201,20 @@ public class Room implements AutoCloseable {
 		}
 	}
 
+	protected synchronized void sendRoomJoined(ServerThread receiver) {
+		boolean messageSent = receiver.sendRoomName(getName());
+		if (!messageSent) {
+			handleDisconnect(null, receiver);
+		}
+	}
+
 	protected synchronized void sendConnectionStatus(ServerThread sender, boolean isConnected) {
 		// converted to a backwards loop to help avoid concurrent list modification
 		// due to the recursive sendConnectionStatus()
 		// this should only be needed in this particular method due to the recusion
+		if (clients == null) {
+			return;
+		}
 		synchronized (clients) {
 			for (int i = clients.size() - 1; i >= 0; i--) {
 				ServerThread client = clients.get(i);
@@ -217,8 +241,7 @@ public class Room implements AutoCloseable {
 	}
 
 	public void close() {
-		server.removeRoom(this);
-		server = null;
+		Server.INSTANCE.removeRoom(this);
 		isRunning = false;
 		clients = null;
 	}

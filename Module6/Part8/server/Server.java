@@ -9,7 +9,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 
-public class Server {
+public enum Server {
+    INSTANCE;
     int port = 3001;
     // connected clients
     // private List<ServerThread> clients = new ArrayList<ServerThread>();
@@ -27,8 +28,6 @@ public class Server {
         try (ServerSocket serverSocket = new ServerSocket(port);) {
             Socket incoming_client = null;
             System.out.println("Server is listening on port " + port);
-            // Reference server statically
-            Room.server = this;// all rooms will have the same reference
             isRunning = true;
             startQueueManager();
             // create a lobby on start
@@ -151,7 +150,37 @@ public class Server {
             return true;
         }
     }
-
+    /**
+     * Returns Rooms with names having a partial match with query.
+     * Hard coded to a limit of 10.
+     * @param query
+     * @return
+     */
+    protected synchronized List<String> getRooms(String query){
+        return getRooms(query, 10);
+    }
+    /**
+     * Returns Rooms with names having a partial match with query.
+     * @param query
+     * @param limit The maximum records to return
+     * @return
+     */
+    protected synchronized List<String> getRooms(String query, int limit){
+        List<String> matchedRooms = new ArrayList<String>();
+        synchronized(rooms){
+            Iterator<Room> iter = rooms.iterator();
+            while(iter.hasNext()){
+                Room r = iter.next();
+                if(r.isRunning() && r.getName().toLowerCase().contains(query.toLowerCase())){
+                    matchedRooms.add(r.getName());
+                    if(matchedRooms.size() >= limit){
+                        break;
+                    }
+                }
+            }
+        }
+        return matchedRooms;
+    }
     protected synchronized void removeRoom(Room r) {
         if (rooms.removeIf(room -> room == r)) {
             System.out.println("Removed empty room " + r.getName());
@@ -181,7 +210,7 @@ public class Server {
 
     public static void main(String[] args) {
         System.out.println("Starting Server");
-        Server server = new Server();
+        Server server = Server.INSTANCE;
         int port = 3000;
         try {
             port = Integer.parseInt(args[0]);

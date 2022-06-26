@@ -5,12 +5,12 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import java.util.Scanner;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import Module6.Part8.common.Payload;
 import Module6.Part8.common.PayloadType;
+import Module6.Part8.common.RoomResultPayload;
 
 //Enum Singleton: https://www.geeksforgeeks.org/advantages-and-disadvantages-of-using-enum-as-singleton-in-java/
 public enum Client {
@@ -19,11 +19,8 @@ public enum Client {
     Socket server = null;
     ObjectOutputStream out = null;
     ObjectInputStream in = null;
-    final String ipAddressPattern = "/connect\\s+(\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}:\\d{3,5})";
-    final String localhostPattern = "/connect\\s+(localhost:\\d{3,5})";
     boolean isRunning = false;
-    private Thread inputThread;
-    private Thread fromServerThread;
+     private Thread fromServerThread;
     private String clientName = "";
     private static Logger logger = Logger.getLogger(Client.class.getName());
     private static IClientEvents events;
@@ -68,89 +65,38 @@ public enum Client {
         return isConnected();
     }
 
-    /**
-     * <p>
-     * Check if the string contains the <i>connect</i> command
-     * followed by an ip address and port or localhost and port.
-     * </p>
-     * <p>
-     * Example format: 123.123.123:3000
-     * </p>
-     * <p>
-     * Example format: localhost:3000
-     * </p>
-     * https://www.w3schools.com/java/java_regex.asp
-     * 
-     * @param text
-     * @return
-     */
-    @Deprecated
-    private boolean isConnection(String text) {
-        // https://www.w3schools.com/java/java_regex.asp
-        return text.matches(ipAddressPattern)
-                || text.matches(localhostPattern);
-    }
-
-    @Deprecated
-    private boolean isQuit(String text) {
-        return text.equalsIgnoreCase("/quit");
-    }
-
-    @Deprecated
-    private boolean isName(String text) {
-        if (text.startsWith("/name")) {
-            String[] parts = text.split(" ");
-            if (parts.length >= 2) {
-                clientName = parts[1].trim();
-                System.out.println("Name set to " + clientName);
-            }
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * Controller for handling various text commands.
-     * <p>
-     * Add more here as needed
-     * </p>
-     * 
-     * @param text
-     * @return true if a text was a command or triggered a command
-     */
-    @Deprecated
-    private boolean processCommand(String text) {
-        if (isConnection(text)) {
-            if (clientName.isBlank()) {
-                System.out.println("You must set your name before you can connect via: /name your_name");
-                return true;
-            }
-            // replaces multiple spaces with single space
-            // splits on the space after connect (gives us host and port)
-            // splits on : to get host as index 0 and port as index 1
-            String[] parts = text.trim().replaceAll(" +", " ").split(" ")[1].split(":");
-            connect(parts[0].trim(), Integer.parseInt(parts[1].trim()), null, null);
-            return true;
-        } else if (isQuit(text)) {
-            isRunning = false;
-            return true;
-        } else if (isName(text)) {
-            return true;
-        }
-        return false;
-    }
-
     // Send methods TODO add other utility methods for sending here
     // NOTE: Can change this to protected or public if you plan to separate the
     // sendConnect action and the socket handshake
-    private void sendConnect() throws IOException {
+    public void sendCreateRoom(String room) throws IOException, NullPointerException {
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.CREATE_ROOM);
+        p.setMessage(room);
+        send(p);
+    }
+
+    public void sendJoinRoom(String room) throws IOException, NullPointerException {
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.JOIN_ROOM);
+        p.setMessage(room);
+        send(p);
+    }
+
+    public void sendGetRooms(String query) throws IOException, NullPointerException {
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.GET_ROOMS);
+        p.setMessage(query);
+        send(p);
+    }
+
+    private void sendConnect() throws IOException, NullPointerException {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.CONNECT);
         p.setClientName(clientName);
         send(p);
     }
 
-    public void sendMessage(String message) throws IOException {
+    public void sendMessage(String message) throws IOException, NullPointerException {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.MESSAGE);
         p.setMessage(message);
@@ -159,51 +105,13 @@ public enum Client {
     }
 
     // keep this private as utility methods should be the only Payload creators
-    private void send(Payload p) throws IOException {
+    private void send(Payload p) throws IOException, NullPointerException {
         logger.log(Level.FINE, "Sending Payload: " + p);
-        out.writeObject(p);
+        out.writeObject(p);//TODO force throw each
         logger.log(Level.INFO, "Sent Payload: " + p);
     }
 
     // end send methods
-    @Deprecated
-    private void listenForKeyboard() {
-        inputThread = new Thread() {
-            @Override
-            public void run() {
-                System.out.println("Listening for input");
-                try (Scanner si = new Scanner(System.in);) {
-                    String line = "";
-                    isRunning = true;
-                    while (isRunning) {
-                        try {
-                            System.out.println("Waiting for input");
-                            line = si.nextLine();
-                            if (!processCommand(line)) {
-                                if (isConnected()) {
-                                    if (line != null && line.trim().length() > 0) {
-                                        sendMessage(line);
-                                    }
-
-                                } else {
-                                    System.out.println("Not connected to server");
-                                }
-                            }
-                        } catch (Exception e) {
-                            System.out.println("Connection dropped");
-                            break;
-                        }
-                    }
-                    System.out.println("Exited loop");
-                } catch (Exception e) {
-                    e.printStackTrace();
-                } finally {
-                    close();
-                }
-            }
-        };
-        inputThread.start();
-    }
 
     private void listenForServerMessage() {
         fromServerThread = new Thread() {
@@ -262,6 +170,12 @@ public enum Client {
             case SYNC_CLIENT:
                 events.onSyncClient(p.getClientId(), p.getClientName());
                 break;
+            case GET_ROOMS:
+                events.onReceiveRoomList(((RoomResultPayload)p).getRooms(), p.getMessage());
+                break;
+            case JOIN_ROOM:
+                events.onRoomJoin(p.getMessage());
+                break;
             default:
                 logger.log(Level.WARNING, "Unhandled payload type");
                 break;
@@ -269,18 +183,7 @@ public enum Client {
         }
     }
 
-    @Deprecated
-    public void start() throws IOException {
-        listenForKeyboard();
-    }
-
     private void close() {
-        try {
-            inputThread.interrupt();
-        } catch (Exception e) {
-            System.out.println("Error interrupting input");
-            e.printStackTrace();
-        }
         try {
             fromServerThread.interrupt();
         } catch (Exception e) {
@@ -313,18 +216,4 @@ public enum Client {
             System.out.println("Server was never opened so this exception is ok");
         }
     }
-
-    /*
-     * public static void main(String[] args) {
-     * Client client = new Client();
-     * 
-     * try {
-     * // if start is private, it's valid here since this main is part of the class
-     * client.start();
-     * } catch (IOException e) {
-     * e.printStackTrace();
-     * }
-     * }
-     */
-
 }

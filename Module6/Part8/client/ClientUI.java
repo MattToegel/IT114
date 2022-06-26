@@ -9,10 +9,13 @@ import java.awt.Dimension;
 import java.awt.FontMetrics;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
+import java.awt.event.ContainerEvent;
+import java.awt.event.ContainerListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.io.IOException;
 import java.util.Hashtable;
+import java.util.concurrent.Callable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -23,12 +26,16 @@ import javax.swing.JButton;
 import javax.swing.JEditorPane;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import javax.swing.ScrollPaneConstants;
 
+import Module6.Part8.client.views.RoomsPanel;
 import Module6.Part8.common.Constants;
 
 public class ClientUI extends JFrame implements IClientEvents {
@@ -46,12 +53,14 @@ public class ClientUI extends JFrame implements IClientEvents {
     private String username;
 
     private enum Card {
-        CONNECT, USER_INFO, CHAT
+        CONNECT, USER_INFO, CHAT, ROOMS
     }
 
     private Hashtable<Long, String> userList = new Hashtable<Long, String>();
 
     private long myId = Constants.DEFAULT_CLIENT_ID;
+    private JMenuBar menu;
+    private RoomsPanel roomsPanel;
 
     public ClientUI(String title) {
         super(title);// call the parent's constructor
@@ -63,7 +72,7 @@ public class ClientUI extends JFrame implements IClientEvents {
                 // System.out.println("Resized to " + e.getComponent().getSize());
                 // rough concepts for handling resize
                 container.setPreferredSize(e.getComponent().getSize());
-                container.invalidate();
+                container.revalidate();
                 container.repaint();
             }
 
@@ -79,13 +88,35 @@ public class ClientUI extends JFrame implements IClientEvents {
         setLocationRelativeTo(null);
         card = new CardLayout();
         setLayout(card);
+        createMenu();
         // separate views
         createConnectionScreen();
         ceateUserInputScreen();
         createChatScreen();
+        roomsPanel = new RoomsPanel(new Callable<Void>() {
+            @Override
+            public Void call() throws Exception {
+                previous();
+                return null;
+            }
+        });
+        roomsPanel.setName(Card.ROOMS.name());
+        add(roomsPanel, Card.ROOMS.name());
         // lastly
         pack();// tells the window to resize itself and do the layout management
         setVisible(true);
+    }
+
+    private void createMenu() {
+        menu = new JMenuBar();
+        JMenu roomsMenu = new JMenu("Rooms");
+        JMenuItem roomsSearch = new JMenuItem("Search");
+        roomsSearch.addActionListener((event) -> {
+            show(Card.ROOMS.name());
+        });
+        roomsMenu.add(roomsSearch);
+        menu.add(roomsMenu);
+        this.setJMenuBar(menu);
     }
 
     private void createConnectionScreen() {
@@ -224,6 +255,25 @@ public class ClientUI extends JFrame implements IClientEvents {
         // set the dimensions based on the frame size
         int w = (int) Math.ceil(this.getWidth() * .3f);
         parent.setPreferredSize(new Dimension(w, this.getHeight()));
+        userListArea.addContainerListener(new ContainerListener() {
+
+            @Override
+            public void componentAdded(ContainerEvent e) {
+                if (userListArea.isVisible()) {
+                    userListArea.revalidate();
+                    userListArea.repaint();
+                }
+            }
+
+            @Override
+            public void componentRemoved(ContainerEvent e) {
+                if (userListArea.isVisible()) {
+                    userListArea.revalidate();
+                    userListArea.repaint();
+                }
+            }
+
+        });
         return parent;
     }
 
@@ -295,7 +345,25 @@ public class ClientUI extends JFrame implements IClientEvents {
         parent.add(input, BorderLayout.SOUTH);
         parent.setName(Card.CHAT.name());
         this.add(Card.CHAT.name(), parent);
+        chatArea.addContainerListener(new ContainerListener() {
 
+            @Override
+            public void componentAdded(ContainerEvent e) {
+                if (chatArea.isVisible()) {
+                    chatArea.revalidate();
+                    chatArea.repaint();
+                }
+            }
+
+            @Override
+            public void componentRemoved(ContainerEvent e) {
+                if (chatArea.isVisible()) {
+                    chatArea.revalidate();
+                    chatArea.repaint();
+                }
+            }
+
+        });
     }
 
     private void addUserListItem(long clientId, String clientName) {
@@ -316,9 +384,8 @@ public class ClientUI extends JFrame implements IClientEvents {
         textContainer.setOpaque(false);
         textContainer.setBorder(BorderFactory.createEmptyBorder());
         textContainer.setBackground(new Color(0, 0, 0, 0));
-        // add to container and tell the layout to revalidate
+        // add to container
         content.add(textContainer);
-        content.revalidate();
     }
 
     private void removeUserListItem(long clientId) {
@@ -327,8 +394,6 @@ public class ClientUI extends JFrame implements IClientEvents {
         for (Component c : cs) {
             if (c.getName().equals(clientId + "")) {
                 userListArea.remove(c);
-                userListArea.revalidate();
-                userListArea.repaint();
                 break;
             }
         }
@@ -339,8 +404,6 @@ public class ClientUI extends JFrame implements IClientEvents {
         for (Component c : cs) {
             userListArea.remove(c);
         }
-        userListArea.revalidate();
-        userListArea.repaint();
     }
 
     private void addText(String text) {
@@ -362,8 +425,9 @@ public class ClientUI extends JFrame implements IClientEvents {
         textContainer.setBackground(new Color(0, 0, 0, 0));
         // add to container and tell the layout to revalidate
         content.add(textContainer);
-        content.revalidate();
-
+        // scroll down on new message
+        JScrollBar vertical = ((JScrollPane) chatArea.getParent().getParent()).getVerticalScrollBar();
+        vertical.setValue(vertical.getMaximum());
     }
 
     void next() {
@@ -380,6 +444,18 @@ public class ClientUI extends JFrame implements IClientEvents {
 
     void previous() {
         card.previous(container);
+        for (Component c : container.getComponents()) {
+            if (c.isVisible()) {
+                currentCardPanel = (JPanel) c;
+                currentCard = Enum.valueOf(Card.class, currentCardPanel.getName());
+                break;
+            }
+        }
+        System.out.println(currentCardPanel.getName());
+    }
+
+    void show(String cardName) {
+        card.show(container, cardName);
         for (Component c : container.getComponents()) {
             if (c.isVisible()) {
                 currentCardPanel = (JPanel) c;
@@ -436,15 +512,18 @@ public class ClientUI extends JFrame implements IClientEvents {
     private synchronized void processClientConnectionStatus(long clientId, String clientName, boolean isConnect) {
         if (isConnect) {
             if (!userList.containsKey(clientId)) {
+                logger.log(Level.INFO, String.format("Adding %s[%s]", clientName, clientId));
                 userList.put(clientId, clientName);
                 addUserListItem(clientId, String.format("%s (%s)", clientName, clientId));
             }
         } else {
             if (userList.containsKey(clientId)) {
+                logger.log(Level.INFO, String.format("Removing %s[%s]", clientName, clientId));
                 userList.remove(clientId);
                 removeUserListItem(clientId);
             }
             if (clientId == myId) {
+                logger.log(Level.INFO, "I disconnected");
                 myId = Constants.DEFAULT_CLIENT_ID;
                 previous();
             }
@@ -453,7 +532,7 @@ public class ClientUI extends JFrame implements IClientEvents {
 
     @Override
     public void onClientConnect(long clientId, String clientName, String message) {
-        if (currentCard == Card.CHAT) {
+        if (currentCard.ordinal() >= Card.CHAT.ordinal()) {
             processClientConnectionStatus(clientId, clientName, true);
             addText(String.format("*%s %s*", clientName, message));
         }
@@ -461,7 +540,7 @@ public class ClientUI extends JFrame implements IClientEvents {
 
     @Override
     public void onClientDisconnect(long clientId, String clientName, String message) {
-        if (currentCard == Card.CHAT) {
+        if (currentCard.ordinal() >= Card.CHAT.ordinal()) {
             processClientConnectionStatus(clientId, clientName, false);
             addText(String.format("*%s %s*", clientName, message));
         }
@@ -469,12 +548,9 @@ public class ClientUI extends JFrame implements IClientEvents {
 
     @Override
     public void onMessageReceive(long clientId, String message) {
-        if (currentCard == Card.CHAT) {
+        if (currentCard.ordinal() >= Card.CHAT.ordinal()) {
             String clientName = mapClientId(clientId);
             addText(String.format("%s: %s", clientName, message));
-            // scroll down on new message
-            JScrollBar vertical = ((JScrollPane) chatArea.getParent().getParent()).getVerticalScrollBar();
-            vertical.setValue(vertical.getMaximum());
         }
     }
 
@@ -495,9 +571,29 @@ public class ClientUI extends JFrame implements IClientEvents {
 
     @Override
     public void onSyncClient(long clientId, String clientName) {
-        if (currentCard == Card.CHAT) {
+        if (currentCard.ordinal() >= Card.CHAT.ordinal()) {
             processClientConnectionStatus(clientId, clientName, true);
         }
+    }
 
+    @Override
+    public void onReceiveRoomList(String[] rooms, String message) {
+        roomsPanel.removeAllRooms();
+        if (message != null && message.length() > 0) {
+            roomsPanel.setMessage(message);
+        }
+        if (rooms != null) {
+            for (String room : rooms) {
+                roomsPanel.addRoom(room);
+            }
+        }
+    }
+
+    @Override
+    public void onRoomJoin(String roomName) {
+        
+        if (currentCard.ordinal() >= Card.CHAT.ordinal()) {
+            addText("Joined room " + roomName);
+        }
     }
 }

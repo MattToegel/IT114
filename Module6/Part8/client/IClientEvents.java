@@ -37,4 +37,15 @@ public interface IClientEvents {
      * Triggered when we need to clear the user list, likely during a room transition
      */
     void onResetUserList();
+    /**
+     * Received Room list from server
+     * @param rooms list of rooms or null if error
+     * @param message a message related to the action, may be null (usually if rooms.length > 0)
+     */
+    void onReceiveRoomList(String[] rooms, String message);
+    /**
+     * Receives the Room name when the client is added to the Room
+     * @param roomName
+     */
+    void onRoomJoin(String roomName);
 }

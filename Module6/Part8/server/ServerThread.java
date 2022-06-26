@@ -9,6 +9,7 @@ import java.util.logging.Logger;
 
 import Module6.Part8.common.Payload;
 import Module6.Part8.common.PayloadType;
+import Module6.Part8.common.RoomResultPayload;
 
 /**
  * A server-side representation of a single client
@@ -80,6 +81,21 @@ public class ServerThread extends Thread {
     }
 
     // send methods
+    public boolean sendRoomName(String name){
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.JOIN_ROOM);
+        p.setMessage(name);
+        return send(p);
+    }
+    public boolean sendRoomsList(String[] rooms, String message) {
+        RoomResultPayload payload = new RoomResultPayload();
+        payload.setRooms(rooms);
+        if(rooms != null && rooms.length == 0){
+            payload.setMessage("No rooms found containing your query string");
+        }
+        return send(payload);
+    }
+
     public boolean sendExistingClient(long clientId, String clientName) {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.SYNC_CLIENT);
@@ -153,7 +169,7 @@ public class ServerThread extends Thread {
             ) {
 
                 info("Received from client: " + fromClient);
-                processMessage(fromClient);
+                processPayload(fromClient);
 
             } // close while loop
         } catch (Exception e) {
@@ -167,7 +183,7 @@ public class ServerThread extends Thread {
         }
     }
 
-    void processMessage(Payload p) {
+    void processPayload(Payload p) {
         switch (p.getPayloadType()) {
             case CONNECT:
                 setClientName(p.getClientName());
@@ -182,6 +198,15 @@ public class ServerThread extends Thread {
                     logger.log(Level.INFO, "Migrating to lobby on message with null room");
                     Room.joinRoom("lobby", this);
                 }
+                break;
+            case GET_ROOMS:
+                Room.getRooms(p.getMessage().trim(), this);
+                break;
+            case CREATE_ROOM:
+                Room.createRoom(p.getMessage().trim(), this);
+                break;
+            case JOIN_ROOM:
+                Room.joinRoom(p.getMessage().trim(), this);
                 break;
             default:
                 break;
