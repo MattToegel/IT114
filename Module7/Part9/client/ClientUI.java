@@ -75,6 +75,7 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
         csPanel = new ConnectionPanel(this);
         inputPanel = new UserInputPanel(this);
         chatPanel = new ChatPanel(this);
+        
         roomsPanel = new RoomsPanel(this);
 
 
@@ -146,7 +147,7 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
         int port = csPanel.getPort();
         setTitle(originalTitle + " - " + username);
         Client.INSTANCE.connect(host, port, username, this);
-        next();
+        //TODO add connecting screen/notice
     }
 
     public static void main(String[] args) {
@@ -218,6 +219,7 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
     public void onReceiveClientId(long id) {
         if (myId == Constants.DEFAULT_CLIENT_ID) {
             myId = id;
+            show(Card.CHAT.name());
         } else {
             logger.log(Level.WARNING, "Received client id after already being set, this shouldn't happen");
         }

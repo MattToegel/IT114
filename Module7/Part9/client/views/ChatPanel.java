@@ -3,6 +3,8 @@ package Module7.Part9.client.views;
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.awt.event.ContainerEvent;
 import java.awt.event.ContainerListener;
 import java.awt.event.KeyEvent;
@@ -116,6 +118,25 @@ public class ChatPanel extends JPanel {
                 }
             }
 
+        });
+        this.addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentResized(ComponentEvent e) {
+                // System.out.println("Resized to " + e.getComponent().getSize());
+                // rough concepts for handling resize
+                // set the dimensions based on the frame size
+                Dimension frameSize = wrapper.getParent().getParent().getSize();
+                int w = (int) Math.ceil(frameSize.getWidth() * .3f);
+                
+                userListPanel.setPreferredSize(new Dimension(w, (int)frameSize.getHeight()));
+                userListPanel.revalidate();
+                userListPanel.repaint();
+            }
+
+            @Override
+            public void componentMoved(ComponentEvent e) {
+                // System.out.println("Moved to " + e.getComponent().getLocation());
+            }
         });
     }
     public void addUserListItem(long clientId, String clientName){
