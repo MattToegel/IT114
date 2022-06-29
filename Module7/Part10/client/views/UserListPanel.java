@@ -41,9 +41,7 @@ public class UserListPanel extends JPanel {
 
         wrapper.add(scroll);
         this.add(wrapper, BorderLayout.CENTER);
-        // set the dimensions based on the frame size
-        int w = (int) Math.ceil(this.getWidth() * .3f);
-        this.setPreferredSize(new Dimension(w, this.getHeight()));
+
         userListArea.addContainerListener(new ContainerListener() {
 
             @Override

@@ -3,6 +3,8 @@ package Module7.Part10.client.views;
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.awt.event.ContainerEvent;
 import java.awt.event.ContainerListener;
 import java.awt.event.KeyEvent;
@@ -30,7 +32,8 @@ public class ChatPanel extends JPanel {
     private static Logger logger = Logger.getLogger(ChatPanel.class.getName());
     private JPanel chatArea = null;
     private UserListPanel userListPanel;
-    public ChatPanel(ICardControls controls){
+
+    public ChatPanel(ICardControls controls) {
         super(new BorderLayout(10, 10));
         JPanel wrapper = new JPanel();
         wrapper.setLayout(new BoxLayout(wrapper, BoxLayout.Y_AXIS));
@@ -117,16 +120,39 @@ public class ChatPanel extends JPanel {
             }
 
         });
+        this.addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentResized(ComponentEvent e) {
+                // System.out.println("Resized to " + e.getComponent().getSize());
+                // rough concepts for handling resize
+                // set the dimensions based on the frame size
+                Dimension frameSize = wrapper.getParent().getParent().getSize();
+                int w = (int) Math.ceil(frameSize.getWidth() * .3f);
+
+                userListPanel.setPreferredSize(new Dimension(w, (int) frameSize.getHeight()));
+                userListPanel.revalidate();
+                userListPanel.repaint();
+            }
+
+            @Override
+            public void componentMoved(ComponentEvent e) {
+                // System.out.println("Moved to " + e.getComponent().getLocation());
+            }
+        });
     }
-    public void addUserListItem(long clientId, String clientName){
+
+    public void addUserListItem(long clientId, String clientName) {
         userListPanel.addUserListItem(clientId, clientName);
     }
-    public void removeUserListItem(long clientId){
+
+    public void removeUserListItem(long clientId) {
         userListPanel.removeUserListItem(clientId);
     }
-    public void clearUserList(){
+
+    public void clearUserList() {
         userListPanel.clearUserList();
     }
+
     public void addText(String text) {
         JPanel content = chatArea;
         // add message
@@ -136,7 +162,7 @@ public class ChatPanel extends JPanel {
         // and expand in height based on word wrapping
         textContainer.setLayout(null);
         textContainer.setPreferredSize(
-                new Dimension(content.getWidth(), ClientUtils.calcHeightForText(this,text, content.getWidth())));
+                new Dimension(content.getWidth(), ClientUtils.calcHeightForText(this, text, content.getWidth())));
         textContainer.setMaximumSize(textContainer.getPreferredSize());
         textContainer.setEditable(false);
         ClientUtils.clearBackground(textContainer);
