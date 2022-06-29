@@ -1,6 +1,7 @@
 package Module7.Part9.client.views;
 
 import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.event.ContainerEvent;
 import java.awt.event.ContainerListener;
@@ -8,7 +9,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.Callable;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
@@ -19,13 +21,17 @@ import javax.swing.JTextField;
 import javax.swing.ScrollPaneConstants;
 
 import Module7.Part9.client.Client;
+import Module7.Part9.client.ICardControls;
+import Module7.Part9.client.Card;
 
 public class RoomsPanel extends JPanel {
     JPanel container;
     List<RoomListItem> rooms = new ArrayList<RoomListItem>();
     JLabel message;
+    private static Logger logger = Logger.getLogger(RoomsPanel.class.getName());
 
-    public RoomsPanel(Callable<Void> previousCallback) {
+    public RoomsPanel(ICardControls controls) {
+        super(new BorderLayout(10, 10));
         container = new JPanel(
                 new BoxLayout(this, BoxLayout.Y_AXIS));
         JScrollPane scroll = new JScrollPane(container);
@@ -33,25 +39,22 @@ public class RoomsPanel extends JPanel {
         container.setAlignmentY(TOP_ALIGNMENT);
         scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         scroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
-        // this.setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
-        this.setLayout(new BorderLayout(10, 10));
+
         JButton back = new JButton("Go Back");
         back.addActionListener((event) -> {
-            try {
-                previousCallback.call();
-            } catch (Exception e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-            }
+            controls.previous();
         });
         JPanel search = new JPanel();
         search.setLayout(new BoxLayout(search, BoxLayout.Y_AXIS));
+
+        search.setAlignmentX(Component.LEFT_ALIGNMENT);
         JPanel searchContent = new JPanel();
         searchContent.setLayout(new BoxLayout(searchContent, BoxLayout.X_AXIS));
         JLabel searchLabel = new JLabel("Room Name");
         JTextField searchValue = new JTextField();
         JButton searchButton = new JButton("Search");
-        message = new JLabel();
+        message = new JLabel("", 0);
+        JPanel messageContainer = new JPanel();//wrapper to help fix alignment
         searchButton.addActionListener((event) -> {
             try {
                 String query = searchValue.getText().trim();
@@ -94,8 +97,11 @@ public class RoomsPanel extends JPanel {
                 } else {
                     message.setText("Can't join a room without a name");
                 }
+            } catch (NullPointerException ne) {
+                message.setText("Not connected");
             } catch (IOException e) {
                 // TODO Auto-generated catch block
+                logger.log(Level.WARNING, "Not connected");
                 e.printStackTrace();
                 message.setText("Error sending request: " + e.getMessage());
             }
@@ -106,7 +112,8 @@ public class RoomsPanel extends JPanel {
         searchContent.add(createButton);
         searchContent.add(joinButton);
         search.add(searchContent);
-        search.add(message);
+        messageContainer.add(message);
+        search.add(messageContainer);
         this.add(search, BorderLayout.NORTH);
         this.add(back, BorderLayout.SOUTH);
         this.add(container, BorderLayout.CENTER);
@@ -129,6 +136,8 @@ public class RoomsPanel extends JPanel {
             }
 
         });
+        this.setName(Card.ROOMS.name());
+        controls.addPanel(Card.ROOMS.name(), this);
     }
 
     public void setMessage(String message) {

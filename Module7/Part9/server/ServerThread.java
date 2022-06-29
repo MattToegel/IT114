@@ -91,8 +91,9 @@ public class ServerThread extends Thread {
     public boolean sendRoomsList(String[] rooms, String message) {
         RoomResultPayload payload = new RoomResultPayload();
         payload.setRooms(rooms);
-        if (rooms != null && rooms.length == 0) {
-            payload.setMessage("No rooms found containing your query string");
+        //Fixed in Module7.Part9
+        if(message != null){
+            payload.setMessage(message);
         }
         return send(payload);
     }
@@ -189,7 +190,8 @@ public class ServerThread extends Thread {
             case CONNECT:
                 setClientName(p.getClientName());
                 break;
-            case DISCONNECT:// TBD
+            case DISCONNECT:
+                Room.disconnectClient(this, getCurrentRoom());
                 break;
             case MESSAGE:
                 if (currentRoom != null) {

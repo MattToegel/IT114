@@ -95,6 +95,11 @@ public enum Client {
         p.setClientName(clientName);
         send(p);
     }
+    public void sendDisconnect() throws IOException, NullPointerException {
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.DISCONNECT);
+        send(p);
+    }
 
     public void sendMessage(String message) throws IOException, NullPointerException {
         Payload p = new Payload();
