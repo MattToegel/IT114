@@ -126,7 +126,7 @@ public class ChatPanel extends JPanel {
                 // System.out.println("Resized to " + e.getComponent().getSize());
                 // rough concepts for handling resize
                 // set the dimensions based on the frame size
-                Dimension frameSize = wrapper.getParent().getParent().getSize();
+                Dimension frameSize = wrapper.getSize();
                 int w = (int) Math.ceil(frameSize.getWidth() * .3f);
 
                 userListPanel.setPreferredSize(new Dimension(w, (int) frameSize.getHeight()));

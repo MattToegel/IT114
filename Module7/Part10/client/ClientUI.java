@@ -1,5 +1,6 @@
 package Module7.Part10.client;
 
+import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Component;
 import java.awt.Container;
@@ -20,6 +21,7 @@ import javax.swing.JPanel;
 
 import Module7.Part10.client.views.ChatPanel;
 import Module7.Part10.client.views.ConnectionPanel;
+import Module7.Part10.client.views.GamePanel;
 import Module7.Part10.client.views.Menu;
 import Module7.Part10.client.views.RoomsPanel;
 import Module7.Part10.client.views.UserInputPanel;
@@ -42,6 +44,7 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
     private UserInputPanel inputPanel;
     private RoomsPanel roomsPanel;
     private ChatPanel chatPanel;
+    private GamePanel gamePanel;
 
     public ClientUI(String title) {
         super(title);// call the parent's constructor
@@ -63,7 +66,7 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
             }
         });
 
-        setMinimumSize(new Dimension(400, 400));
+        setMinimumSize(new Dimension(800, 600));
         // centers window
         setLocationRelativeTo(null);
         card = new CardLayout();
@@ -75,8 +78,11 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
         csPanel = new ConnectionPanel(this);
         inputPanel = new UserInputPanel(this);
         chatPanel = new ChatPanel(this);
-
         roomsPanel = new RoomsPanel(this);
+        gamePanel = new GamePanel();
+        gamePanel.setPreferredSize(new Dimension((int)(this.getWidth()*.5), (int)this.getHeight()));
+        chatPanel.add(gamePanel,BorderLayout.WEST);
+    
 
         // https://stackoverflow.com/a/9093526
         // this tells the x button what to do (updated to be controlled via a prompt)
@@ -221,6 +227,7 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
         if (myId == Constants.DEFAULT_CLIENT_ID) {
             myId = id;
             show(Card.CHAT.name());
+            gamePanel.attachLiseners();
         } else {
             logger.log(Level.WARNING, "Received client id after already being set, this shouldn't happen");
         }
