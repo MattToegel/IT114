@@ -72,7 +72,7 @@ public class Room implements AutoCloseable {
 	 * Checks the number of clients.
 	 * If zero, begins the cleanup process to dispose of the room
 	 */
-	private void checkClients() {
+	protected void checkClients() {
 		// Cleanup if room is empty and not lobby
 		if (!name.equalsIgnoreCase("lobby") && clients.size() == 0) {
 			close();
@@ -207,7 +207,7 @@ public class Room implements AutoCloseable {
 			handleDisconnect(null, receiver);
 		}
 	}
-
+	
 	protected synchronized void sendConnectionStatus(ServerThread sender, boolean isConnected) {
 		// converted to a backwards loop to help avoid concurrent list modification
 		// due to the recursive sendConnectionStatus()
@@ -230,7 +230,7 @@ public class Room implements AutoCloseable {
 		}
 	}
 
-	private synchronized void handleDisconnect(Iterator<ServerThread> iter, ServerThread client) {
+	protected synchronized void handleDisconnect(Iterator<ServerThread> iter, ServerThread client) {
 		if (iter != null) {
 			iter.remove();
 		}

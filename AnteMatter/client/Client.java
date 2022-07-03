@@ -5,6 +5,8 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -23,7 +25,7 @@ public enum Client {
     private Thread fromServerThread;
     private String clientName = "";
     private static Logger logger = Logger.getLogger(Client.class.getName());
-    private static IClientEvents events;
+    private static List<IClientEvents> events = new ArrayList<IClientEvents>();
 
     public boolean isConnected() {
         if (server == null) {
@@ -37,6 +39,10 @@ public enum Client {
 
     }
 
+    public void addCallback(IClientEvents e) {
+        events.add(e);
+    }
+
     /**
      * Takes an ip address and a port to attempt a socket connection to a server.
      * 
@@ -47,7 +53,7 @@ public enum Client {
     public boolean connect(String address, int port, String username, IClientEvents callback) {
         // TODO validate
         this.clientName = username;
-        Client.events = callback;
+        addCallback(callback);
         try {
             server = new Socket(address, port);
             // channel to send to server
@@ -68,6 +74,12 @@ public enum Client {
     // Send methods TODO add other utility methods for sending here
     // NOTE: Can change this to protected or public if you plan to separate the
     // sendConnect action and the socket handshake
+    public void sendReady() throws IOException, NullPointerException {
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.READY);
+        send(p);
+    }
+
     public void sendCreateRoom(String room) throws IOException, NullPointerException {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.CREATE_ROOM);
@@ -95,6 +107,7 @@ public enum Client {
         p.setClientName(clientName);
         send(p);
     }
+
     public void sendDisconnect() throws IOException, NullPointerException {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.DISCONNECT);
@@ -152,34 +165,41 @@ public enum Client {
 
     private void processPayload(Payload p) {
         logger.log(Level.FINE, "Received Payload: " + p);
-        if (events == null) {
+        if (events == null && events.size() == 0) {
             logger.log(Level.FINER, "Events not initialize/set" + p);
             return;
         }
+        //TODO handle NPE
         switch (p.getPayloadType()) {
             case CONNECT:
-                events.onClientConnect(p.getClientId(), p.getClientName(), p.getMessage());
+                events.forEach(e -> e.onClientConnect(p.getClientId(), p.getClientName(), p.getMessage()));
                 break;
             case DISCONNECT:
-                events.onClientDisconnect(p.getClientId(), p.getClientName(), p.getMessage());
+                events.forEach(e -> e.onClientDisconnect(p.getClientId(), p.getClientName(), p.getMessage()));
                 break;
             case MESSAGE:
-                events.onMessageReceive(p.getClientId(), p.getMessage());
+                events.forEach(e -> e.onMessageReceive(p.getClientId(), p.getMessage()));
                 break;
             case CLIENT_ID:
-                events.onReceiveClientId(p.getClientId());
+                events.forEach(e -> e.onReceiveClientId(p.getClientId()));
                 break;
             case RESET_USER_LIST:
-                events.onResetUserList();
+                events.forEach(e -> e.onResetUserList());
                 break;
             case SYNC_CLIENT:
-                events.onSyncClient(p.getClientId(), p.getClientName());
+                events.forEach(e -> e.onSyncClient(p.getClientId(), p.getClientName()));
                 break;
             case GET_ROOMS:
-                events.onReceiveRoomList(((RoomResultPayload) p).getRooms(), p.getMessage());
+                events.forEach(e -> e.onReceiveRoomList(((RoomResultPayload) p).getRooms(), p.getMessage()));
                 break;
             case JOIN_ROOM:
-                events.onRoomJoin(p.getMessage());
+                events.forEach(e -> e.onRoomJoin(p.getMessage()));
+                break;
+            case READY:
+                events.forEach(e -> e.onReceiveReady(p.getClientId()));
+                break;
+            case MATTER:
+                events.forEach(e -> e.onReceiveMatterUpdate(p.getClientId(), p.getNumber()));
                 break;
             default:
                 logger.log(Level.WARNING, "Unhandled payload type");

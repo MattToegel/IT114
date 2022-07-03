@@ -58,13 +58,13 @@ public class Payload implements Serializable {
     /**
      * Generic number for example sake
      */
-    private int number;
+    private long number;
 
-    public int getNumber() {
+    public long getNumber() {
         return number;
     }
 
-    public void setNumber(int number) {
+    public void setNumber(long number) {
         this.number = number;
     }
 

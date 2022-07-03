@@ -146,7 +146,9 @@ public enum Server {
             System.out.println(String.format("Room %s already exists", roomName));
             return false;
         } else {
-            Room room = new Room(roomName);
+            //TODO, all non-lobby rooms will be games
+            //Room room = new Room(roomName);
+            GameRoom room = new GameRoom(roomName);
             rooms.add(room);
             System.out.println("Created new room: " + roomName);
             return true;

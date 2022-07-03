@@ -61,4 +61,8 @@ public interface IClientEvents {
      * @param roomName
      */
     void onRoomJoin(String roomName);
+
+    void onReceiveReady(long clientId);
+
+    void onReceiveMatterUpdate(long clientId, long currentMatter);
 }

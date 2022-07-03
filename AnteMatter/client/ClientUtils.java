@@ -3,6 +3,7 @@ package AnteMatter.client;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FontMetrics;
+import java.awt.Graphics;
 
 import javax.swing.BorderFactory;
 import javax.swing.JComponent;
@@ -35,4 +36,10 @@ public abstract class ClientUtils {
         comp.setBorder(BorderFactory.createEmptyBorder());
         comp.setBackground(new Color(0, 0, 0, 0));
     }
+    public static void drawCenteredString(String s,int x, int y, int w, int h, Graphics g) {
+        FontMetrics fm = g.getFontMetrics();
+        int _x = (w - fm.stringWidth(s)) / 2;
+        int _y = (fm.getAscent() + (h - (fm.getAscent() + fm.getDescent())) / 2);
+        g.drawString(s, x+ _x, y+_y);
+      }
 }

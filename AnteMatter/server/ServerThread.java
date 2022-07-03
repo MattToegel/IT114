@@ -57,7 +57,7 @@ public class ServerThread extends Thread {
         clientName = name;
     }
 
-    protected String getClientName() {
+    public String getClientName() {
         return clientName;
     }
 
@@ -81,6 +81,19 @@ public class ServerThread extends Thread {
     }
 
     // send methods
+    public boolean sendCurrentMatter(long matter){
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.MATTER);
+        p.setNumber(matter);
+        p.setClientId(myId);
+        return send(p);
+    }
+    public boolean sendReadyStatus(long clientId){
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.READY);
+        p.setClientId(clientId);
+        return send(p);
+    }
     public boolean sendRoomName(String name) {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.JOIN_ROOM);
@@ -210,6 +223,9 @@ public class ServerThread extends Thread {
                 break;
             case JOIN_ROOM:
                 Room.joinRoom(p.getMessage().trim(), this);
+                break;
+            case READY:
+                ((GameRoom)currentRoom).setReady(myId);
                 break;
             default:
                 break;

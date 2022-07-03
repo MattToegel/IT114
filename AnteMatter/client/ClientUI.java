@@ -227,7 +227,7 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
         if (myId == Constants.DEFAULT_CLIENT_ID) {
             myId = id;
             show(Card.CHAT.name());
-            gamePanel.attachLiseners();
+            //gamePanel.attachLiseners();
         } else {
             logger.log(Level.WARNING, "Received client id after already being set, this shouldn't happen");
         }
@@ -264,5 +264,20 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
         if (currentCard.ordinal() >= Card.CHAT.ordinal()) {
             chatPanel.addText("Joined room " + roomName);
         }
+    }
+
+	@Override
+	public void onReceiveReady(long clientId) {
+		// TODO Auto-generated method stub
+		
+	}
+
+    @Override
+    public void onReceiveMatterUpdate(long clientId, long currentMatter) {
+        if (currentCard.ordinal() >= Card.CHAT.ordinal()) {
+            String clientName = mapClientId(clientId);
+            chatPanel.addText(String.format("%s received %s matter", clientName, currentMatter));
+        }
+        
     }
 }
