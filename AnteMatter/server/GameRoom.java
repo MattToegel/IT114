@@ -35,7 +35,13 @@ public class GameRoom extends Room {
         
         boolean removed = players.removeIf(p->p.getClientId()==client.getClientId()); //TODO see if this works w/o loop
         logger.log(Level.INFO, "GameRoom Removed Player: " + (removed?"true":"false"));
-
+        checkClients();
+    }
+    @Override
+    protected void checkClients(){
+        if (!getName().equalsIgnoreCase("lobby") && players.size() == 0) {
+			close();
+		}
     }
     public synchronized void setReady(long clientId){
         synchronized(players){
@@ -93,10 +99,26 @@ public class GameRoom extends Room {
                 Player p = iter.next();
                 if(p != null && p.isReady()){
                     p.setMatter(Constants.STARTING_MATTER);
-                    p.getClient().sendCurrentMatter(Constants.STARTING_MATTER);
+                    broadcastMatter(p);
+                    //p.getClient().sendCurrentMatter(Constants.STARTING_MATTER);
                 }
             }
         }
         logger.log(Level.INFO, "Ready to play");
+    }
+    private synchronized void broadcastMatter(Player playerChanged){
+        synchronized(players){
+            Iterator<Player> iter = players.iterator();
+            while(iter.hasNext()){
+                Player p = iter.next();
+                if(p != null && p.isReady()){
+                    boolean messageSent = p.getClient().sendCurrentMatter(playerChanged.getClientId(), 
+                    playerChanged.getMatter());
+                    if(!messageSent){
+                        logger.log(Level.SEVERE, "Failed to send message to " + p.getClientName());
+                    }
+                }
+            }
+        }
     }
 }

@@ -7,6 +7,7 @@ import java.net.Socket;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import AnteMatter.common.Constants;
 import AnteMatter.common.Payload;
 import AnteMatter.common.PayloadType;
 import AnteMatter.common.RoomResultPayload;
@@ -81,11 +82,11 @@ public class ServerThread extends Thread {
     }
 
     // send methods
-    public boolean sendCurrentMatter(long matter){
+    public boolean sendCurrentMatter(long clientId, long matter){
         Payload p = new Payload();
         p.setPayloadType(PayloadType.MATTER);
         p.setNumber(matter);
-        p.setClientId(myId);
+        p.setClientId(clientId==Constants.DEFAULT_CLIENT_ID?myId:clientId);
         return send(p);
     }
     public boolean sendReadyStatus(long clientId){

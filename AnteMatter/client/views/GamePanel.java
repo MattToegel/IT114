@@ -164,7 +164,8 @@ public class GamePanel extends JPanel implements IClientEvents {
         int i = 0;
         for(Player p : players.values()){
             int offset = (int)(s.getHeight() * .05f) * (i+1);
-            g.drawString(p.getClientName(), (int)s.getWidth()/2, offset);
+            ClientUtils.drawCenteredString(p.getClientName() + "(" + p.getMatter() + ")", 0, offset,
+            (int)s.getWidth(), (int)s.getHeight(), g);
             i++;
         }
     }
@@ -185,6 +186,7 @@ public class GamePanel extends JPanel implements IClientEvents {
                 myId = Constants.DEFAULT_CLIENT_ID;
             }
         }
+        logger.log(Level.INFO, "Clients in room: " + players.size());
     }
 
     // Although we must implement all of these methods, not all of them may be
@@ -269,6 +271,7 @@ public class GamePanel extends JPanel implements IClientEvents {
         Player p = players.get(clientId);
         if (p != null) {
             p.setMatter(currentMatter);
+            self.repaint();
         }
     }
 

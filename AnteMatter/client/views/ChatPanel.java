@@ -31,7 +31,9 @@ import AnteMatter.client.ICardControls;
 public class ChatPanel extends JPanel {
     private static Logger logger = Logger.getLogger(ChatPanel.class.getName());
     private JPanel chatArea = null;
+    private JPanel wrapper = null;
     private UserListPanel userListPanel;
+    private Dimension lastSize = new Dimension();
 
     public ChatPanel(ICardControls controls) {
         super(new BorderLayout(10, 10));
@@ -95,6 +97,7 @@ public class ChatPanel extends JPanel {
             }
         });
         chatArea = content;
+        this.wrapper = wrapper;
         input.add(button);
         userListPanel = new UserListPanel(controls);
         this.add(userListPanel, BorderLayout.EAST);
@@ -120,18 +123,22 @@ public class ChatPanel extends JPanel {
             }
 
         });
-        this.addComponentListener(new ComponentAdapter() {
+        wrapper.addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentShown(ComponentEvent e) {
+
+                super.componentShown(e);
+                logger.log(Level.INFO, "Component shown");
+
+                doResize();
+            }
+
             @Override
             public void componentResized(ComponentEvent e) {
                 // System.out.println("Resized to " + e.getComponent().getSize());
                 // rough concepts for handling resize
                 // set the dimensions based on the frame size
-                Dimension frameSize = wrapper.getSize();
-                int w = (int) Math.ceil(frameSize.getWidth() * .3f);
-
-                userListPanel.setPreferredSize(new Dimension(w, (int) frameSize.getHeight()));
-                userListPanel.revalidate();
-                userListPanel.repaint();
+                doResize();
             }
 
             @Override
@@ -139,6 +146,43 @@ public class ChatPanel extends JPanel {
                 // System.out.println("Moved to " + e.getComponent().getLocation());
             }
         });
+    }
+
+    private void doResize() {
+        if (!this.isVisible()) {
+            return;
+        }
+        Dimension frameSize = wrapper.getSize();
+        int deltaX = Math.abs(frameSize.width - lastSize.width);
+        int deltaY = Math.abs(frameSize.height - lastSize.height);
+        if (deltaX >= 5 || deltaY >= 5) {
+            lastSize = frameSize;
+
+            logger.log(Level.INFO, "Wrapper size: " + frameSize);
+            int w = (int) Math.ceil(frameSize.getWidth() * .3f);
+
+            userListPanel.setPreferredSize(new Dimension(w, (int) frameSize.getHeight()));
+            userListPanel.revalidate();
+            userListPanel.repaint();
+            w = (int) Math.ceil(frameSize.getWidth() * .7f);
+            chatArea.setPreferredSize(new Dimension(w, (int) frameSize.getHeight()));
+            userListPanel.resizeUserListItems();
+            resizeMessages();
+        }
+    }
+
+    private void resizeMessages() {
+        for (Component p : chatArea.getComponents()) {
+            if (p.isVisible()) {
+                p.setPreferredSize(
+                        new Dimension(wrapper.getWidth(), ClientUtils.calcHeightForText(this,
+                                ((JEditorPane) p).getText(), wrapper.getWidth())));
+                p.setMaximumSize(p.getPreferredSize());
+
+            }
+        }
+        chatArea.revalidate();
+        chatArea.repaint();
     }
 
     public void addUserListItem(long clientId, String clientName) {
