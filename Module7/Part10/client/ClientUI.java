@@ -227,7 +227,7 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
         if (myId == Constants.DEFAULT_CLIENT_ID) {
             myId = id;
             show(Card.CHAT.name());
-            gamePanel.attachLiseners();
+            gamePanel.attachListeners();
         } else {
             logger.log(Level.WARNING, "Received client id after already being set, this shouldn't happen");
         }

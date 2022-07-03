@@ -133,7 +133,7 @@ public class GamePanel extends JPanel implements IClientEvents {
 
     }
 
-    public void attachLiseners() {
+    public void attachListeners() {
         InputMap im = this.getInputMap();
         im.put(KeyStroke.getKeyStroke(KeyEvent.VK_W, 0, false), "up_pressed");
         im.put(KeyStroke.getKeyStroke(KeyEvent.VK_W, 0, true), "up_released");
