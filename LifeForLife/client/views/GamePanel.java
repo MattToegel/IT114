@@ -5,7 +5,6 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.event.MouseEvent;
@@ -34,8 +33,6 @@ public class GamePanel extends JPanel implements IClientEvents {
 
     private Rectangle readyButton = new Rectangle();
 
-    Point test = new Point(0, 0);
-    int speed = 5;
     private static Logger logger = Logger.getLogger(GamePanel.class.getName());
     GamePanel self;
 
@@ -112,10 +109,10 @@ public class GamePanel extends JPanel implements IClientEvents {
             case READY_CHECK:
                 drawReadyCheck(g2);
                 break;
-            case ANTE:
-                drawBoard(g2);
+            case BATTLE:
+                drawField(g2);
                 break;
-            case REVEAL:
+            case END_GAME:
                 break;
             default:
                 break;
@@ -158,13 +155,19 @@ public class GamePanel extends JPanel implements IClientEvents {
                 readyButton.height,
                 g);
     }
-    private void drawBoard(Graphics2D g){
+    private void drawField(Graphics2D g){
         Dimension s = self.getSize();
-        g.setFont(new Font("Monospaced", Font.PLAIN, 32));
+        g.setFont(new Font("Monospaced", Font.PLAIN, 16));
         int i = 0;
+        int halfWidth = (int)Math.round(s.getWidth()*.5f);
         for(Player p : players.values()){
-            int offset = (int)(s.getHeight() * .05f) * (i+1);
-            g.drawString(p.getClientName(), (int)s.getWidth()/2, offset);
+            int offset = (int)(s.getHeight() * .1f) * (i+1);
+            
+            //g.drawString(p.getClientName(), halfWidth, offset);
+            ClientUtils.drawCenteredString(p.getClientName(), halfWidth, offset-Constants.PLAYER_SIZE, Constants.PLAYER_SIZE, Constants.PLAYER_SIZE, g);
+            //g.drawString(p.getLife()+"", halfWidth, offset+25);
+            ClientUtils.drawCenteredString(p.getLife()+"", halfWidth, offset, Constants.PLAYER_SIZE, Constants.PLAYER_SIZE, g);
+            g.drawArc(halfWidth, offset, Constants.PLAYER_SIZE, Constants.PLAYER_SIZE, 0, 360);
             i++;
         }
     }
@@ -185,6 +188,7 @@ public class GamePanel extends JPanel implements IClientEvents {
                 myId = Constants.DEFAULT_CLIENT_ID;
             }
         }
+        logger.log(Level.INFO, "Clients in room: " + players.size());
     }
 
     // Although we must implement all of these methods, not all of them may be
@@ -259,16 +263,17 @@ public class GamePanel extends JPanel implements IClientEvents {
         //TODO in the future adjust when game starts
         //this is just for example sake
         if(numReady >= players.size()){
-            currentPhase = Phase.ANTE;
+            currentPhase = Phase.BATTLE;
             self.repaint();
         }
     }
 
     @Override
-    public void onReceiveMatterUpdate(long clientId, long currentMatter) {
+    public void onReceiveLifeUpdate(long clientId, long currentLife) {
         Player p = players.get(clientId);
         if (p != null) {
-            p.setMatter(currentMatter);
+            p.setLife(currentLife);
+            self.repaint();
         }
     }
 

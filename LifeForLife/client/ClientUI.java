@@ -80,9 +80,9 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
         chatPanel = new ChatPanel(this);
         roomsPanel = new RoomsPanel(this);
         gamePanel = new GamePanel();
-        gamePanel.setPreferredSize(new Dimension((int)(this.getWidth()*.5), (int)this.getHeight()));
+        gamePanel.setPreferredSize(new Dimension((int)(this.getWidth()*.7), (int)this.getHeight()));
+        
         chatPanel.add(gamePanel,BorderLayout.WEST);
-    
 
         // https://stackoverflow.com/a/9093526
         // this tells the x button what to do (updated to be controlled via a prompt)
@@ -226,8 +226,8 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
     public void onReceiveClientId(long id) {
         if (myId == Constants.DEFAULT_CLIENT_ID) {
             myId = id;
+            gamePanel.setVisible(false);
             show(Card.CHAT.name());
-            //gamePanel.attachLiseners();
         } else {
             logger.log(Level.WARNING, "Received client id after already being set, this shouldn't happen");
         }
@@ -273,11 +273,7 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
 	}
 
     @Override
-    public void onReceiveMatterUpdate(long clientId, long currentMatter) {
-        if (currentCard.ordinal() >= Card.CHAT.ordinal()) {
-            String clientName = mapClientId(clientId);
-            chatPanel.addText(String.format("%s received %s matter", clientName, currentMatter));
-        }
-        
+    public void onReceiveLifeUpdate(long clientId, long currentMatter) {
+        // TODO Auto-generated method stub               
     }
 }

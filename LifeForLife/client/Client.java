@@ -198,8 +198,8 @@ public enum Client {
             case READY:
                 events.forEach(e -> e.onReceiveReady(p.getClientId()));
                 break;
-            case MATTER:
-                events.forEach(e -> e.onReceiveMatterUpdate(p.getClientId(), p.getNumber()));
+            case LIFE:
+                events.forEach(e -> e.onReceiveLifeUpdate(p.getClientId(), p.getNumber()));
                 break;
             default:
                 logger.log(Level.WARNING, "Unhandled payload type");

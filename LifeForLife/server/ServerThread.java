@@ -7,6 +7,7 @@ import java.net.Socket;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import LifeForLife.common.Constants;
 import LifeForLife.common.Payload;
 import LifeForLife.common.PayloadType;
 import LifeForLife.common.RoomResultPayload;
@@ -81,11 +82,11 @@ public class ServerThread extends Thread {
     }
 
     // send methods
-    public boolean sendCurrentMatter(long matter){
+    public boolean sendCurrentLife(long clientId, long life){
         Payload p = new Payload();
-        p.setPayloadType(PayloadType.MATTER);
-        p.setNumber(matter);
-        p.setClientId(myId);
+        p.setPayloadType(PayloadType.LIFE);
+        p.setNumber(life);
+        p.setClientId(clientId==Constants.DEFAULT_CLIENT_ID?myId:clientId);
         return send(p);
     }
     public boolean sendReadyStatus(long clientId){

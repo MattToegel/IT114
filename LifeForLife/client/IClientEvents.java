@@ -61,8 +61,15 @@ public interface IClientEvents {
      * @param roomName
      */
     void onRoomJoin(String roomName);
-
+    /**
+     * Receives a player's ready state
+     * @param clientId
+     */
     void onReceiveReady(long clientId);
-
-    void onReceiveMatterUpdate(long clientId, long currentMatter);
+    /**
+     * Receives a player's current life value
+     * @param clientId
+     * @param currentLife
+     */
+    void onReceiveLifeUpdate(long clientId, long currentLife);
 }

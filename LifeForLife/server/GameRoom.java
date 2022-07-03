@@ -11,7 +11,6 @@ import LifeForLife.common.Constants;
 import LifeForLife.common.Player;
 
 public class GameRoom extends Room {
-    private long matter;//total ante from all players
     
     private static Logger logger = Logger.getLogger(GameRoom.class.getName());
 
@@ -28,6 +27,7 @@ public class GameRoom extends Room {
         super.addClient(client);
         Player player = new Player(client);
         players.add(player);
+        syncReadyStatus(player);
     }
     @Override
     protected synchronized void removeClient(ServerThread client){
@@ -51,6 +51,23 @@ public class GameRoom extends Room {
         }
         sendReadyStatus(clientId);
         readyCheck();
+    }
+    private synchronized void syncReadyStatus(Player incoming){
+        synchronized(players){
+            Iterator<Player> iter = players.iterator();
+            while(iter.hasNext()){
+                Player p = iter.next();
+                if(p != null && p.isReady() && p.getClientId() != incoming.getClientId()){
+                    boolean messageSent = incoming.getClient().sendReadyStatus(p.getClientId());
+                    if (!messageSent) {
+                        iter.remove();
+                        logger.log(Level.INFO, "Removed client " + incoming.getClientName());
+                        checkClients();
+                        sendConnectionStatus(incoming.getClient(), false);
+                    }
+                }
+            }
+        }
     }
     private synchronized void sendReadyStatus(long clientId){
         if (players == null) {
@@ -86,17 +103,32 @@ public class GameRoom extends Room {
     }
     private void setupGame(){
         logger.log(Level.INFO, "Initializing Game");
-        matter = 0;
+       
         synchronized(players){
             Iterator<Player> iter = players.iterator();
             while(iter.hasNext()){
                 Player p = iter.next();
                 if(p != null && p.isReady()){
-                    p.setMatter(Constants.STARTING_MATTER);
-                    p.getClient().sendCurrentMatter(Constants.STARTING_MATTER);
+                    p.setLife(Constants.STARTING_LIFE);
+                    broadcastLife(p);
+                    //p.getClient().sendCurrentLife(Constants.STARTING_LIFE);
                 }
             }
         }
         logger.log(Level.INFO, "Ready to play");
+    }
+    private synchronized void broadcastLife(Player playerChanged){
+        synchronized(players){
+            Iterator<Player> iter = players.iterator();
+            while(iter.hasNext()){
+                Player p = iter.next();
+                if(p != null && p.isReady()){
+                    boolean messageSent = p.getClient().sendCurrentLife(playerChanged.getClientId(), playerChanged.getLife());
+                    if(!messageSent){
+                        logger.log(Level.SEVERE, "Failed to send message to " + p.getClientName());
+                    }
+                }
+            }
+        }
     }
 }

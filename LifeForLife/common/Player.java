@@ -3,8 +3,7 @@ package LifeForLife.common;
 import LifeForLife.server.ServerThread;
 
 public class Player{
-    private long matter = 0;
-    private int guess = 0;
+    private long life = 0;
     private boolean ready = false;
     private long clientId = Constants.DEFAULT_CLIENT_ID;
     private String clientName = "";
@@ -33,30 +32,20 @@ public class Player{
     public String getClientName(){
         return clientName;
     }
-    public void resetGuess(){
-        guess = 0;
-    }
-    public boolean hasGuess(){
-        return guess > 0;
-    }
-    //Onlt called server side
-    public int getGuess(){
-        return guess;
-    }
     public void setIsReady(boolean isReady){
         this.ready = isReady;
     }
     public boolean isReady(){
         return this.ready;
     }
-    public void setMatter(long matter){
-        this.matter = matter;
+    public void setLife(long life){
+        this.life = life;
     }
-    public long getMatter(){
-        return matter;
+    public long getLife(){
+        return life;
     }
-    public void modifyMatter(long change){
-        matter += change;
+    public void modifyLife(long change){
+        life += change;
     }
     
 }

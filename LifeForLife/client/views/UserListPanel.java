@@ -20,6 +20,7 @@ import LifeForLife.client.ICardControls;
 
 public class UserListPanel extends JPanel {
     JPanel userListArea;
+    JPanel wrapper;
     private static Logger logger = Logger.getLogger(UserListPanel.class.getName());
 
     public UserListPanel(ICardControls controls) {
@@ -38,7 +39,7 @@ public class UserListPanel extends JPanel {
         // no need to add content specifically because scroll wraps it
 
         userListArea = content;
-
+        this.wrapper = wrapper;
         wrapper.add(scroll);
         this.add(wrapper, BorderLayout.CENTER);
 
@@ -61,8 +62,20 @@ public class UserListPanel extends JPanel {
             }
 
         });
+       
     }
-
+    protected void resizeUserListItems() {
+        for (Component p : userListArea.getComponents()) {
+            if (p.isVisible()) {
+                p.setPreferredSize(
+                        new Dimension(wrapper.getWidth(), ClientUtils.calcHeightForText(this,
+                                ((JEditorPane) p).getText(), wrapper.getWidth())));
+                p.setMaximumSize(p.getPreferredSize());
+            }
+        }
+        userListArea.revalidate();
+        userListArea.repaint();
+    }
     protected void addUserListItem(long clientId, String clientName) {
         logger.log(Level.INFO, "Adding user to list: " + clientName);
         JPanel content = userListArea;
