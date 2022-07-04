@@ -31,15 +31,17 @@ public abstract class ClientUtils {
         mult++;
         return size.height * mult;
     }
-    public static void clearBackground(JComponent comp){
+
+    public static void clearBackground(JComponent comp) {
         comp.setOpaque(false);
         comp.setBorder(BorderFactory.createEmptyBorder());
         comp.setBackground(new Color(0, 0, 0, 0));
     }
-    public static void drawCenteredString(String s,int x, int y, int w, int h, Graphics g) {
+
+    public static void drawCenteredString(String s, int x, int y, int w, int h, Graphics g) {
         FontMetrics fm = g.getFontMetrics();
         int _x = (w - fm.stringWidth(s)) / 2;
         int _y = (fm.getAscent() + (h - (fm.getAscent() + fm.getDescent())) / 2);
-        g.drawString(s, x+ _x, y+_y);
-      }
+        g.drawString(s, x + _x, y + _y);
+    }
 }

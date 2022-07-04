@@ -5,7 +5,6 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.event.MouseEvent;
@@ -34,8 +33,6 @@ public class GamePanel extends JPanel implements IClientEvents {
 
     private Rectangle readyButton = new Rectangle();
 
-    Point test = new Point(0, 0);
-    int speed = 5;
     private static Logger logger = Logger.getLogger(GamePanel.class.getName());
     GamePanel self;
 
