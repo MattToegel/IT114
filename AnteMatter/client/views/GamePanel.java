@@ -9,8 +9,11 @@ import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.awt.event.MouseMotionListener;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Hashtable;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -20,6 +23,7 @@ import AnteMatter.client.Client;
 import AnteMatter.client.ClientUtils;
 import AnteMatter.client.IClientEvents;
 import AnteMatter.common.Constants;
+import AnteMatter.common.GeneralUtils;
 import AnteMatter.common.Phase;
 import AnteMatter.common.Player;
 
@@ -32,15 +36,70 @@ public class GamePanel extends JPanel implements IClientEvents {
     int numReady = 0;
 
     private Rectangle readyButton = new Rectangle();
+    private Rectangle betArea = new Rectangle();
+    private Rectangle confirmButton = new Rectangle();
 
     private static Logger logger = Logger.getLogger(GamePanel.class.getName());
     GamePanel self;
+    private boolean isMyTurn = false;
+    private long maxGuess = 0;
+    private long maxBet = 0;
+    private State currentState = State.IDLE;
+    private int currentBet = 0;
+    private long currentGuess = 0;
+
+    private enum State {
+        IDLE, BET, GUESS
+    }
 
     public GamePanel() {
         self = this;
         Client.INSTANCE.addCallback(this);
         this.setFocusable(true);
         this.setRequestFocusEnabled(true);
+        this.addMouseMotionListener(new MouseMotionListener() {
+
+            @Override
+            public void mouseDragged(MouseEvent e) {
+
+                // check if we're in the proper state
+                if (currentState.ordinal() > State.IDLE.ordinal()) {
+                    // check if we're interacting with the proper rectangle
+                    if (betArea.contains(e.getPoint())) {
+                        logger.log(Level.INFO, e.getPoint() + " " + betArea.getLocation() + " " + betArea.getMinX()
+                                + " " + betArea.getMaxX());
+                        // calculate position to generate a percentage
+                        double x = e.getPoint().x - betArea.getMinX();
+                        double max = betArea.getMaxX() - betArea.getMinX();
+                        double p = x / max;
+                        long lastVal;
+                        if (currentState == State.BET) {
+                            lastVal = currentBet;
+                            currentBet = (int) Math.ceil(p * maxBet);
+                            currentBet = GeneralUtils.clamp(currentBet, 1, (int) maxBet);
+                            if (lastVal != currentBet) {
+                                self.repaint();
+                            }
+
+                        } else if (currentState == State.GUESS) {
+                            lastVal = currentGuess;
+                            currentGuess = (int) Math.round(p * maxGuess);
+                            currentGuess = GeneralUtils.clamp(currentGuess, 1, maxGuess);
+                            if (lastVal != currentGuess) {
+                                self.repaint();
+                            }
+                        }
+                    }
+                }
+            }
+
+            @Override
+            public void mouseMoved(MouseEvent e) {
+                // TODO Auto-generated method stub
+
+            }
+
+        });
         this.addMouseListener(new MouseListener() {
 
             @Override
@@ -59,6 +118,23 @@ public class GamePanel extends JPanel implements IClientEvents {
                         } catch (NullPointerException | IOException e1) {
                             // TODO Auto-generated catch block
                             e1.printStackTrace();
+                        }
+                        self.repaint();
+                    }
+                } else if (currentPhase == Phase.ANTE) {
+                    if (confirmButton.contains(e.getPoint())) {
+                        if (currentState == State.BET && currentBet > 0) {
+                            currentState = State.GUESS;
+                        } else if (currentState == State.GUESS && currentGuess > 0) {
+                            // TODO send bet/guess
+                            logger.log(Level.INFO, "Sending bet and guess");
+                            try {
+                                Client.INSTANCE.sendBetAndGuess(currentBet, currentGuess);
+                                currentState = State.IDLE;
+                            } catch (NullPointerException | IOException e1) {
+                                // TODO Auto-generated catch block
+                                e1.printStackTrace();
+                            }
                         }
                         self.repaint();
                     }
@@ -105,19 +181,22 @@ public class GamePanel extends JPanel implements IClientEvents {
         // http://www.edu4java.com/en/game/game2.html
         Graphics2D g2 = ((Graphics2D) g);
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        switch(currentPhase){
+        switch (currentPhase) {
             case READY_CHECK:
                 drawReadyCheck(g2);
                 break;
             case ANTE:
-                drawBoard(g2);
+                drawScoreboard(g2);
+                if (currentState.ordinal() > State.IDLE.ordinal()) {
+                    drawControls(g2);
+                }
                 break;
             case REVEAL:
                 break;
             default:
                 break;
         }
-        
+
         /*
          * g.setColor(Color.YELLOW); // set the drawing color
          * g.drawLine(30, 40, 100, 200);
@@ -155,15 +234,63 @@ public class GamePanel extends JPanel implements IClientEvents {
                 readyButton.height,
                 g);
     }
-    private void drawBoard(Graphics2D g){
+
+    private void drawScoreboard(Graphics2D g) {
         Dimension s = self.getSize();
+        g.setFont(new Font("Monospaced", Font.PLAIN, 14));
+        int i = 1;
+        g.setColor(Color.WHITE);
+        synchronized (players) {
+            //sort players by matter high to low
+            List<Player> _players = new ArrayList<Player>(players.values());
+            _players.sort((a,b)->{
+                if(a.getMatter() == b.getMatter()){
+                    return 0;
+                }
+                else if(a.getMatter() < b.getMatter()){
+                    return 1;
+                }
+                return -1;
+            });
+            ClientUtils.drawCenteredString("The Matter Ladder", 0,(int)(s.getHeight() * .025f),
+                        (int) s.getWidth(), 0, g);
+            for (Player p : _players) {
+                int offset = (int) ((s.getHeight() * .025f) * (i + 1));
+                logger.log(Level.INFO, "Offset: " + offset + " size: " + s);
+                String toShow = String.format("%s has %s matter", p.getClientName(), p.getMatter());
+                ClientUtils.drawCenteredString(toShow, 0, offset,
+                        (int) s.getWidth(), 0, g);
+                i++;
+            }
+        }
+    }
+
+    private void drawControls(Graphics2D g) {
+        Dimension s = self.getSize();
+        g.setColor(Color.WHITE);
+        //draggable area for betting/guessing
+        betArea.setRect(s.getWidth() * .1f, s.getHeight() * .7f, (s.getWidth() * .9f) - (s.getWidth() * .1f),
+                s.getHeight() * .05f);
+        g.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        ClientUtils.drawCenteredString("Drag mouse here \nto choose value",
+                betArea.x, betArea.y, betArea.width, betArea.height, g);
+        //drawn button for confirming choices
+        confirmButton.setRect(s.getWidth() * .2f, s.getHeight() * .8f, (s.getWidth() * .8f) - (s.getWidth() * .2f),
+                s.getHeight() * .1f);
+        g.draw(betArea);
+        g.setColor(Color.GREEN);
         g.setFont(new Font("Monospaced", Font.PLAIN, 32));
-        int i = 0;
-        for(Player p : players.values()){
-            int offset = (int)(s.getHeight() * .05f) * (i+1);
-            ClientUtils.drawCenteredString(p.getClientName() + "(" + p.getMatter() + ")", 0, offset,
-            (int)s.getWidth(), (int)s.getHeight(), g);
-            i++;
+        ClientUtils.drawCenteredString("Confirm",
+                confirmButton.x, confirmButton.y, confirmButton.width, confirmButton.height, g);
+        g.draw(confirmButton);
+        //display to the user what they should do
+        g.setColor(Color.WHITE);
+        if (currentState == State.BET) {
+            ClientUtils.drawCenteredString(String.format("Bet(1-%s): %s", maxBet, currentBet), confirmButton.x,
+                    (int) (s.getHeight() * .55), confirmButton.width, confirmButton.height, g);
+        } else if (currentState == State.GUESS) {
+            ClientUtils.drawCenteredString(String.format("Guess(1-%s): %s", maxGuess, currentGuess), confirmButton.x,
+                    (int) (s.getHeight() * .4), confirmButton.width, confirmButton.height, g);
         }
     }
 
@@ -255,9 +382,9 @@ public class GamePanel extends JPanel implements IClientEvents {
                 self.repaint();
             }
         }
-        //TODO in the future adjust when game starts
-        //this is just for example sake
-        if(numReady >= players.size()){
+        // TODO in the future adjust when game starts
+        // this is just for example sake
+        if (numReady >= players.size()) {
             currentPhase = Phase.ANTE;
             self.repaint();
         }
@@ -265,11 +392,27 @@ public class GamePanel extends JPanel implements IClientEvents {
 
     @Override
     public void onReceiveMatterUpdate(long clientId, long currentMatter) {
+        if (myId == clientId) {
+            // prevents the player from betting more than they have
+            maxBet = Math.min(Constants.STARTING_MATTER, currentMatter);
+        }
         Player p = players.get(clientId);
         if (p != null) {
             p.setMatter(currentMatter);
             self.repaint();
         }
+    }
+
+    @Override
+    public void onReceiveTurn(long clientId, long maxGuess) {
+        isMyTurn = clientId == myId;
+        if (isMyTurn) {
+            currentBet = 0;
+            currentGuess = 0;
+            currentState = State.BET;
+        }
+        this.maxGuess = maxGuess;
+        self.repaint();
     }
 
 }

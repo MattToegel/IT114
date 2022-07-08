@@ -4,7 +4,8 @@ import AnteMatter.server.ServerThread;
 
 public class Player{
     private long matter = 0;
-    private int guess = 0;
+    private long ante = 0;
+    private long guess = 0;
     private boolean ready = false;
     private long clientId = Constants.DEFAULT_CLIENT_ID;
     private String clientName = "";
@@ -39,8 +40,11 @@ public class Player{
     public boolean hasGuess(){
         return guess > 0;
     }
-    //Onlt called server side
-    public int getGuess(){
+    public void setGuess(long guess){
+        this.guess = guess;
+    }
+    //Only called server side
+    public long getGuess(){
         return guess;
     }
     public void setIsReady(boolean isReady){
@@ -58,5 +62,10 @@ public class Player{
     public void modifyMatter(long change){
         matter += change;
     }
-    
+    public void setAnte(long ante){
+        this.ante = ante;
+    }
+    public long getAnte(){
+        return ante;
+    }
 }

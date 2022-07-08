@@ -55,23 +55,10 @@ public class Payload implements Serializable {
         this.message = message;
     }
 
-    /**
-     * Generic number for example sake
-     */
-    private long number;
-
-    public long getNumber() {
-        return number;
-    }
-
-    public void setNumber(long number) {
-        this.number = number;
-    }
-
     @Override
     public String toString() {
-        return String.format("ClientId[%s], ClientName[%s], Type[%s], Number[%s], Message[%s]", getClientId(),
-                getClientName(), getPayloadType().toString(), getNumber(),
+        return String.format("ClientId[%s], ClientName[%s], Type[%s], Message[%s]", getClientId(),
+                getClientName(), getPayloadType().toString(),
                 getMessage());
     }
 }
