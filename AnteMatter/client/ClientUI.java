@@ -276,8 +276,16 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
     public void onReceiveMatterUpdate(long clientId, long currentMatter) {
         if (currentCard.ordinal() >= Card.CHAT.ordinal()) {
             String clientName = mapClientId(clientId);
-            chatPanel.addText(String.format("%s received %s matter", clientName, currentMatter));
+            chatPanel.addText(String.format("%s's current matter is %s", clientName, currentMatter));
         }
         
+    }
+
+    @Override
+    public void onReceiveTurn(long clientId, long maxGuess) {
+        if (currentCard.ordinal() >= Card.CHAT.ordinal()) {
+            String clientName = mapClientId(clientId);
+            chatPanel.addText(String.format("It's %s's turn", clientName));
+        }
     }
 }

@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import AnteMatter.common.BGPayload;
 import AnteMatter.common.Payload;
 import AnteMatter.common.PayloadType;
 import AnteMatter.common.RoomResultPayload;
@@ -74,6 +75,14 @@ public enum Client {
     // Send methods TODO add other utility methods for sending here
     // NOTE: Can change this to protected or public if you plan to separate the
     // sendConnect action and the socket handshake
+    public void sendBetAndGuess(long bet, long guess) throws IOException, NullPointerException{
+        BGPayload p = new BGPayload();
+        p.setPayloadType(PayloadType.MATTER);
+        p.setBet(bet);
+        p.setGuess(guess);
+        send(p);
+
+    }
     public void sendReady() throws IOException, NullPointerException {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.READY);
@@ -169,7 +178,7 @@ public enum Client {
             logger.log(Level.FINER, "Events not initialize/set" + p);
             return;
         }
-        //TODO handle NPE
+        // TODO handle NPE
         switch (p.getPayloadType()) {
             case CONNECT:
                 events.forEach(e -> e.onClientConnect(p.getClientId(), p.getClientName(), p.getMessage()));
@@ -199,7 +208,10 @@ public enum Client {
                 events.forEach(e -> e.onReceiveReady(p.getClientId()));
                 break;
             case MATTER:
-                events.forEach(e -> e.onReceiveMatterUpdate(p.getClientId(), p.getNumber()));
+                events.forEach(e -> e.onReceiveMatterUpdate(p.getClientId(), ((BGPayload)p).getBet()));
+                break;
+            case TURN:
+                events.forEach(e -> e.onReceiveTurn(p.getClientId(), ((BGPayload)p).getGuess()));
                 break;
             default:
                 logger.log(Level.WARNING, "Unhandled payload type");

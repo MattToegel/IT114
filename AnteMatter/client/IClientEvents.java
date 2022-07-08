@@ -72,4 +72,9 @@ public interface IClientEvents {
      * @param currentMatter
      */
     void onReceiveMatterUpdate(long clientId, long currentMatter);
+    /**
+     * Receives the id of the player whose turn it is
+     * @param clientId
+     */
+    void onReceiveTurn(long clientId, long maxGuess);
 }

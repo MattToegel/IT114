@@ -7,6 +7,7 @@ import java.net.Socket;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import AnteMatter.common.BGPayload;
 import AnteMatter.common.Constants;
 import AnteMatter.common.Payload;
 import AnteMatter.common.PayloadType;
@@ -82,10 +83,17 @@ public class ServerThread extends Thread {
     }
 
     // send methods
+    public boolean sendTurn(long clientId, long maxGuess){
+        BGPayload p = new BGPayload();
+        p.setPayloadType(PayloadType.TURN);
+        p.setClientId(clientId==Constants.DEFAULT_CLIENT_ID?myId:clientId);
+        p.setGuess(maxGuess);
+        return send(p);
+    }
     public boolean sendCurrentMatter(long clientId, long matter){
-        Payload p = new Payload();
+        BGPayload p = new BGPayload();
         p.setPayloadType(PayloadType.MATTER);
-        p.setNumber(matter);
+        p.setBet(matter);
         p.setClientId(clientId==Constants.DEFAULT_CLIENT_ID?myId:clientId);
         return send(p);
     }
@@ -227,6 +235,9 @@ public class ServerThread extends Thread {
                 break;
             case READY:
                 ((GameRoom)currentRoom).setReady(myId);
+                break;
+            case MATTER://guess and bet
+                ((GameRoom)currentRoom).setAnteAndGuess(myId, ((BGPayload)p).getBet(), ((BGPayload)p).getGuess());
                 break;
             default:
                 break;
