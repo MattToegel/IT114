@@ -29,4 +29,4 @@ Here's the new table of contents:
   - ["Fall2019 Project - Hectic RockPaperScissors"](https://github.com/MattToegel/IT114/tree/Fall2019-HecticRPS)
 
 
-Test
+Compile all: https://stackoverflow.com/a/8769536

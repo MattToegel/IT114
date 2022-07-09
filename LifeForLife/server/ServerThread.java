@@ -4,13 +4,14 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import LifeForLife.common.Constants;
+import LifeForLife.common.MyLogger;
+import LifeForLife.common.PRHPayload;
 import LifeForLife.common.Payload;
 import LifeForLife.common.PayloadType;
 import LifeForLife.common.RoomResultPayload;
+import LifeForLife.common.Vector2;
 
 /**
  * A server-side representation of a single client
@@ -23,7 +24,8 @@ public class ServerThread extends Thread {
     // private Server server;// ref to our server so we can call methods on it
     // more easily
     private Room currentRoom;
-    private static Logger logger = Logger.getLogger(ServerThread.class.getName());
+    //private static Logger logger = Logger.getLogger(ServerThread.class.getName());
+    private static MyLogger logger = MyLogger.getLogger(ServerThread.class.getName());
     private long myId;
 
     public void setClientId(long id) {
@@ -82,6 +84,27 @@ public class ServerThread extends Thread {
     }
 
     // send methods
+    /**
+     * Sends position, rotation, and heading
+     * @param clientId
+     * @param position where the player is
+     * @param heading direction they're moving
+     * @param rotation direction they're facing
+     * @return
+     */
+    public boolean sendPRH(long clientId, Vector2 position, Vector2 heading, float rotation){
+        PRHPayload p = new PRHPayload();
+        p.setClientId(clientId);
+        p.setPosition(position);
+        p.setHeading(heading);
+        p.setRotation(rotation);
+        return send(p);
+    }
+    public boolean sendStart(){
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.START);
+        return send(p);
+    }
     public boolean sendCurrentLife(long clientId, long life){
         Payload p = new Payload();
         p.setPayloadType(PayloadType.LIFE);
@@ -154,9 +177,9 @@ public class ServerThread extends Thread {
         // added a boolean so we can see if the send was successful
         try {
             // TODO add logger
-            logger.log(Level.FINE, "Outgoing payload: " + payload);
+            logger.fine( "Outgoing payload: " + payload);
             out.writeObject(payload);
-            logger.log(Level.INFO, "Sent payload: " + payload);
+            logger.fine( "Sent payload: " + payload);
             return true;
         } catch (IOException e) {
             info("Error sending message to client (most likely disconnected)");
@@ -184,7 +207,7 @@ public class ServerThread extends Thread {
                                                                      // likely mean a disconnect)
             ) {
 
-                info("Received from client: " + fromClient);
+                logger.fine("Received from client: " + fromClient);
                 processPayload(fromClient);
 
             } // close while loop
@@ -212,7 +235,7 @@ public class ServerThread extends Thread {
                     currentRoom.sendMessage(this, p.getMessage());
                 } else {
                     // TODO migrate to lobby
-                    logger.log(Level.INFO, "Migrating to lobby on message with null room");
+                    logger.info( "Migrating to lobby on message with null room");
                     Room.joinRoom("lobby", this);
                 }
                 break;
@@ -227,6 +250,10 @@ public class ServerThread extends Thread {
                 break;
             case READY:
                 ((GameRoom)currentRoom).setReady(myId);
+                break;
+            case SYNC_POSITION_ROTATION:
+                PRHPayload p2 = (PRHPayload)p;
+                ((GameRoom)currentRoom).setPlayerHeadingAndRotation(myId, p2.getHeading(), p2.getRotation());
                 break;
             default:
                 break;

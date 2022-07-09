@@ -5,23 +5,32 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
+import java.awt.event.ActionEvent;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.awt.event.MouseMotionListener;
 import java.io.IOException;
 import java.util.Hashtable;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
+import javax.swing.AbstractAction;
+import javax.swing.ActionMap;
+import javax.swing.InputMap;
 import javax.swing.JPanel;
+import javax.swing.KeyStroke;
 
 import LifeForLife.client.Client;
 import LifeForLife.client.ClientUtils;
 import LifeForLife.client.IClientEvents;
 import LifeForLife.common.Constants;
+import LifeForLife.common.MyLogger;
 import LifeForLife.common.Phase;
 import LifeForLife.common.Player;
+import LifeForLife.common.Throttle;
+import LifeForLife.common.Vector2;
 
 public class GamePanel extends JPanel implements IClientEvents {
 
@@ -30,17 +39,83 @@ public class GamePanel extends JPanel implements IClientEvents {
     private Hashtable<Long, Player> players = new Hashtable<Long, Player>();
     private long myId = Constants.DEFAULT_CLIENT_ID;
     int numReady = 0;
+    private Player myPlayer = null;
 
     private Rectangle readyButton = new Rectangle();
 
-    private static Logger logger = Logger.getLogger(GamePanel.class.getName());
+    // private static Logger logger = Logger.getLogger(GamePanel.class.getName());
+    private static MyLogger logger = MyLogger.getLogger(GamePanel.class.getName());
     GamePanel self;
+    Thread drawLoop = null;
+    Thread inputThread = null;
+    Throttle clientSendThrottle = new Throttle(8);
+    Point mp = new Point();
+
+    // inner class keystates
+    abstract class KeyStates {
+        public static boolean W = false;
+        public static boolean S = false;
+        public static boolean A = false;
+        public static boolean D = false;
+    }
+
+    // inner class keyboard action
+    private final class KeyboardAction extends AbstractAction {
+        int key = -1;
+        boolean pressed = false;
+
+        public KeyboardAction(int key, boolean pressed) {
+            this.key = key;
+            this.pressed = pressed;
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            logger.info("Key pressed: " + key);
+            switch (key) {
+                case KeyEvent.VK_W:
+                    KeyStates.W = pressed;
+                    break;
+                case KeyEvent.VK_S:
+                    KeyStates.S = pressed;
+                    break;
+                case KeyEvent.VK_A:
+                    KeyStates.A = pressed;
+                    break;
+                case KeyEvent.VK_D:
+                    KeyStates.D = pressed;
+                    break;
+            }
+
+        }
+
+    }
 
     public GamePanel() {
         self = this;
         Client.INSTANCE.addCallback(this);
         this.setFocusable(true);
         this.setRequestFocusEnabled(true);
+        this.addMouseMotionListener(new MouseMotionListener() {
+
+            @Override
+            public void mouseDragged(MouseEvent e) {
+                // TODO Auto-generated method stub
+
+            }
+
+            @Override
+            public void mouseMoved(MouseEvent e) {
+                if (currentPhase == Phase.BATTLE) {
+                    if (myPlayer != null) {
+                        mp = e.getPoint();
+                        myPlayer.lookAtPoint(mp.x, mp.y);
+                        sendHeadingAndRotation();
+
+                    }
+                }
+            }
+        });
         this.addMouseListener(new MouseListener() {
 
             @Override
@@ -48,7 +123,7 @@ public class GamePanel extends JPanel implements IClientEvents {
                 // TODO Auto-generated method stub
                 self.grabFocus();
 
-                logger.log(Level.INFO,
+                logger.info(
                         String.format("Mouse info LOC %s Point %s", e.getLocationOnScreen(), e.getPoint()));
                 if (currentPhase == Phase.READY_CHECK) {
                     // get point is relative to source
@@ -105,7 +180,7 @@ public class GamePanel extends JPanel implements IClientEvents {
         // http://www.edu4java.com/en/game/game2.html
         Graphics2D g2 = ((Graphics2D) g);
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        switch(currentPhase){
+        switch (currentPhase) {
             case READY_CHECK:
                 drawReadyCheck(g2);
                 break;
@@ -117,7 +192,7 @@ public class GamePanel extends JPanel implements IClientEvents {
             default:
                 break;
         }
-        
+
         /*
          * g.setColor(Color.YELLOW); // set the drawing color
          * g.drawLine(30, 40, 100, 200);
@@ -136,7 +211,7 @@ public class GamePanel extends JPanel implements IClientEvents {
 
     private void drawReadyCheck(Graphics2D g) {
         Dimension s = self.getSize();
-        // logger.log(Level.INFO, "Panel size: " + s);
+        // logger.info( "Panel size: " + s);
         readyButton.setRect(s.getWidth() * .1f, s.getHeight() * .5f, (s.getWidth() * .9f) - (s.getWidth() * .1f),
                 s.getHeight() * .2f);
         g.setColor(Color.WHITE);
@@ -155,40 +230,111 @@ public class GamePanel extends JPanel implements IClientEvents {
                 readyButton.height,
                 g);
     }
-    private void drawField(Graphics2D g){
-        Dimension s = self.getSize();
+
+    private void drawField(Graphics2D g) {
+        // Dimension s = self.getSize();
         g.setFont(new Font("Monospaced", Font.PLAIN, 16));
-        int i = 0;
-        int halfWidth = (int)Math.round(s.getWidth()*.5f);
-        for(Player p : players.values()){
-            int offset = (int)(s.getHeight() * .1f) * (i+1);
-            
-            //g.drawString(p.getClientName(), halfWidth, offset);
-            ClientUtils.drawCenteredString(p.getClientName(), halfWidth, offset-Constants.PLAYER_SIZE, Constants.PLAYER_SIZE, Constants.PLAYER_SIZE, g);
-            //g.drawString(p.getLife()+"", halfWidth, offset+25);
-            ClientUtils.drawCenteredString(p.getLife()+"", halfWidth, offset, Constants.PLAYER_SIZE, Constants.PLAYER_SIZE, g);
-            g.drawArc(halfWidth, offset, Constants.PLAYER_SIZE, Constants.PLAYER_SIZE, 0, 360);
-            i++;
+
+        for (Player p : players.values()) {
+            p.draw(g);
         }
+    }
+
+    private void sendHeadingAndRotation() {
+        if (currentPhase == Phase.BATTLE && clientSendThrottle.ready() && myPlayer != null) {
+            try {
+                Client.INSTANCE.sendHeadingAndRotation(myPlayer.getHeading(), myPlayer.getRotation());
+            } catch (NullPointerException | IOException e) {
+
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public void attachListeners() {
+        InputMap im = self.getInputMap();
+        im.put(KeyStroke.getKeyStroke(KeyEvent.VK_W, 0, false), "up_pressed");
+        im.put(KeyStroke.getKeyStroke(KeyEvent.VK_W, 0, true), "up_released");
+        im.put(KeyStroke.getKeyStroke(KeyEvent.VK_S, 0, false), "down_pressed");
+        im.put(KeyStroke.getKeyStroke(KeyEvent.VK_S, 0, true), "down_released");
+        im.put(KeyStroke.getKeyStroke(KeyEvent.VK_A, 0, false), "left_pressed");
+        im.put(KeyStroke.getKeyStroke(KeyEvent.VK_A, 0, true), "left_released");
+        im.put(KeyStroke.getKeyStroke(KeyEvent.VK_D, 0, false), "right_pressed");
+        im.put(KeyStroke.getKeyStroke(KeyEvent.VK_D, 0, true), "right_released");
+
+        ActionMap am = self.getActionMap();
+        am.put("up_pressed", new KeyboardAction(KeyEvent.VK_W, true));
+        am.put("up_released", new KeyboardAction(KeyEvent.VK_W, false));
+        am.put("down_pressed", new KeyboardAction(KeyEvent.VK_S, true));
+        am.put("down_released", new KeyboardAction(KeyEvent.VK_S, false));
+        am.put("left_pressed", new KeyboardAction(KeyEvent.VK_A, true));
+        am.put("left_released", new KeyboardAction(KeyEvent.VK_A, false));
+        am.put("right_pressed", new KeyboardAction(KeyEvent.VK_D, true));
+        am.put("right_released", new KeyboardAction(KeyEvent.VK_D, false));
+        inputThread = new Thread() {
+            @Override
+            public void run() {
+                logger.info("GamePanel thread started");
+                Vector2 localHeading = new Vector2(0, 0);
+                while (self.isEnabled()) {
+                    if (myPlayer != null) {
+                        Vector2 ch = myPlayer.getHeading();
+                        localHeading.x = 0;
+                        localHeading.y = 0;
+                        // movement
+                        if (KeyStates.W) {
+                            localHeading.y = -1;
+                        } else if (KeyStates.S) {
+                            localHeading.y = 1;
+                        }
+                        if (KeyStates.A) {
+                            localHeading.x = -1;
+                        } else if (KeyStates.D) {
+                            localHeading.x = 1;
+                        }
+                        boolean changed = localHeading != ch;//
+                        myPlayer.lookAtPoint(mp.x, mp.y);
+                        logger.info("Local heading: " + localHeading + " ch: " + ch);
+                        if (changed) {
+                            myPlayer.setHeading(localHeading);
+                            logger.info("Changed heading: " + myPlayer.getHeading());
+                            sendHeadingAndRotation();
+                        }
+                    }
+                    try {
+                        Thread.sleep(16);// simulate 60 fps
+                    } catch (InterruptedException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                    }
+                }
+                logger.info("GamePanel thread exited");
+            }
+        };
+        inputThread.start();
     }
 
     private synchronized void processClientConnectionStatus(long clientId, String clientName, boolean isConnect) {
         if (isConnect) {
             if (!players.containsKey(clientId)) {
-                logger.log(Level.INFO, String.format("Adding %s[%s]", clientName, clientId));
+                logger.info(String.format("Adding %s[%s]", clientName, clientId));
                 players.put(clientId, new Player(clientId, clientName));
+                if (clientId == myId) {
+                    myPlayer = players.get(clientId);
+                }
             }
         } else {
             if (players.containsKey(clientId)) {
-                logger.log(Level.INFO, String.format("Removing %s[%s]", clientName, clientId));
+                logger.info(String.format("Removing %s[%s]", clientName, clientId));
                 players.remove(clientId);
             }
             if (clientId == myId) {
-                logger.log(Level.INFO, "I disconnected");
+                logger.info("I disconnected");
                 myId = Constants.DEFAULT_CLIENT_ID;
+                myPlayer = null;
             }
         }
-        logger.log(Level.INFO, "Clients in room: " + players.size());
+        logger.info("Clients in room: " + players.size());
     }
 
     // Although we must implement all of these methods, not all of them may be
@@ -201,7 +347,7 @@ public class GamePanel extends JPanel implements IClientEvents {
 
     @Override
     public void onClientDisconnect(long id, String clientName, String message) {
-        processClientConnectionStatus(id, clientName, true);
+        processClientConnectionStatus(id, clientName, false);
 
     }
 
@@ -216,7 +362,7 @@ public class GamePanel extends JPanel implements IClientEvents {
         if (myId == Constants.DEFAULT_CLIENT_ID) {
             myId = id;
         } else {
-            logger.log(Level.WARNING, "Received client id after already being set, this shouldn't happen");
+            logger.warning("Received client id after already being set, this shouldn't happen");
         }
 
     }
@@ -260,12 +406,6 @@ public class GamePanel extends JPanel implements IClientEvents {
                 self.repaint();
             }
         }
-        //TODO in the future adjust when game starts
-        //this is just for example sake
-        if(numReady >= players.size()){
-            currentPhase = Phase.BATTLE;
-            self.repaint();
-        }
     }
 
     @Override
@@ -273,7 +413,42 @@ public class GamePanel extends JPanel implements IClientEvents {
         Player p = players.get(clientId);
         if (p != null) {
             p.setLife(currentLife);
-            self.repaint();
+            // self.repaint();//not needed anymore as of the addition of the drawing loop
+        }
+    }
+
+    /**
+     * Creates a separate thread for drawing if the thread doesn't exist
+     */
+    @Override
+    public void onReceiveStart() {
+        if (drawLoop == null) {
+            drawLoop = new Thread() {
+                @Override
+                public void run() {
+                    currentPhase = Phase.BATTLE;
+                    attachListeners();
+                    while (currentPhase == Phase.BATTLE) {
+                        self.repaint();
+                        try {
+                            Thread.sleep(16);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+            };
+            drawLoop.start();
+        }
+    }
+
+    @Override
+    public void onReceivePositionAndRotation(long clientId, Vector2 position, Vector2 heading, float rotation) {
+        Player p = players.get(clientId);
+        if (p != null) {
+            p.setPosition(position);
+            p.setRotation(rotation);
+            p.setHeading(heading);
         }
     }
 
