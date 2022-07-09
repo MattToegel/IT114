@@ -7,12 +7,13 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
+import LifeForLife.common.MyLogger;
+import LifeForLife.common.PRHPayload;
 import LifeForLife.common.Payload;
 import LifeForLife.common.PayloadType;
 import LifeForLife.common.RoomResultPayload;
+import LifeForLife.common.Vector2;
 
 //Enum Singleton: https://www.geeksforgeeks.org/advantages-and-disadvantages-of-using-enum-as-singleton-in-java/
 public enum Client {
@@ -24,7 +25,8 @@ public enum Client {
     boolean isRunning = false;
     private Thread fromServerThread;
     private String clientName = "";
-    private static Logger logger = Logger.getLogger(Client.class.getName());
+    // private static Logger logger = Logger.getLogger(Client.class.getName());
+    private static MyLogger logger = MyLogger.getLogger(Client.class.getName());
     private static List<IClientEvents> events = new ArrayList<IClientEvents>();
 
     public boolean isConnected() {
@@ -60,7 +62,7 @@ public enum Client {
             out = new ObjectOutputStream(server.getOutputStream());
             // channel to listen to server
             in = new ObjectInputStream(server.getInputStream());
-            logger.log(Level.INFO, "Client connected");
+            logger.info("Client connected");
             listenForServerMessage();
             sendConnect();
         } catch (UnknownHostException e) {
@@ -69,6 +71,13 @@ public enum Client {
             e.printStackTrace();
         }
         return isConnected();
+    }
+
+    public void sendHeadingAndRotation(Vector2 heading, float rotation) throws IOException, NullPointerException {
+        PRHPayload p = new PRHPayload();
+        p.setHeading(heading);
+        p.setRotation(rotation);
+        send(p);
     }
 
     // Send methods TODO add other utility methods for sending here
@@ -124,9 +133,9 @@ public enum Client {
 
     // keep this private as utility methods should be the only Payload creators
     private void send(Payload p) throws IOException, NullPointerException {
-        logger.log(Level.FINE, "Sending Payload: " + p);
+        logger.fine("Sending Payload: " + p);
         out.writeObject(p);// TODO force throw each
-        logger.log(Level.INFO, "Sent Payload: " + p);
+        logger.fine("Sent Payload: " + p);
     }
 
     // end send methods
@@ -137,12 +146,12 @@ public enum Client {
             public void run() {
                 try {
                     Payload fromServer;
-                    logger.log(Level.INFO, "Listening for server messages");
+                    logger.info("Listening for server messages");
                     // while we're connected, listen for strings from server
                     while (!server.isClosed() && !server.isInputShutdown()
                             && (fromServer = (Payload) in.readObject()) != null) {
 
-                        System.out.println("Debug Info: " + fromServer);
+                        logger.fine("Debug Info: " + fromServer);
                         processPayload(fromServer);
 
                     }
@@ -164,12 +173,12 @@ public enum Client {
     }
 
     private void processPayload(Payload p) {
-        logger.log(Level.FINE, "Received Payload: " + p);
+        logger.fine("Received Payload: " + p);
         if (events == null && events.size() == 0) {
-            logger.log(Level.FINER, "Events not initialize/set" + p);
+            logger.fine("Events not initialize/set" + p);
             return;
         }
-        //TODO handle NPE
+        // TODO handle NPE
         switch (p.getPayloadType()) {
             case CONNECT:
                 events.forEach(e -> e.onClientConnect(p.getClientId(), p.getClientName(), p.getMessage()));
@@ -201,8 +210,18 @@ public enum Client {
             case LIFE:
                 events.forEach(e -> e.onReceiveLifeUpdate(p.getClientId(), p.getNumber()));
                 break;
+            case START:
+                events.forEach(e -> e.onReceiveStart());
+                break;
+            case SYNC_POSITION_ROTATION:
+                events.forEach(e -> e.onReceivePositionAndRotation(
+                        p.getClientId(),
+                        ((PRHPayload) p).getPosition(),
+                        ((PRHPayload) p).getHeading(),
+                        ((PRHPayload) p).getRotation()));
+                break;
             default:
-                logger.log(Level.WARNING, "Unhandled payload type");
+                logger.warning("Unhandled payload type");
                 break;
 
         }

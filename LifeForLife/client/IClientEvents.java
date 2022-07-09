@@ -1,5 +1,7 @@
 package LifeForLife.client;
 
+import LifeForLife.common.Vector2;
+
 public interface IClientEvents {
     /**
      * Triggered when a client connects
@@ -61,15 +63,34 @@ public interface IClientEvents {
      * @param roomName
      */
     void onRoomJoin(String roomName);
+
     /**
      * Receives a player's ready state
+     * 
      * @param clientId
      */
     void onReceiveReady(long clientId);
+
     /**
      * Receives a player's current life value
+     * 
      * @param clientId
      * @param currentLife
      */
     void onReceiveLifeUpdate(long clientId, long currentLife);
+
+    /**
+     * Receives the game start event from the server
+     */
+    void onReceiveStart();
+
+    /**
+     * Receives transformation related data for a specific player
+     * 
+     * @param clientId
+     * @param position
+     * @param heading
+     * @param rotation
+     */
+    void onReceivePositionAndRotation(long clientId, Vector2 position, Vector2 heading, float rotation);
 }
