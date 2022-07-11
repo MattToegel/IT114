@@ -138,7 +138,7 @@ public class GameRoom extends Room {
             estMaxRoundMatter = actualMatter;
         }
         sendMessage(null, "Starting round " + round);
-        logger.log(Level.FINE, "Current Estimate: " + estMaxRoundMatter);
+        logger.log(Level.INFO, "Current Estimate: " + estMaxRoundMatter);
         synchronized (players) {
             Iterator<Player> iter = players.iterator();
             while (iter.hasNext()) {
@@ -150,13 +150,16 @@ public class GameRoom extends Room {
                         p.setMatter(Constants.STARTING_MATTER);
                     }
                     //should be 0-10 per player
-                    estMaxRoundMatter += Math.min(p.getMatter(), Constants.STARTING_MATTER);
+                    //Using min() is correct logic if each round is guaranteed a winner
+                    //using current matter lets rounds roll over if there's not a winner
+                    //I mistakenly chose the min() one first
+                    estMaxRoundMatter += p.getMatter();//Math.min(p.getMatter(), Constants.STARTING_MATTER);
                     // will only broadcast matter at the beginning of the round
                     broadcastMatter(p);
                 }
             }
         }
-        logger.log(Level.FINE, "New Current Estimate: " + estMaxRoundMatter);
+        logger.log(Level.INFO, "New Current Estimate: " + estMaxRoundMatter);
         nextPlayer();
     }
     
