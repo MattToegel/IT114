@@ -10,8 +10,6 @@ import java.awt.event.ContainerListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.io.IOException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
@@ -27,9 +25,10 @@ import AnteMatter.client.Card;
 import AnteMatter.client.Client;
 import AnteMatter.client.ClientUtils;
 import AnteMatter.client.ICardControls;
+import AnteMatter.common.MyLogger;
 
 public class ChatPanel extends JPanel {
-    private static Logger logger = Logger.getLogger(ChatPanel.class.getName());
+    private static MyLogger logger = MyLogger.getLogger(ChatPanel.class.getName());
     private JPanel chatArea = null;
     private JPanel wrapper = null;
     private UserListPanel userListPanel;
@@ -86,8 +85,8 @@ public class ChatPanel extends JPanel {
                     textValue.setText("");// clear the original text
 
                     // debugging
-                    logger.log(Level.FINEST, "Content: " + content.getSize());
-                    logger.log(Level.FINEST, "Parent: " + this.getSize());
+                    logger.fine("Content: " + content.getSize());
+                    logger.fine("Parent: " + this.getSize());
 
                 }
             } catch (NullPointerException e) {
@@ -128,7 +127,7 @@ public class ChatPanel extends JPanel {
             public void componentShown(ComponentEvent e) {
 
                 super.componentShown(e);
-                logger.log(Level.INFO, "Component shown");
+                logger.info("Component shown");
 
                 doResize();
             }
@@ -158,7 +157,7 @@ public class ChatPanel extends JPanel {
         if (deltaX >= 5 || deltaY >= 5) {
             lastSize = frameSize;
 
-            logger.log(Level.INFO, "Wrapper size: " + frameSize);
+            logger.info("Wrapper size: " + frameSize);
             int w = (int) Math.ceil(frameSize.getWidth() * .3f);
 
             userListPanel.setPreferredSize(new Dimension(w, (int) frameSize.getHeight()));

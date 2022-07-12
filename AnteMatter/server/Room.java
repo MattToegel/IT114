@@ -4,10 +4,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import AnteMatter.common.Constants;
+import AnteMatter.common.MyLogger;
 
 public class Room implements AutoCloseable {
 	private String name;
@@ -20,7 +19,7 @@ public class Room implements AutoCloseable {
 	private final static String DISCONNECT = "disconnect";
 	private final static String LOGOUT = "logout";
 	private final static String LOGOFF = "logoff";
-	private static Logger logger = Logger.getLogger(Room.class.getName());
+	private static MyLogger logger = MyLogger.getLogger(Room.class.getName());
 
 	public Room(String name) {
 		this.name = name;
@@ -28,7 +27,7 @@ public class Room implements AutoCloseable {
 	}
 
 	private void info(String message) {
-		logger.log(Level.INFO, String.format("Room[%s]: %s", name, message));
+		logger.info(String.format("Room[%s]: %s", name, message));
 	}
 
 	public String getName() {
@@ -125,7 +124,8 @@ public class Room implements AutoCloseable {
 
 	protected static void getRooms(String query, ServerThread client) {
 		String[] rooms = Server.INSTANCE.getRooms(query).toArray(new String[0]);
-		client.sendRoomsList(rooms,(rooms!=null&&rooms.length==0)?"No rooms found containing your query string":null);
+		client.sendRoomsList(rooms,
+				(rooms != null && rooms.length == 0) ? "No rooms found containing your query string" : null);
 	}
 
 	protected static void createRoom(String roomName, ServerThread client) {
@@ -182,7 +182,7 @@ public class Room implements AutoCloseable {
 	}
 
 	protected synchronized void sendUserListToClient(ServerThread receiver) {
-		logger.log(Level.INFO, String.format("Room[%s] Syncing client list of %s to %s", getName(), clients.size(),
+		info(String.format("Room[%s] Syncing client list of %s to %s", getName(), clients.size(),
 				receiver.getClientName()));
 		synchronized (clients) {
 			Iterator<ServerThread> iter = clients.iterator();
@@ -207,7 +207,7 @@ public class Room implements AutoCloseable {
 			handleDisconnect(null, receiver);
 		}
 	}
-	
+
 	protected synchronized void sendConnectionStatus(ServerThread sender, boolean isConnected) {
 		// converted to a backwards loop to help avoid concurrent list modification
 		// due to the recursive sendConnectionStatus()

@@ -6,8 +6,6 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.event.ContainerEvent;
 import java.awt.event.ContainerListener;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import javax.swing.BoxLayout;
 import javax.swing.JEditorPane;
@@ -17,11 +15,12 @@ import javax.swing.ScrollPaneConstants;
 
 import AnteMatter.client.ClientUtils;
 import AnteMatter.client.ICardControls;
+import AnteMatter.common.MyLogger;
 
 public class UserListPanel extends JPanel {
     JPanel userListArea;
     JPanel wrapper;
-    private static Logger logger = Logger.getLogger(UserListPanel.class.getName());
+    private static MyLogger logger = MyLogger.getLogger(UserListPanel.class.getName());
 
     public UserListPanel(ICardControls controls) {
         super(new BorderLayout(10, 10));
@@ -63,6 +62,7 @@ public class UserListPanel extends JPanel {
 
         });
     }
+
     protected void resizeUserListItems() {
         for (Component p : userListArea.getComponents()) {
             if (p.isVisible()) {
@@ -75,10 +75,11 @@ public class UserListPanel extends JPanel {
         userListArea.revalidate();
         userListArea.repaint();
     }
+
     protected void addUserListItem(long clientId, String clientName) {
-        logger.log(Level.INFO, "Adding user to list: " + clientName);
+        logger.info("Adding user to list: " + clientName);
         JPanel content = userListArea;
-        logger.log(Level.INFO, "Userlist: " + content.getSize());
+        logger.info("Userlist: " + content.getSize());
         JEditorPane textContainer = new JEditorPane("text/plain", clientName);
         textContainer.setName(clientId + "");
         // sizes the panel to attempt to take up the width of the container
@@ -96,7 +97,7 @@ public class UserListPanel extends JPanel {
     }
 
     protected void removeUserListItem(long clientId) {
-        logger.log(Level.INFO, "removing user list item for id " + clientId);
+        logger.info("removing user list item for id " + clientId);
         Component[] cs = userListArea.getComponents();
         for (Component c : cs) {
             if (c.getName().equals(clientId + "")) {

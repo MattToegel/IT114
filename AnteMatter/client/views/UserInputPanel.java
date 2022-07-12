@@ -2,8 +2,6 @@ package AnteMatter.client.views;
 
 import java.awt.BorderLayout;
 import java.awt.Dimension;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -13,11 +11,13 @@ import javax.swing.JPanel;
 import javax.swing.JTextField;
 
 import AnteMatter.client.ICardControls;
+import AnteMatter.common.MyLogger;
 import AnteMatter.client.Card;
 
-public class UserInputPanel extends JPanel{
-    private static Logger logger = Logger.getLogger(UserInputPanel.class.getName()); 
+public class UserInputPanel extends JPanel {
+    private static MyLogger logger = MyLogger.getLogger(UserInputPanel.class.getName());
     private String username;
+
     public UserInputPanel(ICardControls controls) {
         super(new BorderLayout(10, 10));
         JPanel content = new JPanel();
@@ -54,7 +54,7 @@ public class UserInputPanel extends JPanel{
             }
             if (isValid) {
                 // System.out.println("Chosen username: " + username);
-                logger.log(Level.INFO, "Chosen username: " + username);
+                logger.info("Chosen username: " + username);
                 userError.setVisible(false);
                 controls.connect();
             }
@@ -73,7 +73,8 @@ public class UserInputPanel extends JPanel{
         this.setName(Card.USER_INFO.name());
         controls.addPanel(Card.USER_INFO.name(), this);
     }
-    public String getUsername(){
+
+    public String getUsername() {
         return username;
     }
 }

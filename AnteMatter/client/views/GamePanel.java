@@ -14,8 +14,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import javax.swing.JPanel;
 
@@ -24,6 +22,7 @@ import AnteMatter.client.ClientUtils;
 import AnteMatter.client.IClientEvents;
 import AnteMatter.common.Constants;
 import AnteMatter.common.GeneralUtils;
+import AnteMatter.common.MyLogger;
 import AnteMatter.common.Phase;
 import AnteMatter.common.Player;
 
@@ -39,7 +38,7 @@ public class GamePanel extends JPanel implements IClientEvents {
     private Rectangle betArea = new Rectangle();
     private Rectangle confirmButton = new Rectangle();
 
-    private static Logger logger = Logger.getLogger(GamePanel.class.getName());
+    private static MyLogger logger = MyLogger.getLogger(GamePanel.class.getName());
     GamePanel self;
     private boolean isMyTurn = false;
     private long maxGuess = 0;
@@ -66,7 +65,7 @@ public class GamePanel extends JPanel implements IClientEvents {
                 if (currentState.ordinal() > State.IDLE.ordinal()) {
                     // check if we're interacting with the proper rectangle
                     if (betArea.contains(e.getPoint())) {
-                        logger.log(Level.INFO, e.getPoint() + " " + betArea.getLocation() + " " + betArea.getMinX()
+                        logger.info(e.getPoint() + " " + betArea.getLocation() + " " + betArea.getMinX()
                                 + " " + betArea.getMaxX());
                         // calculate position to generate a percentage
                         double x = e.getPoint().x - betArea.getMinX();
@@ -107,7 +106,7 @@ public class GamePanel extends JPanel implements IClientEvents {
                 // TODO Auto-generated method stub
                 self.grabFocus();
 
-                logger.log(Level.INFO,
+                logger.info(
                         String.format("Mouse info LOC %s Point %s", e.getLocationOnScreen(), e.getPoint()));
                 if (currentPhase == Phase.READY_CHECK) {
                     // get point is relative to source
@@ -127,7 +126,7 @@ public class GamePanel extends JPanel implements IClientEvents {
                             currentState = State.GUESS;
                         } else if (currentState == State.GUESS && currentGuess > 0) {
                             // TODO send bet/guess
-                            logger.log(Level.INFO, "Sending bet and guess");
+                            logger.info("Sending bet and guess");
                             try {
                                 Client.INSTANCE.sendBetAndGuess(currentBet, currentGuess);
                                 currentState = State.IDLE;
@@ -215,7 +214,7 @@ public class GamePanel extends JPanel implements IClientEvents {
 
     private void drawReadyCheck(Graphics2D g) {
         Dimension s = self.getSize();
-        // logger.log(Level.INFO, "Panel size: " + s);
+        // logger.info( "Panel size: " + s);
         readyButton.setRect(s.getWidth() * .1f, s.getHeight() * .5f, (s.getWidth() * .9f) - (s.getWidth() * .1f),
                 s.getHeight() * .2f);
         g.setColor(Color.WHITE);
@@ -241,22 +240,21 @@ public class GamePanel extends JPanel implements IClientEvents {
         int i = 1;
         g.setColor(Color.WHITE);
         synchronized (players) {
-            //sort players by matter high to low
+            // sort players by matter high to low
             List<Player> _players = new ArrayList<Player>(players.values());
-            _players.sort((a,b)->{
-                if(a.getMatter() == b.getMatter()){
+            _players.sort((a, b) -> {
+                if (a.getMatter() == b.getMatter()) {
                     return 0;
-                }
-                else if(a.getMatter() < b.getMatter()){
+                } else if (a.getMatter() < b.getMatter()) {
                     return 1;
                 }
                 return -1;
             });
-            ClientUtils.drawCenteredString("The Matter Ladder", 0,(int)(s.getHeight() * .025f),
-                        (int) s.getWidth(), 0, g);
+            ClientUtils.drawCenteredString("The Matter Ladder", 0, (int) (s.getHeight() * .025f),
+                    (int) s.getWidth(), 0, g);
             for (Player p : _players) {
                 int offset = (int) ((s.getHeight() * .025f) * (i + 1));
-                logger.log(Level.INFO, "Offset: " + offset + " size: " + s);
+                logger.info("Offset: " + offset + " size: " + s);
                 String toShow = String.format("%s has %s matter", p.getClientName(), p.getMatter());
                 ClientUtils.drawCenteredString(toShow, 0, offset,
                         (int) s.getWidth(), 0, g);
@@ -268,13 +266,13 @@ public class GamePanel extends JPanel implements IClientEvents {
     private void drawControls(Graphics2D g) {
         Dimension s = self.getSize();
         g.setColor(Color.WHITE);
-        //draggable area for betting/guessing
+        // draggable area for betting/guessing
         betArea.setRect(s.getWidth() * .1f, s.getHeight() * .7f, (s.getWidth() * .9f) - (s.getWidth() * .1f),
                 s.getHeight() * .05f);
         g.setFont(new Font("Monospaced", Font.PLAIN, 12));
         ClientUtils.drawCenteredString("Drag mouse here \nto choose value",
                 betArea.x, betArea.y, betArea.width, betArea.height, g);
-        //drawn button for confirming choices
+        // drawn button for confirming choices
         confirmButton.setRect(s.getWidth() * .2f, s.getHeight() * .8f, (s.getWidth() * .8f) - (s.getWidth() * .2f),
                 s.getHeight() * .1f);
         g.draw(betArea);
@@ -283,7 +281,7 @@ public class GamePanel extends JPanel implements IClientEvents {
         ClientUtils.drawCenteredString("Confirm",
                 confirmButton.x, confirmButton.y, confirmButton.width, confirmButton.height, g);
         g.draw(confirmButton);
-        //display to the user what they should do
+        // display to the user what they should do
         g.setColor(Color.WHITE);
         if (currentState == State.BET) {
             ClientUtils.drawCenteredString(String.format("Bet(1-%s): %s", maxBet, currentBet), confirmButton.x,
@@ -297,20 +295,20 @@ public class GamePanel extends JPanel implements IClientEvents {
     private synchronized void processClientConnectionStatus(long clientId, String clientName, boolean isConnect) {
         if (isConnect) {
             if (!players.containsKey(clientId)) {
-                logger.log(Level.INFO, String.format("Adding %s[%s]", clientName, clientId));
+                logger.info(String.format("Adding %s[%s]", clientName, clientId));
                 players.put(clientId, new Player(clientId, clientName));
             }
         } else {
             if (players.containsKey(clientId)) {
-                logger.log(Level.INFO, String.format("Removing %s[%s]", clientName, clientId));
+                logger.info(String.format("Removing %s[%s]", clientName, clientId));
                 players.remove(clientId);
             }
             if (clientId == myId) {
-                logger.log(Level.INFO, "I disconnected");
+                logger.info("I disconnected");
                 myId = Constants.DEFAULT_CLIENT_ID;
             }
         }
-        logger.log(Level.INFO, "Clients in room: " + players.size());
+        logger.info("Clients in room: " + players.size());
     }
 
     // Although we must implement all of these methods, not all of them may be
@@ -338,7 +336,7 @@ public class GamePanel extends JPanel implements IClientEvents {
         if (myId == Constants.DEFAULT_CLIENT_ID) {
             myId = id;
         } else {
-            logger.log(Level.WARNING, "Received client id after already being set, this shouldn't happen");
+            logger.warning("Received client id after already being set, this shouldn't happen");
         }
 
     }

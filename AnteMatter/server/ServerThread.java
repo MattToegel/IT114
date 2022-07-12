@@ -4,11 +4,10 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import AnteMatter.common.BGPayload;
 import AnteMatter.common.Constants;
+import AnteMatter.common.MyLogger;
 import AnteMatter.common.Payload;
 import AnteMatter.common.PayloadType;
 import AnteMatter.common.RoomResultPayload;
@@ -24,7 +23,7 @@ public class ServerThread extends Thread {
     // private Server server;// ref to our server so we can call methods on it
     // more easily
     private Room currentRoom;
-    private static Logger logger = Logger.getLogger(ServerThread.class.getName());
+    private static MyLogger logger = MyLogger.getLogger(ServerThread.class.getName());
     private long myId;
 
     public void setClientId(long id) {
@@ -83,26 +82,29 @@ public class ServerThread extends Thread {
     }
 
     // send methods
-    public boolean sendTurn(long clientId, long maxGuess){
+    public boolean sendTurn(long clientId, long maxGuess) {
         BGPayload p = new BGPayload();
         p.setPayloadType(PayloadType.TURN);
-        p.setClientId(clientId==Constants.DEFAULT_CLIENT_ID?myId:clientId);
+        p.setClientId(clientId == Constants.DEFAULT_CLIENT_ID ? myId : clientId);
         p.setGuess(maxGuess);
         return send(p);
     }
-    public boolean sendCurrentMatter(long clientId, long matter){
+
+    public boolean sendCurrentMatter(long clientId, long matter) {
         BGPayload p = new BGPayload();
         p.setPayloadType(PayloadType.MATTER);
         p.setBet(matter);
-        p.setClientId(clientId==Constants.DEFAULT_CLIENT_ID?myId:clientId);
+        p.setClientId(clientId == Constants.DEFAULT_CLIENT_ID ? myId : clientId);
         return send(p);
     }
-    public boolean sendReadyStatus(long clientId){
+
+    public boolean sendReadyStatus(long clientId) {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.READY);
         p.setClientId(clientId);
         return send(p);
     }
+
     public boolean sendRoomName(String name) {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.JOIN_ROOM);
@@ -113,8 +115,8 @@ public class ServerThread extends Thread {
     public boolean sendRoomsList(String[] rooms, String message) {
         RoomResultPayload payload = new RoomResultPayload();
         payload.setRooms(rooms);
-        //Fixed in Module7.Part9
-        if(message != null){
+        // Fixed in Module7.Part9
+        if (message != null) {
             payload.setMessage(message);
         }
         return send(payload);
@@ -162,9 +164,9 @@ public class ServerThread extends Thread {
         // added a boolean so we can see if the send was successful
         try {
             // TODO add logger
-            logger.log(Level.FINE, "Outgoing payload: " + payload);
+            logger.fine("Outgoing payload: " + payload);
             out.writeObject(payload);
-            logger.log(Level.INFO, "Sent payload: " + payload);
+            logger.info("Sent payload: " + payload);
             return true;
         } catch (IOException e) {
             info("Error sending message to client (most likely disconnected)");
@@ -220,7 +222,7 @@ public class ServerThread extends Thread {
                     currentRoom.sendMessage(this, p.getMessage());
                 } else {
                     // TODO migrate to lobby
-                    logger.log(Level.INFO, "Migrating to lobby on message with null room");
+                    logger.info("Migrating to lobby on message with null room");
                     Room.joinRoom("lobby", this);
                 }
                 break;
@@ -234,10 +236,10 @@ public class ServerThread extends Thread {
                 Room.joinRoom(p.getMessage().trim(), this);
                 break;
             case READY:
-                ((GameRoom)currentRoom).setReady(myId);
+                ((GameRoom) currentRoom).setReady(myId);
                 break;
-            case MATTER://guess and bet
-                ((GameRoom)currentRoom).setAnteAndGuess(myId, ((BGPayload)p).getBet(), ((BGPayload)p).getGuess());
+            case MATTER:// guess and bet
+                ((GameRoom) currentRoom).setAnteAndGuess(myId, ((BGPayload) p).getBet(), ((BGPayload) p).getGuess());
                 break;
             default:
                 break;

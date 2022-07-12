@@ -7,10 +7,9 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import AnteMatter.common.BGPayload;
+import AnteMatter.common.MyLogger;
 import AnteMatter.common.Payload;
 import AnteMatter.common.PayloadType;
 import AnteMatter.common.RoomResultPayload;
@@ -25,7 +24,7 @@ public enum Client {
     boolean isRunning = false;
     private Thread fromServerThread;
     private String clientName = "";
-    private static Logger logger = Logger.getLogger(Client.class.getName());
+    private static MyLogger logger = MyLogger.getLogger(Client.class.getName());
     private static List<IClientEvents> events = new ArrayList<IClientEvents>();
 
     public boolean isConnected() {
@@ -61,7 +60,7 @@ public enum Client {
             out = new ObjectOutputStream(server.getOutputStream());
             // channel to listen to server
             in = new ObjectInputStream(server.getInputStream());
-            logger.log(Level.INFO, "Client connected");
+            logger.info("Client connected");
             listenForServerMessage();
             sendConnect();
         } catch (UnknownHostException e) {
@@ -75,7 +74,7 @@ public enum Client {
     // Send methods TODO add other utility methods for sending here
     // NOTE: Can change this to protected or public if you plan to separate the
     // sendConnect action and the socket handshake
-    public void sendBetAndGuess(long bet, long guess) throws IOException, NullPointerException{
+    public void sendBetAndGuess(long bet, long guess) throws IOException, NullPointerException {
         BGPayload p = new BGPayload();
         p.setPayloadType(PayloadType.MATTER);
         p.setBet(bet);
@@ -83,6 +82,7 @@ public enum Client {
         send(p);
 
     }
+
     public void sendReady() throws IOException, NullPointerException {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.READY);
@@ -133,9 +133,9 @@ public enum Client {
 
     // keep this private as utility methods should be the only Payload creators
     private void send(Payload p) throws IOException, NullPointerException {
-        logger.log(Level.FINE, "Sending Payload: " + p);
+        logger.fine("Sending Payload: " + p);
         out.writeObject(p);// TODO force throw each
-        logger.log(Level.INFO, "Sent Payload: " + p);
+        logger.info("Sent Payload: " + p);
     }
 
     // end send methods
@@ -146,7 +146,7 @@ public enum Client {
             public void run() {
                 try {
                     Payload fromServer;
-                    logger.log(Level.INFO, "Listening for server messages");
+                    logger.info("Listening for server messages");
                     // while we're connected, listen for strings from server
                     while (!server.isClosed() && !server.isInputShutdown()
                             && (fromServer = (Payload) in.readObject()) != null) {
@@ -173,9 +173,9 @@ public enum Client {
     }
 
     private void processPayload(Payload p) {
-        logger.log(Level.FINE, "Received Payload: " + p);
+        logger.fine("Received Payload: " + p);
         if (events == null && events.size() == 0) {
-            logger.log(Level.FINER, "Events not initialize/set" + p);
+            logger.fine("Events not initialize/set" + p);
             return;
         }
         // TODO handle NPE
@@ -208,13 +208,13 @@ public enum Client {
                 events.forEach(e -> e.onReceiveReady(p.getClientId()));
                 break;
             case MATTER:
-                events.forEach(e -> e.onReceiveMatterUpdate(p.getClientId(), ((BGPayload)p).getBet()));
+                events.forEach(e -> e.onReceiveMatterUpdate(p.getClientId(), ((BGPayload) p).getBet()));
                 break;
             case TURN:
-                events.forEach(e -> e.onReceiveTurn(p.getClientId(), ((BGPayload)p).getGuess()));
+                events.forEach(e -> e.onReceiveTurn(p.getClientId(), ((BGPayload) p).getGuess()));
                 break;
             default:
-                logger.log(Level.WARNING, "Unhandled payload type");
+                logger.warning("Unhandled payload type");
                 break;
 
         }
