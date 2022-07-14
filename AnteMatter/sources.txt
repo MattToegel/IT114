@@ -14,7 +14,9 @@
 ./client/views/UserListPanel.java
 ./common/BGPayload.java
 ./common/Constants.java
+./common/Countdown.java
 ./common/GeneralUtils.java
+./common/MyLogger.java
 ./common/Payload.java
 ./common/PayloadType.java
 ./common/Phase.java

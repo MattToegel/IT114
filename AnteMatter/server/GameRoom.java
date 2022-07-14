@@ -6,6 +6,7 @@ import java.util.Iterator;
 import java.util.List;
 
 import AnteMatter.common.Constants;
+import AnteMatter.common.Countdown;
 import AnteMatter.common.MyLogger;
 import AnteMatter.common.Player;
 
@@ -18,6 +19,7 @@ public class GameRoom extends Room {
 
     private List<Player> players = Collections.synchronizedList(new ArrayList<Player>());
     private long currentPlayer = Constants.DEFAULT_CLIENT_ID;
+    private Countdown turnTimer;
 
     public GameRoom(String name) {
         super(name);
@@ -43,7 +45,7 @@ public class GameRoom extends Room {
 
     @Override
     protected void checkClients() {
-        if (!getName().equalsIgnoreCase("lobby") && players.size() == 0) {
+        if (!getName().equalsIgnoreCase(Constants.LOBBY) && players.size() == 0) {
             close();
         }
     }
@@ -155,6 +157,9 @@ public class GameRoom extends Room {
                     if (round == 1) {
                         p.setMatter(Constants.STARTING_MATTER);
                     }
+                    boolean isOut = p.getMatter() <= 0;
+                    p.setIsOut(isOut);
+
                     // should be 0-10 per player
                     // Using min() is correct logic if each round is guaranteed a winner
                     // using current matter lets rounds roll over if there's not a winner
@@ -189,13 +194,22 @@ public class GameRoom extends Room {
     public void setAnteAndGuess(long clientId, long ante, long guess) {
         // https://www.baeldung.com/find-list-element-java#5-java-8-stream-api
         Player p = players.stream().filter(player -> player.getClientId() == clientId).findFirst().orElse(null);
-        if (p != null && p.isReady() && !p.hasGuess() && clientId == currentPlayer) {
+        logger.info("setAnteAndGuess player: " + p + " "
+                + String.format("Is current player: %s", clientId == currentPlayer));
+        if (turnTimer != null) {
+            turnTimer.cancel();
+        }
+        if (p != null && p.isReady() && !p.hasGuess() && clientId == currentPlayer && !p.isOut()
+                && ante <= p.getMatter()) {
+            logger.info("Valid ante/guess");
             p.setAnte(ante);// record round bet
             p.setGuess(guess);// record round guess
             p.modifyMatter(-ante);// deduct ante (will broadcast beginning of next round)
             sendMessage(null, p.getClientName() + " placed their ante and guess");
-            checkAntes();
+        } else {
+            logger.info("Invalid ante/guess");
         }
+        checkAntes();
     }
 
     private void checkAntes() {
@@ -208,7 +222,9 @@ public class GameRoom extends Room {
             while (iter.hasNext()) {
                 Player player = iter.next();
                 if (player != null && player.isReady()) {
-                    total++;
+                    if (!player.isOut()) {
+                        total++;
+                    }
                     if (player.hasGuess() && player.getAnte() > 0) {
                         anted++;
                         pendingMatter += player.getAnte();
@@ -216,6 +232,7 @@ public class GameRoom extends Room {
                 }
             }
         }
+        logger.info(String.format("Ante Check ante/total %s/%s", anted, total));
         if (anted >= total) {
             actualMatter += pendingMatter;
 
@@ -261,9 +278,49 @@ public class GameRoom extends Room {
                 }
             }
             resetReward();
+
+        }
+        List<Player> availablePlayers = getAvailablePlayers(Constants.DEFAULT_CLIENT_ID);
+        if (availablePlayers.size() <= 1) {
+            gameOver();
+            return;// don't go to next round
         }
         nextRound();
 
+    }
+
+    private synchronized List<Player> getAvailablePlayers(long clientId) {
+        synchronized (players) {
+            List<Player> availablePlayers = players.stream().filter(player -> {
+                return (player.isReady() && player.getMatter() > 0) || player.getClientId() == clientId;
+            }).toList();
+            return availablePlayers;
+        }
+    }
+
+    private void gameOver() {
+        logger.info("Game Over, sorting players");
+        // sort to get winner
+        players.sort((a, b) -> {
+            if (a.getMatter() == b.getMatter()) {
+                return 0;
+            } else if (a.getMatter() < b.getMatter()) {
+                return 1;
+            }
+            return -1;
+        });
+        logger.info("Last Matter sync up");
+        // last sync up of matter
+        synchronized (players) {
+            for (int i = players.size() - 1; i >= 0; i--) {
+                Player player = players.get(i);
+                broadcastMatter(player);
+            }
+        }
+        Player winner = players.get(0);
+        logger.info("Winner: " + winner);
+        sendWinner(winner.getClientId());
+        currentPlayer = Constants.DEFAULT_CLIENT_ID;
     }
 
     /**
@@ -273,31 +330,42 @@ public class GameRoom extends Room {
      */
     private void nextPlayer() {
         logger.info("Moving to next player");
+        List<Player> availablePlayers = getAvailablePlayers(currentPlayer);
         Player p;
         if (currentPlayer == Constants.DEFAULT_CLIENT_ID) {
-            // fresh game, shuffle players and choose first player
-
-            p = players.get(0);
+            p = availablePlayers.get(0);
             currentPlayer = p.getClientId();
         } else {
-            // TODO: Future lesson: skip players who have nothing more to ante/bet;
-            // determine winner if just 1 remains
             // find the current player's index and move to the next person
-            p = players.stream().filter(player -> player.getClientId() == currentPlayer).findFirst()
+            p = availablePlayers.stream().filter(player -> player.getClientId() == currentPlayer).findFirst()
                     .orElse(null);
-            int index = players.indexOf(p);
+            int index = availablePlayers.indexOf(p);
             if (index > -1) {
                 index++;
                 // loop the index over if we go out of bounds
-                if (index >= players.size()) {
+                if (index >= availablePlayers.size()) {
                     index = 0;
                 }
-                p = players.get(index);
+                p = availablePlayers.get(index);
                 currentPlayer = p.getClientId();
 
+            } else {
+                gameOver();
+                return;
             }
         }
         sendTurn(currentPlayer, estMaxRoundMatter);
+        if (turnTimer != null) {
+            turnTimer.cancel();
+        }
+        turnTimer = new Countdown("Turn expires", 30);
+        turnTimer.setExpireCallback(() -> {
+
+            sendMessage(null, "Turned skipped, auto ante for player");
+            setAnteAndGuess(currentPlayer, 1, 1);
+            // nextPlayer();
+        });
+
     }
 
     /**
@@ -317,6 +385,52 @@ public class GameRoom extends Room {
                     handleDisconnect(null, player.getClient());
                 }
             }
+        }
+    }
+
+    private void sendWinner(long winner) {
+        logger.info("Sending winner data");
+        synchronized (players) {
+            for (int i = players.size() - 1; i >= 0; i--) {
+                Player player = players.get(i);
+                boolean messageSent = player.getClient().sendWinner(winner);
+                if (!messageSent) {
+                    players.remove(i);
+                    handleDisconnect(null, player.getClient());
+                }
+            }
+        }
+    }
+
+    public void restartSession() {
+        if (currentPlayer == Constants.DEFAULT_CLIENT_ID && round > 0) {
+            round = 0;
+            synchronized (players) {
+                for (int i = players.size() - 1; i >= 0; i--) {
+                    Player player = players.get(i);
+                    player.setIsReady(false);
+                    boolean messageSent = player.getClient().sendRestartNotice();
+                    if (!messageSent) {
+                        players.remove(i);
+                        handleDisconnect(null, player.getClient());
+                    }
+                }
+            }
+            if (turnTimer != null) {
+                turnTimer.cancel();
+            }
+            turnTimer = new Countdown("Restart", 30);
+            turnTimer.setExpireCallback(() -> {
+                sendMessage(null, "Commence Ready Check.");
+            });
+        }
+    }
+
+    @Override
+    public void close() {
+        super.close();
+        if (turnTimer != null) {
+            turnTimer.cancel();
         }
     }
 }

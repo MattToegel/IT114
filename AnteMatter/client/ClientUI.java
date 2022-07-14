@@ -286,4 +286,20 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
             chatPanel.addText(String.format("It's %s's turn", clientName));
         }
     }
+
+    @Override
+    public void onReceiveWinner(long clientId) {
+        if (currentCard.ordinal() >= Card.CHAT.ordinal()) {
+            String clientName = mapClientId(clientId);
+            chatPanel.addText(String.format("%s won!", clientName));
+        }
+        
+    }
+
+    @Override
+    public void onReceiveRestart() {
+        if (currentCard.ordinal() >= Card.CHAT.ordinal()) {
+            chatPanel.addText("Game will be restarting soon.");
+        }
+    }
 }

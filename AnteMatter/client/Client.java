@@ -74,6 +74,12 @@ public enum Client {
     // Send methods TODO add other utility methods for sending here
     // NOTE: Can change this to protected or public if you plan to separate the
     // sendConnect action and the socket handshake
+    public void sendRestartRequest() throws IOException, NullPointerException {
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.RESTART);
+        send(p);
+    }
+
     public void sendBetAndGuess(long bet, long guess) throws IOException, NullPointerException {
         BGPayload p = new BGPayload();
         p.setPayloadType(PayloadType.MATTER);
@@ -212,6 +218,12 @@ public enum Client {
                 break;
             case TURN:
                 events.forEach(e -> e.onReceiveTurn(p.getClientId(), ((BGPayload) p).getGuess()));
+                break;
+            case GAME_OVER:
+                events.forEach(e -> e.onReceiveWinner(p.getClientId()));
+                break;
+            case RESTART:
+                events.forEach(e -> e.onReceiveRestart());
                 break;
             default:
                 logger.warning("Unhandled payload type");

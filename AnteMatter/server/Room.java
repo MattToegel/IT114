@@ -73,7 +73,7 @@ public class Room implements AutoCloseable {
 	 */
 	protected void checkClients() {
 		// Cleanup if room is empty and not lobby
-		if (!name.equalsIgnoreCase("lobby") && clients.size() == 0) {
+		if (!name.equalsIgnoreCase(Constants.LOBBY) && clients.size() == 0) {
 			close();
 		}
 	}
@@ -241,6 +241,7 @@ public class Room implements AutoCloseable {
 	}
 
 	public void close() {
+		logger.info(getName() + " closing");
 		Server.INSTANCE.removeRoom(this);
 		isRunning = false;
 		clients = null;

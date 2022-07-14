@@ -1,8 +1,11 @@
 package AnteMatter.client.views;
 
+import java.awt.Adjustable;
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.event.AdjustmentEvent;
+import java.awt.event.AdjustmentListener;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.ContainerEvent;
@@ -41,7 +44,7 @@ public class ChatPanel extends JPanel {
         JPanel content = new JPanel();
         content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
         content.setAlignmentY(Component.BOTTOM_ALIGNMENT);
-
+        
         // wraps a viewport to provide scroll capabilities
         JScrollPane scroll = new JScrollPane(content);
         scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
@@ -108,8 +111,30 @@ public class ChatPanel extends JPanel {
             @Override
             public void componentAdded(ContainerEvent e) {
                 if (chatArea.isVisible()) {
+                    // scroll down on new message
+                    
                     chatArea.revalidate();
                     chatArea.repaint();
+                    /**
+                     * Note: with the setValue(maxValue) it seemed to have a gap.
+                     * The gap would cut off the last message.
+                     * The updated logic below from https://stackoverflow.com/a/34086741
+                     * solves this.
+                     */
+                    JScrollBar vertical = ((JScrollPane) chatArea.getParent().getParent()).getVerticalScrollBar();
+                    AdjustmentListener scroller = new AdjustmentListener() {
+                        @Override
+                        public void adjustmentValueChanged(AdjustmentEvent e) {
+                            Adjustable adjustable = e.getAdjustable();
+                            adjustable.setValue(vertical.getMaximum());
+                            // We have to remove the listener, otherwise the
+                            // user would be unable to scroll afterwards
+                            vertical.removeAdjustmentListener(this);
+                        }
+
+                    };
+                    vertical.addAdjustmentListener(scroller);
+                    
                 }
             }
 
@@ -164,9 +189,14 @@ public class ChatPanel extends JPanel {
             userListPanel.revalidate();
             userListPanel.repaint();
             w = (int) Math.ceil(frameSize.getWidth() * .7f);
-            chatArea.setPreferredSize(new Dimension(w, (int) frameSize.getHeight()));
+            //preferred size was preventing it from growing with its children
+            //chatArea.setPreferredSize(new Dimension(w, (int) Short.MAX_VALUE));
+            chatArea.setMinimumSize(new Dimension(w, (int) frameSize.getHeight()));
             userListPanel.resizeUserListItems();
             resizeMessages();
+            // scroll down on new message
+            JScrollBar vertical = ((JScrollPane) chatArea.getParent().getParent()).getVerticalScrollBar();
+            vertical.setValue(vertical.getMaximum());
         }
     }
 
@@ -211,8 +241,6 @@ public class ChatPanel extends JPanel {
         ClientUtils.clearBackground(textContainer);
         // add to container and tell the layout to revalidate
         content.add(textContainer);
-        // scroll down on new message
-        JScrollBar vertical = ((JScrollPane) chatArea.getParent().getParent()).getVerticalScrollBar();
-        vertical.setValue(vertical.getMaximum());
+        
     }
 }

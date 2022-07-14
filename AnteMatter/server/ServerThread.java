@@ -82,6 +82,18 @@ public class ServerThread extends Thread {
     }
 
     // send methods
+    public boolean sendRestartNotice(){
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.RESTART);
+        return send(p);
+    }
+    public boolean sendWinner(long clientId) {
+        Payload p = new Payload();
+        p.setClientId(clientId);
+        p.setPayloadType(PayloadType.GAME_OVER);
+        return send(p);
+    }
+
     public boolean sendTurn(long clientId, long maxGuess) {
         BGPayload p = new BGPayload();
         p.setPayloadType(PayloadType.TURN);
@@ -223,7 +235,7 @@ public class ServerThread extends Thread {
                 } else {
                     // TODO migrate to lobby
                     logger.info("Migrating to lobby on message with null room");
-                    Room.joinRoom("lobby", this);
+                    Room.joinRoom(Constants.LOBBY, this);
                 }
                 break;
             case GET_ROOMS:
@@ -240,6 +252,9 @@ public class ServerThread extends Thread {
                 break;
             case MATTER:// guess and bet
                 ((GameRoom) currentRoom).setAnteAndGuess(myId, ((BGPayload) p).getBet(), ((BGPayload) p).getGuess());
+                break;
+            case RESTART:
+                ((GameRoom) currentRoom).restartSession();
                 break;
             default:
                 break;

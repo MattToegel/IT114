@@ -30,6 +30,8 @@ hs_err_pid*
 #############################
 config.*
 *.log
+*.log*
+logs
 *.conf
 
 .vscode
