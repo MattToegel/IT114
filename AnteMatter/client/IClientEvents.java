@@ -77,4 +77,14 @@ public interface IClientEvents {
      * @param clientId
      */
     void onReceiveTurn(long clientId, long maxGuess);
+    /**
+     * Receives the id of the winner
+     * @param clientId
+     */
+    void onReceiveWinner(long clientId);
+
+    /**
+     * Receives a restart notice from the server
+     */
+    void onReceiveRestart();
 }

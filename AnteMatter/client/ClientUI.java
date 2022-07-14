@@ -11,8 +11,6 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.IOException;
 import java.util.Hashtable;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import javax.swing.JFrame;
 import javax.swing.JMenuBar;
@@ -26,12 +24,13 @@ import AnteMatter.client.views.Menu;
 import AnteMatter.client.views.RoomsPanel;
 import AnteMatter.client.views.UserInputPanel;
 import AnteMatter.common.Constants;
+import AnteMatter.common.MyLogger;
 
 public class ClientUI extends JFrame implements IClientEvents, ICardControls {
     CardLayout card = null;// accessible so we can call next() and previous()
     Container container;// accessible to be passed to card methods
     String originalTitle = null;
-    private static Logger logger = Logger.getLogger(ClientUI.class.getName());
+    private static MyLogger logger = MyLogger.getLogger(ClientUI.class.getName());
     private JPanel currentCardPanel = null;
     private Card currentCard = Card.CONNECT;
 
@@ -80,10 +79,9 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
         chatPanel = new ChatPanel(this);
         roomsPanel = new RoomsPanel(this);
         gamePanel = new GamePanel();
-        gamePanel.setPreferredSize(new Dimension((int)(this.getWidth()*.5), (int)this.getHeight()));
-        chatPanel.add(gamePanel,BorderLayout.WEST);
+        gamePanel.setPreferredSize(new Dimension((int) (this.getWidth() * .5), (int) this.getHeight()));
+        chatPanel.add(gamePanel, BorderLayout.WEST);
 
-        
         // https://stackoverflow.com/a/9093526
         // this tells the x button what to do (updated to be controlled via a prompt)
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
@@ -180,18 +178,18 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
     private synchronized void processClientConnectionStatus(long clientId, String clientName, boolean isConnect) {
         if (isConnect) {
             if (!userList.containsKey(clientId)) {
-                logger.log(Level.INFO, String.format("Adding %s[%s]", clientName, clientId));
+                logger.info(String.format("Adding %s[%s]", clientName, clientId));
                 userList.put(clientId, clientName);
                 chatPanel.addUserListItem(clientId, String.format("%s (%s)", clientName, clientId));
             }
         } else {
             if (userList.containsKey(clientId)) {
-                logger.log(Level.INFO, String.format("Removing %s[%s]", clientName, clientId));
+                logger.info(String.format("Removing %s[%s]", clientName, clientId));
                 userList.remove(clientId);
                 chatPanel.removeUserListItem(clientId);
             }
             if (clientId == myId) {
-                logger.log(Level.INFO, "I disconnected");
+                logger.info("I disconnected");
                 myId = Constants.DEFAULT_CLIENT_ID;
                 previous();
             }
@@ -229,7 +227,7 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
             gamePanel.setVisible(false);
             show(Card.CHAT.name());
         } else {
-            logger.log(Level.WARNING, "Received client id after already being set, this shouldn't happen");
+            logger.warning("Received client id after already being set, this shouldn't happen");
         }
     }
 
@@ -266,11 +264,11 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
         }
     }
 
-	@Override
-	public void onReceiveReady(long clientId) {
-		// TODO Auto-generated method stub
-		
-	}
+    @Override
+    public void onReceiveReady(long clientId) {
+        // TODO Auto-generated method stub
+
+    }
 
     @Override
     public void onReceiveMatterUpdate(long clientId, long currentMatter) {
@@ -278,7 +276,7 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
             String clientName = mapClientId(clientId);
             chatPanel.addText(String.format("%s's current matter is %s", clientName, currentMatter));
         }
-        
+
     }
 
     @Override
@@ -286,6 +284,22 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
         if (currentCard.ordinal() >= Card.CHAT.ordinal()) {
             String clientName = mapClientId(clientId);
             chatPanel.addText(String.format("It's %s's turn", clientName));
+        }
+    }
+
+    @Override
+    public void onReceiveWinner(long clientId) {
+        if (currentCard.ordinal() >= Card.CHAT.ordinal()) {
+            String clientName = mapClientId(clientId);
+            chatPanel.addText(String.format("%s won!", clientName));
+        }
+        
+    }
+
+    @Override
+    public void onReceiveRestart() {
+        if (currentCard.ordinal() >= Card.CHAT.ordinal()) {
+            chatPanel.addText("Game will be restarting soon.");
         }
     }
 }

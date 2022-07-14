@@ -9,6 +9,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 
+import AnteMatter.common.Constants;
+
 public enum Server {
     INSTANCE;
 
@@ -32,7 +34,7 @@ public enum Server {
             isRunning = true;
             startQueueManager();
             // create a lobby on start
-            lobby = new Room("Lobby");
+            lobby = new Room(Constants.LOBBY);
             rooms.add(lobby);
             do {
                 System.out.println("waiting for next client");
@@ -92,7 +94,7 @@ public enum Server {
         if (nextClientId < 0) {// will use overflow to reset our counter
             nextClientId = 1;
         }
-        joinRoom("lobby", client);
+        joinRoom(Constants.LOBBY, client);
     }
 
     /***
@@ -119,7 +121,7 @@ public enum Server {
      * @return true if reassign worked; false if new room doesn't exist
      */
     protected synchronized boolean joinRoom(String roomName, ServerThread client) {
-        Room newRoom = roomName.equalsIgnoreCase("lobby") ? lobby : getRoom(roomName);
+        Room newRoom = roomName.equalsIgnoreCase(Constants.LOBBY) ? lobby : getRoom(roomName);
         Room oldRoom = client.getCurrentRoom();
         if (newRoom != null) {
             if (oldRoom != null && oldRoom != newRoom) {

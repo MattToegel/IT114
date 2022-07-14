@@ -9,8 +9,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
@@ -22,13 +20,14 @@ import javax.swing.ScrollPaneConstants;
 
 import AnteMatter.client.Client;
 import AnteMatter.client.ICardControls;
+import AnteMatter.common.MyLogger;
 import AnteMatter.client.Card;
 
 public class RoomsPanel extends JPanel {
     JPanel container;
     List<RoomListItem> rooms = new ArrayList<RoomListItem>();
     JLabel message;
-    private static Logger logger = Logger.getLogger(RoomsPanel.class.getName());
+    private static MyLogger logger = MyLogger.getLogger(RoomsPanel.class.getName());
 
     public RoomsPanel(ICardControls controls) {
         super(new BorderLayout(10, 10));
@@ -54,7 +53,7 @@ public class RoomsPanel extends JPanel {
         JTextField searchValue = new JTextField();
         JButton searchButton = new JButton("Search");
         message = new JLabel("", 0);
-        JPanel messageContainer = new JPanel();//wrapper to help fix alignment
+        JPanel messageContainer = new JPanel();// wrapper to help fix alignment
         searchButton.addActionListener((event) -> {
             try {
                 String query = searchValue.getText().trim();
@@ -101,7 +100,7 @@ public class RoomsPanel extends JPanel {
                 message.setText("Not connected");
             } catch (IOException e) {
                 // TODO Auto-generated catch block
-                logger.log(Level.WARNING, "Not connected");
+                logger.warning("Not connected");
                 e.printStackTrace();
                 message.setText("Error sending request: " + e.getMessage());
             }
