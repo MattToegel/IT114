@@ -295,4 +295,11 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
         // TODO Auto-generated method stub
 
     }
+
+    @Override
+    public void onReceiveProjectileSync(long clientId, long projectileId, Vector2 position, Vector2 heading, long life,
+            int speed) {
+        // TODO Auto-generated method stub
+        
+    }
 }

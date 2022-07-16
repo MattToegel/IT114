@@ -13,6 +13,7 @@
 ./client/views/UserInputPanel.java
 ./client/views/UserListPanel.java
 ./common/Constants.java
+./common/Countdown.java
 ./common/GeneralUtils.java
 ./common/MyLogger.java
 ./common/Payload.java
@@ -20,10 +21,15 @@
 ./common/Phase.java
 ./common/Player.java
 ./common/PRHPayload.java
+./common/Projectile.java
+./common/ProjectilePayload.java
+./common/ProjectilePool.java
 ./common/RoomResultPayload.java
+./common/Shooter.java
 ./common/Throttle.java
 ./common/Vector2.java
 ./server/GameRoom.java
+./server/HitData.java
 ./server/Room.java
 ./server/Server.java
 ./server/ServerThread.java

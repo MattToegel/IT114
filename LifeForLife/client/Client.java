@@ -12,6 +12,7 @@ import LifeForLife.common.MyLogger;
 import LifeForLife.common.PRHPayload;
 import LifeForLife.common.Payload;
 import LifeForLife.common.PayloadType;
+import LifeForLife.common.ProjectilePayload;
 import LifeForLife.common.RoomResultPayload;
 import LifeForLife.common.Vector2;
 
@@ -73,6 +74,12 @@ public enum Client {
         return isConnected();
     }
 
+    public void sendShoot() throws IOException, NullPointerException {
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.SHOOT);
+        send(p);
+    }
+
     public void sendHeadingAndRotation(Vector2 heading, float rotation) throws IOException, NullPointerException {
         PRHPayload p = new PRHPayload();
         p.setHeading(heading);
@@ -132,10 +139,12 @@ public enum Client {
     }
 
     // keep this private as utility methods should be the only Payload creators
-    private void send(Payload p) throws IOException, NullPointerException {
-        logger.fine("Sending Payload: " + p);
-        out.writeObject(p);// TODO force throw each
-        logger.fine("Sent Payload: " + p);
+    private synchronized void send(Payload p) throws IOException, NullPointerException {
+        // logger.fine("Sending Payload: " + p);
+        synchronized (out) {
+            out.writeObject(p);// TODO force throw each
+        }
+        // logger.fine("Sent Payload: " + p);
     }
 
     // end send methods
@@ -155,17 +164,17 @@ public enum Client {
                         processPayload(fromServer);
 
                     }
-                    System.out.println("Loop exited");
+                    logger.info("Loop exited");
                 } catch (Exception e) {
                     e.printStackTrace();
                     if (!server.isClosed()) {
-                        System.out.println("Server closed connection");
+                        logger.info("Server closed connection");
                     } else {
-                        System.out.println("Connection closed");
+                        logger.info("Connection closed");
                     }
                 } finally {
                     close();
-                    System.out.println("Stopped listening to server input");
+                    logger.info("Stopped listening to server input");
                 }
             }
         };
@@ -179,6 +188,10 @@ public enum Client {
             return;
         }
         // TODO handle NPE
+        if (p == null) {
+            logger.severe("Payload is null!");
+            return;
+        }
         switch (p.getPayloadType()) {
             case CONNECT:
                 events.forEach(e -> e.onClientConnect(p.getClientId(), p.getClientName(), p.getMessage()));
@@ -219,6 +232,12 @@ public enum Client {
                         ((PRHPayload) p).getPosition(),
                         ((PRHPayload) p).getHeading(),
                         ((PRHPayload) p).getRotation()));
+                break;
+            case SYNC_PROJECTILE:
+                ProjectilePayload pp = (ProjectilePayload) p;
+                // logger.info("Projectile position: " + pp.getPosition());
+                events.forEach(e -> e.onReceiveProjectileSync(pp.getClientId(), pp.getProjectileId(),
+                        pp.getPosition(), pp.getHeading(), pp.getLife(), pp.getSpeed()));
                 break;
             default:
                 logger.warning("Unhandled payload type");

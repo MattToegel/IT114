@@ -10,6 +10,7 @@ import LifeForLife.common.MyLogger;
 import LifeForLife.common.PRHPayload;
 import LifeForLife.common.Payload;
 import LifeForLife.common.PayloadType;
+import LifeForLife.common.ProjectilePayload;
 import LifeForLife.common.RoomResultPayload;
 import LifeForLife.common.Vector2;
 
@@ -24,7 +25,8 @@ public class ServerThread extends Thread {
     // private Server server;// ref to our server so we can call methods on it
     // more easily
     private Room currentRoom;
-    //private static Logger logger = Logger.getLogger(ServerThread.class.getName());
+    // private static Logger logger =
+    // Logger.getLogger(ServerThread.class.getName());
     private static MyLogger logger = MyLogger.getLogger(ServerThread.class.getName());
     private long myId;
 
@@ -84,15 +86,29 @@ public class ServerThread extends Thread {
     }
 
     // send methods
+    public boolean sendProjectileSync(long clientId, long projectileId, Vector2 position, Vector2 heading, long life,
+            int speed) {
+        ProjectilePayload p = new ProjectilePayload();
+        p.setPayloadType(PayloadType.SYNC_PROJECTILE);
+        p.setClientId(clientId);
+        p.setProjectileId(projectileId);
+        p.setPosition(position);
+        p.setHeading(heading);
+        p.setLife(life);
+        p.setSpeed(speed);
+        return send(p);
+    }
+
     /**
      * Sends position, rotation, and heading
+     * 
      * @param clientId
      * @param position where the player is
-     * @param heading direction they're moving
+     * @param heading  direction they're moving
      * @param rotation direction they're facing
      * @return
      */
-    public boolean sendPRH(long clientId, Vector2 position, Vector2 heading, float rotation){
+    public boolean sendPRH(long clientId, Vector2 position, Vector2 heading, float rotation) {
         PRHPayload p = new PRHPayload();
         p.setClientId(clientId);
         p.setPosition(position);
@@ -100,24 +116,28 @@ public class ServerThread extends Thread {
         p.setRotation(rotation);
         return send(p);
     }
-    public boolean sendStart(){
+
+    public boolean sendStart() {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.START);
         return send(p);
     }
-    public boolean sendCurrentLife(long clientId, long life){
+
+    public boolean sendCurrentLife(long clientId, long life) {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.LIFE);
         p.setNumber(life);
-        p.setClientId(clientId==Constants.DEFAULT_CLIENT_ID?myId:clientId);
+        p.setClientId(clientId == Constants.DEFAULT_CLIENT_ID ? myId : clientId);
         return send(p);
     }
-    public boolean sendReadyStatus(long clientId){
+
+    public boolean sendReadyStatus(long clientId) {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.READY);
         p.setClientId(clientId);
         return send(p);
     }
+
     public boolean sendRoomName(String name) {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.JOIN_ROOM);
@@ -128,8 +148,8 @@ public class ServerThread extends Thread {
     public boolean sendRoomsList(String[] rooms, String message) {
         RoomResultPayload payload = new RoomResultPayload();
         payload.setRooms(rooms);
-        //Fixed in Module7.Part9
-        if(message != null){
+        // Fixed in Module7.Part9
+        if (message != null) {
             payload.setMessage(message);
         }
         return send(payload);
@@ -173,13 +193,15 @@ public class ServerThread extends Thread {
         return send(p);
     }
 
-    private boolean send(Payload payload) {
+    private synchronized boolean send(Payload payload) {
         // added a boolean so we can see if the send was successful
         try {
             // TODO add logger
-            logger.fine( "Outgoing payload: " + payload);
-            out.writeObject(payload);
-            logger.fine( "Sent payload: " + payload);
+            synchronized (out) {
+                logger.fine("Outgoing payload: " + payload);
+                out.writeObject(payload);
+                logger.fine("Sent payload: " + payload);
+            }
             return true;
         } catch (IOException e) {
             info("Error sending message to client (most likely disconnected)");
@@ -201,16 +223,18 @@ public class ServerThread extends Thread {
                 ObjectInputStream in = new ObjectInputStream(client.getInputStream());) {
             this.out = out;
             isRunning = true;
-            Payload fromClient;
-            while (isRunning && // flag to let us easily control the loop
-                    (fromClient = (Payload) in.readObject()) != null // reads an object from inputStream (null would
-                                                                     // likely mean a disconnect)
-            ) {
+            Payload fromClient = new Payload();
+            synchronized (in) {
+                while (isRunning && // flag to let us easily control the loop
+                        (fromClient = (Payload) in.readObject()) != null // reads an object from inputStream (null would
+                                                                         // likely mean a disconnect)
+                ) {
 
-                logger.fine("Received from client: " + fromClient);
-                processPayload(fromClient);
+                    logger.fine("Received from client: " + fromClient);
+                    processPayload(fromClient);
 
-            } // close while loop
+                }
+            }
         } catch (Exception e) {
             // happens when client disconnects
             e.printStackTrace();
@@ -235,8 +259,8 @@ public class ServerThread extends Thread {
                     currentRoom.sendMessage(this, p.getMessage());
                 } else {
                     // TODO migrate to lobby
-                    logger.info( "Migrating to lobby on message with null room");
-                    Room.joinRoom("lobby", this);
+                    logger.info("Migrating to lobby on message with null room");
+                    Room.joinRoom(Constants.LOBBY, this);
                 }
                 break;
             case GET_ROOMS:
@@ -249,11 +273,14 @@ public class ServerThread extends Thread {
                 Room.joinRoom(p.getMessage().trim(), this);
                 break;
             case READY:
-                ((GameRoom)currentRoom).setReady(myId);
+                ((GameRoom) currentRoom).setReady(myId);
                 break;
             case SYNC_POSITION_ROTATION:
-                PRHPayload p2 = (PRHPayload)p;
-                ((GameRoom)currentRoom).setPlayerHeadingAndRotation(myId, p2.getHeading(), p2.getRotation());
+                PRHPayload p2 = (PRHPayload) p;
+                ((GameRoom) currentRoom).setPlayerHeadingAndRotation(myId, p2.getHeading(), p2.getRotation());
+                break;
+            case SHOOT:
+                ((GameRoom) currentRoom).triggerPlayerShoot(myId);
                 break;
             default:
                 break;
