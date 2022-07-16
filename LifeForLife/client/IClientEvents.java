@@ -93,4 +93,14 @@ public interface IClientEvents {
      * @param rotation
      */
     void onReceivePositionAndRotation(long clientId, Vector2 position, Vector2 heading, float rotation);
+    /**
+     * Receives projectile updates to add/update on the client-side
+     * @param clientId
+     * @param projectileId
+     * @param position
+     * @param heading
+     * @param life
+     * @param speed
+     */
+    void onReceiveProjectileSync(long clientId, long projectileId, Vector2 position, Vector2 heading, long life, int speed);
 }

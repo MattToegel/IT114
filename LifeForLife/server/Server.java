@@ -9,6 +9,9 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 
+import LifeForLife.common.Constants;
+import LifeForLife.common.MyLogger;
+
 public enum Server {
     INSTANCE;
 
@@ -22,6 +25,7 @@ public enum Server {
     private Queue<ServerThread> incomingClients = new LinkedList<ServerThread>();
     // https://www.geeksforgeeks.org/killing-threads-in-java/
     private volatile boolean isRunning = false;
+    private static MyLogger logger = MyLogger.getLogger(Server.class.getName());
 
     private void start(int port) {
         this.port = port;
@@ -32,7 +36,7 @@ public enum Server {
             isRunning = true;
             startQueueManager();
             // create a lobby on start
-            lobby = new Room("Lobby");
+            lobby = new Room(Constants.LOBBY);
             rooms.add(lobby);
             do {
                 System.out.println("waiting for next client");
@@ -86,13 +90,14 @@ public enum Server {
     }
 
     void handleIncomingClient(ServerThread client) {
+        logger.info("Handling incoming client");
         client.setClientId(nextClientId);// server reference
         client.sendClientId(nextClientId);// client reference
         nextClientId++;
         if (nextClientId < 0) {// will use overflow to reset our counter
             nextClientId = 1;
         }
-        joinRoom("lobby", client);
+        joinRoom(Constants.LOBBY, client);
     }
 
     /***
@@ -119,7 +124,7 @@ public enum Server {
      * @return true if reassign worked; false if new room doesn't exist
      */
     protected synchronized boolean joinRoom(String roomName, ServerThread client) {
-        Room newRoom = roomName.equalsIgnoreCase("lobby") ? lobby : getRoom(roomName);
+        Room newRoom = roomName.equalsIgnoreCase(Constants.LOBBY) ? lobby : getRoom(roomName);
         Room oldRoom = client.getCurrentRoom();
         if (newRoom != null) {
             if (oldRoom != null && oldRoom != newRoom) {

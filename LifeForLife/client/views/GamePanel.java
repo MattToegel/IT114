@@ -29,6 +29,7 @@ import LifeForLife.common.Constants;
 import LifeForLife.common.MyLogger;
 import LifeForLife.common.Phase;
 import LifeForLife.common.Player;
+import LifeForLife.common.ProjectilePool;
 import LifeForLife.common.Throttle;
 import LifeForLife.common.Vector2;
 
@@ -50,6 +51,8 @@ public class GamePanel extends JPanel implements IClientEvents {
     Thread inputThread = null;
     Throttle clientSendThrottle = new Throttle(8);
     Point mp = new Point();
+    private boolean isRunning = false;
+    private ProjectilePool projectilePool = new ProjectilePool();
 
     // inner class keystates
     abstract class KeyStates {
@@ -71,7 +74,7 @@ public class GamePanel extends JPanel implements IClientEvents {
 
         @Override
         public void actionPerformed(ActionEvent e) {
-            logger.info("Key pressed: " + key);
+            // logger.info("Key pressed: " + key);
             switch (key) {
                 case KeyEvent.VK_W:
                     KeyStates.W = pressed;
@@ -100,7 +103,6 @@ public class GamePanel extends JPanel implements IClientEvents {
 
             @Override
             public void mouseDragged(MouseEvent e) {
-                // TODO Auto-generated method stub
 
             }
 
@@ -120,11 +122,11 @@ public class GamePanel extends JPanel implements IClientEvents {
 
             @Override
             public void mouseClicked(MouseEvent e) {
-                // TODO Auto-generated method stub
                 self.grabFocus();
 
-                logger.info(
-                        String.format("Mouse info LOC %s Point %s", e.getLocationOnScreen(), e.getPoint()));
+                // logger.info(
+                // String.format("Mouse info LOC %s Point %s", e.getLocationOnScreen(),
+                // e.getPoint()));
                 if (currentPhase == Phase.READY_CHECK) {
                     // get point is relative to source
                     if (!isReady && readyButton.contains(e.getPoint())) {
@@ -132,30 +134,37 @@ public class GamePanel extends JPanel implements IClientEvents {
                         try {
                             Client.INSTANCE.sendReady();
                         } catch (NullPointerException | IOException e1) {
-                            // TODO Auto-generated catch block
                             e1.printStackTrace();
+                            logger.severe(e1.getMessage());
                         }
                         self.repaint();
+                    }
+                } 
+            }
+
+            @Override
+            public void mousePressed(MouseEvent e) {
+                if (currentPhase == Phase.BATTLE) {
+                    if (isReady && myPlayer != null) {
+                        boolean canShoot = myPlayer.canShoot();
+                        if (canShoot) {
+                            try {
+                                Client.INSTANCE.sendShoot();
+                            } catch (NullPointerException | IOException e1) {
+                                e1.printStackTrace();
+                                logger.severe(e1.getMessage());
+                            }
+                        }
                     }
                 }
             }
 
             @Override
-            public void mousePressed(MouseEvent e) {
-                // TODO Auto-generated method stub
-
-            }
-
-            @Override
             public void mouseReleased(MouseEvent e) {
-                // TODO Auto-generated method stub
-
             }
 
             @Override
             public void mouseEntered(MouseEvent e) {
-                // TODO Auto-generated method stub
-
             }
 
             @Override
@@ -186,27 +195,13 @@ public class GamePanel extends JPanel implements IClientEvents {
                 break;
             case BATTLE:
                 drawField(g2);
+                projectilePool.draw(g2);
                 break;
             case END_GAME:
                 break;
             default:
                 break;
         }
-
-        /*
-         * g.setColor(Color.YELLOW); // set the drawing color
-         * g.drawLine(30, 40, 100, 200);
-         * g.drawOval(150, 180, 10, 10);
-         * g.drawRect(200, 210, 20, 30);
-         * g.setColor(Color.RED); // change the drawing color
-         * g.fillOval(300, 310, 30, 50);
-         * g.fillRect((int)test.x, (int)test.y, 60, 50);
-         * // Printing texts
-         * g.setColor(Color.WHITE);
-         * g.setFont(new Font("Monospaced", Font.PLAIN, 12));
-         * g.drawString("Testing custom drawing ...", 10, 20);
-         */
-
     }
 
     private void drawReadyCheck(Graphics2D g) {
@@ -232,7 +227,13 @@ public class GamePanel extends JPanel implements IClientEvents {
     }
 
     private void drawField(Graphics2D g) {
-        // Dimension s = self.getSize();
+
+        // debug draw border for panel size
+        g.setColor(Color.YELLOW);
+        g.drawRect(0, 0, getSize().width, getSize().height);
+        // draw border for arena size
+        g.setColor(Color.WHITE);
+        g.drawRect(0, 0, 800, 600);
         g.setFont(new Font("Monospaced", Font.PLAIN, 16));
 
         for (Player p : players.values()) {
@@ -245,13 +246,15 @@ public class GamePanel extends JPanel implements IClientEvents {
             try {
                 Client.INSTANCE.sendHeadingAndRotation(myPlayer.getHeading(), myPlayer.getRotation());
             } catch (NullPointerException | IOException e) {
-
                 e.printStackTrace();
+                logger.severe("Error sending transform data: " + e.getMessage());
+                isRunning = false;
             }
         }
     }
 
     public void attachListeners() {
+        isRunning = true;
         InputMap im = self.getInputMap();
         im.put(KeyStroke.getKeyStroke(KeyEvent.VK_W, 0, false), "up_pressed");
         im.put(KeyStroke.getKeyStroke(KeyEvent.VK_W, 0, true), "up_released");
@@ -276,7 +279,7 @@ public class GamePanel extends JPanel implements IClientEvents {
             public void run() {
                 logger.info("GamePanel thread started");
                 Vector2 localHeading = new Vector2(0, 0);
-                while (self.isEnabled()) {
+                while (self.isEnabled() && isRunning) {
                     if (myPlayer != null) {
                         Vector2 ch = myPlayer.getHeading();
                         localHeading.x = 0;
@@ -294,17 +297,16 @@ public class GamePanel extends JPanel implements IClientEvents {
                         }
                         boolean changed = localHeading != ch;//
                         myPlayer.lookAtPoint(mp.x, mp.y);
-                        logger.info("Local heading: " + localHeading + " ch: " + ch);
+                        // logger.info("Local heading: " + localHeading + " ch: " + ch);
                         if (changed) {
                             myPlayer.setHeading(localHeading);
-                            logger.info("Changed heading: " + myPlayer.getHeading());
+                            // logger.info("Changed heading: " + myPlayer.getHeading());
                             sendHeadingAndRotation();
                         }
                     }
                     try {
                         Thread.sleep(16);// simulate 60 fps
                     } catch (InterruptedException e) {
-                        // TODO Auto-generated catch block
                         e.printStackTrace();
                     }
                 }
@@ -353,7 +355,6 @@ public class GamePanel extends JPanel implements IClientEvents {
 
     @Override
     public void onMessageReceive(long id, String message) {
-        // TODO Auto-generated method stub
 
     }
 
@@ -379,13 +380,12 @@ public class GamePanel extends JPanel implements IClientEvents {
 
     @Override
     public void onReceiveRoomList(String[] rooms, String message) {
-        // TODO Auto-generated method stub
 
     }
 
     @Override
     public void onRoomJoin(String roomName) {
-        if (roomName.equalsIgnoreCase("lobby")) {
+        if (roomName.equalsIgnoreCase(Constants.LOBBY)) {
             setVisible(false);
         } else {
             setVisible(true);
@@ -428,7 +428,7 @@ public class GamePanel extends JPanel implements IClientEvents {
                 public void run() {
                     currentPhase = Phase.BATTLE;
                     attachListeners();
-                    while (currentPhase == Phase.BATTLE) {
+                    while (currentPhase == Phase.BATTLE && isRunning) {
                         self.repaint();
                         try {
                             Thread.sleep(16);
@@ -450,6 +450,12 @@ public class GamePanel extends JPanel implements IClientEvents {
             p.setRotation(rotation);
             p.setHeading(heading);
         }
+    }
+
+    @Override
+    public void onReceiveProjectileSync(long clientId, long projectileId, Vector2 position, Vector2 heading, long life,
+            int speed) {
+        projectilePool.syncProjectile(clientId, projectileId, position, heading, life, speed);
     }
 
 }

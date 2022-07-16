@@ -16,6 +16,7 @@ public class Player {
     private Vector2 heading = new Vector2(0, 0);
     private Vector2 pHeading = new Vector2(0, 0);// used to check if heading changed
     private Vector2 position = new Vector2(0, 0);
+    private Vector2 pPosition = new Vector2(0, 0);
     private float rotation = 0;
     private float pRotation = 0;// used to check if rotation changed
     private boolean ready = false;
@@ -23,14 +24,16 @@ public class Player {
     private String clientName = "";
     private ServerThread serverThread;
     private Shape player;// drawable shape reference
-    // private static Logger logger = Logger.getLogger(Player.class.getName());
     private static MyLogger logger = MyLogger.getLogger(Player.class.getName());
+    private Shooter gun = new Shooter();
+    private boolean hasPendingUpdate = true;
 
     /** Server-side constructor */
-    public Player(ServerThread st) {
+    public Player(ServerThread st, ProjectilePool pp) {
         this.serverThread = st;
         this.clientId = serverThread.getClientId();
         this.clientName = serverThread.getClientName();
+        this.gun.setProjectilePool(pp);
     }
 
     public ServerThread getClient() {
@@ -43,6 +46,14 @@ public class Player {
         this.clientName = clientName;
         this.player = new Ellipse2D.Float(0, 0, Constants.PLAYER_SIZE, Constants.PLAYER_SIZE);
 
+    }
+
+    public boolean hasPendingUpdate() {
+        return hasPendingUpdate;
+    }
+
+    public void resetPendingUpdate() {
+        hasPendingUpdate = false;
     }
 
     public long getClientId() {
@@ -75,6 +86,14 @@ public class Player {
 
     public void modifyLife(long change) {
         life += change;
+        if (life <= 0) {
+            life = 0;
+        }
+        setPendingUpdate();
+    }
+
+    private void setPendingUpdate() {
+        hasPendingUpdate = true;
     }
 
     public void draw(Graphics2D g) {
@@ -106,11 +125,11 @@ public class Player {
         g2d.dispose();
         // draw name and life on original Graphics2D
         g.setColor(Color.WHITE);
-        ClientUtils.drawCenteredString(getClientName(), position.x, position.y - Constants.PLAYER_SIZE,
+        ClientUtils.drawCenteredString(getClientName(), (int) position.x, (int) position.y - Constants.PLAYER_SIZE,
                 Constants.PLAYER_SIZE,
                 Constants.PLAYER_SIZE, g);
 
-        ClientUtils.drawCenteredString(getLife() + "", position.x, position.y, Constants.PLAYER_SIZE,
+        ClientUtils.drawCenteredString(getLife() + "", (int) position.x, (int) position.y, Constants.PLAYER_SIZE,
                 Constants.PLAYER_SIZE, g);
     }
 
@@ -123,8 +142,8 @@ public class Player {
      * @return true or false depending if there was a chance since last rotation
      */
     public boolean lookAtPoint(int x, int y) {
-        int deltaX = x - position.x;
-        int deltaY = y - position.y;
+        float deltaX = x - position.x;
+        float deltaY = y - position.y;
 
         rotation = (float) -Math.atan2(deltaX, deltaY);
 
@@ -132,12 +151,22 @@ public class Player {
         // https://mkyong.com/java/how-to-round-double-float-value-to-2-decimal-points-in-java/
         // rotation = (float)(Math.round(rotation * 1000.0) / 1000.0);//3 decimal
         // precision
-        rotation = (float) (Math.round(rotation * 10.0) / 10.0);
+        rotation = (float) (Math.round(rotation * 100.0) / 100.0);
         boolean changed = rotation != pRotation;
         if (changed) {
             pRotation = rotation;
+            setPendingUpdate();
         }
         return changed;
+    }
+
+    public Vector2 getFacingDirection() {
+        // https://www.gamedev.net/forums/topic/47069-how-to-convert-an-angle-to-a-2d-vector/1231692
+        double rot = Math.toRadians(-rotation);
+        Vector2 facing = new Vector2((float) Math.sin(rot),
+                (float) Math.cos(rot));
+        logger.info(String.format("Facing Data rot[%s] dir[%s]", rot, facing));
+        return facing;
     }
 
     public void setPosition(Vector2 p) {
@@ -150,20 +179,36 @@ public class Player {
     }
 
     public void move(Rectangle arenaSize) {
+        this.pPosition.x = position.x;
+        this.pPosition.y = position.y;
         this.position.x += heading.x * movement_speed;
         this.position.y += heading.y * movement_speed;
         logger.fine(String.format("%s new position %s,%s", getClientName(), position.x, position.y));
-        this.position.x = GeneralUtils.clamp(this.position.x, (int) arenaSize.getMinX(),
-                (int) arenaSize.getMaxX() - Constants.PLAYER_SIZE);
-        this.position.y = GeneralUtils.clamp(this.position.y, (int) arenaSize.getMinY(), (int) arenaSize.getMaxY());
+        // switched from clamp since the x,y is the top left and the offset needs to be
+        // used for
+        // better collision
+        // lock x bounds
+        if (this.position.x < arenaSize.getMinX()) {
+            this.position.x = (float) arenaSize.getMinX();
+        } else if (this.position.x + Constants.PLAYER_SIZE > arenaSize.getMaxX()) {
+            this.position.x = (float) arenaSize.getMaxX() - Constants.PLAYER_SIZE;
+        }
+        // lock y bounds
+        if (this.position.y < arenaSize.getMinY()) {
+            this.position.y = (float) arenaSize.getMinY();
+        } else if (this.position.y + Constants.PLAYER_SIZE > arenaSize.getMaxY()) {
+            this.position.y = (float) arenaSize.getMaxY() - Constants.PLAYER_SIZE;
+        }
+        if (pPosition.x != position.x || pPosition.y != position.y) {
+            setPendingUpdate();
+        }
     }
 
     public void setRotation(float r) {
+        if (r != rotation) {
+            setPendingUpdate();
+        }
         this.rotation = r;
-        // Note: This is only necessary if rotation dictated movement direction
-        // https://www.gamedev.net/forums/topic/47069-how-to-convert-an-angle-to-a-2d-vector/1231692
-        // this.heading.x = (int)Math.round(Math.sin(r));
-        // this.heading.y = (int)Math.round(Math.cos(r));
     }
 
     public boolean setHeading(Vector2 heading) {
@@ -174,6 +219,7 @@ public class Player {
             changed = true;
             pHeading.x = heading.x;
             pHeading.y = heading.y;
+            setPendingUpdate();
         }
         return changed;
     }
@@ -184,6 +230,16 @@ public class Player {
 
     public float getRotation() {
         return rotation;
+    }
+
+    public Projectile shoot(Vector2 heading, long life) {
+        Vector2 p = new Vector2((float) (position.x + Constants.PLAYER_SIZE * .5),
+                (float) (position.y + Constants.PLAYER_SIZE * .5));
+        return gun.shoot(clientId, p, heading, life);
+    }
+
+    public boolean canShoot() {
+        return gun.canShoot();
     }
 
     @Override
