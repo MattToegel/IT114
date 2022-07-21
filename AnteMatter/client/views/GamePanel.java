@@ -14,6 +14,7 @@ import java.awt.event.MouseMotionListener;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Hashtable;
+import java.util.Iterator;
 import java.util.List;
 
 import javax.swing.JPanel;
@@ -379,14 +380,30 @@ public class GamePanel extends JPanel implements IClientEvents {
                 myId = Constants.DEFAULT_CLIENT_ID;
             }
         }
+        if(currentPhase == Phase.READY_CHECK){
+            readyCheck();
+        }
         self.repaint();
         logger.info("Clients in room: " + players.size());
     }
 
+    private void readyCheck(){
+        int numReady = 0;
+        synchronized (players) {
+            Iterator<Player> iter = players.values().iterator();
+            while (iter.hasNext()) {
+                Player p = iter.next();
+                if (p != null && p.isReady()) {
+                    numReady++;
+                }
+            }
+        }
+        this.numReady = numReady;
+    }
     // Although we must implement all of these methods, not all of them may be
     // applicable to this panel
     @Override
-    public void onClientConnect(long id, String clientName, String message) {
+    public void onClientConnect(long id, String clientName, String formattedName, String message) {
         processClientConnectionStatus(id, clientName, true);
 
     }
@@ -414,7 +431,7 @@ public class GamePanel extends JPanel implements IClientEvents {
     }
 
     @Override
-    public void onSyncClient(long id, String clientName) {
+    public void onSyncClient(long id, String clientName, String formattedName) {
         processClientConnectionStatus(id, clientName, true);
     }
 
@@ -448,9 +465,9 @@ public class GamePanel extends JPanel implements IClientEvents {
                 if (clientId == myId) {
                     isReady = true;
                 }
-                numReady++;
             }
         }
+        readyCheck();
         self.repaint();
     }
 
@@ -523,6 +540,13 @@ public class GamePanel extends JPanel implements IClientEvents {
             });
         }
 
+    }
+
+    @Override
+    public void onReceiveCurrentPhase(Phase phase) {
+        currentPhase = phase;
+        self.repaint();
+        
     }
 
 }

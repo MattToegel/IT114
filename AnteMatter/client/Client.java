@@ -9,9 +9,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 import AnteMatter.common.BGPayload;
+import AnteMatter.common.ClientPayload;
 import AnteMatter.common.MyLogger;
 import AnteMatter.common.Payload;
 import AnteMatter.common.PayloadType;
+import AnteMatter.common.PhasePayload;
 import AnteMatter.common.RoomResultPayload;
 
 //Enum Singleton: https://www.geeksforgeeks.org/advantages-and-disadvantages-of-using-enum-as-singleton-in-java/
@@ -187,7 +189,8 @@ public enum Client {
         // TODO handle NPE
         switch (p.getPayloadType()) {
             case CONNECT:
-                events.forEach(e -> e.onClientConnect(p.getClientId(), p.getClientName(), p.getMessage()));
+                ClientPayload cp = (ClientPayload)p;
+                events.forEach(e -> e.onClientConnect(cp.getClientId(), cp.getClientName(), cp.getFormattedName(), cp.getMessage()));
                 break;
             case DISCONNECT:
                 events.forEach(e -> e.onClientDisconnect(p.getClientId(), p.getClientName(), p.getMessage()));
@@ -202,7 +205,8 @@ public enum Client {
                 events.forEach(e -> e.onResetUserList());
                 break;
             case SYNC_CLIENT:
-                events.forEach(e -> e.onSyncClient(p.getClientId(), p.getClientName()));
+                ClientPayload c = (ClientPayload)p;
+                events.forEach(e -> e.onSyncClient(c.getClientId(), c.getClientName(),c.getFormattedName()));
                 break;
             case GET_ROOMS:
                 events.forEach(e -> e.onReceiveRoomList(((RoomResultPayload) p).getRooms(), p.getMessage()));
@@ -225,6 +229,8 @@ public enum Client {
             case RESTART:
                 events.forEach(e -> e.onReceiveRestart());
                 break;
+            case PHASE:
+                events.forEach(e -> e.onReceiveCurrentPhase(((PhasePayload)p).getPhase()));
             default:
                 logger.warning("Unhandled payload type");
                 break;

@@ -1,5 +1,7 @@
 package AnteMatter.client;
 
+import AnteMatter.common.Phase;
+
 public interface IClientEvents {
     /**
      * Triggered when a client connects
@@ -7,7 +9,7 @@ public interface IClientEvents {
      * @param clientName
      * @param message
      */
-    void onClientConnect(long id, String clientName, String message);
+    void onClientConnect(long id, String clientName, String formattedName, String message);
 
     /**
      * Triggered when a client disconnects
@@ -38,7 +40,7 @@ public interface IClientEvents {
      * @param id
      * @param clientName
      */
-    void onSyncClient(long id, String clientName);
+    void onSyncClient(long id, String clientName, String formattedName);
 
     /**
      * Triggered when we need to clear the user list, likely during a room
@@ -87,4 +89,9 @@ public interface IClientEvents {
      * Receives a restart notice from the server
      */
     void onReceiveRestart();
+    /**
+     * Receives current phase from the server
+     * @param phase
+     */
+    void onReceiveCurrentPhase(Phase phase);
 }
