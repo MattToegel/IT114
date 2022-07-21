@@ -316,11 +316,11 @@ public class GamePanel extends JPanel implements IClientEvents {
         inputThread.start();
     }
 
-    private synchronized void processClientConnectionStatus(long clientId, String clientName, boolean isConnect) {
+    private synchronized void processClientConnectionStatus(long clientId, String clientName, String formattedName, boolean isConnect) {
         if (isConnect) {
             if (!players.containsKey(clientId)) {
                 logger.info(String.format("Adding %s[%s]", clientName, clientId));
-                players.put(clientId, new Player(clientId, clientName));
+                players.put(clientId, new Player(clientId, clientName, formattedName));
                 if (clientId == myId) {
                     myPlayer = players.get(clientId);
                 }
@@ -342,14 +342,14 @@ public class GamePanel extends JPanel implements IClientEvents {
     // Although we must implement all of these methods, not all of them may be
     // applicable to this panel
     @Override
-    public void onClientConnect(long id, String clientName, String message) {
-        processClientConnectionStatus(id, clientName, true);
+    public void onClientConnect(long id, String clientName, String formattedName, String message) {
+        processClientConnectionStatus(id, clientName, formattedName, true);
 
     }
 
     @Override
     public void onClientDisconnect(long id, String clientName, String message) {
-        processClientConnectionStatus(id, clientName, false);
+        processClientConnectionStatus(id, clientName, null, false);
 
     }
 
@@ -369,8 +369,8 @@ public class GamePanel extends JPanel implements IClientEvents {
     }
 
     @Override
-    public void onSyncClient(long id, String clientName) {
-        processClientConnectionStatus(id, clientName, true);
+    public void onSyncClient(long id, String clientName, String formattedName) {
+        processClientConnectionStatus(id, clientName, formattedName, true);
     }
 
     @Override

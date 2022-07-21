@@ -182,12 +182,12 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
      * @param clientName
      * @param isConnect
      */
-    private synchronized void processClientConnectionStatus(long clientId, String clientName, boolean isConnect) {
+    private synchronized void processClientConnectionStatus(long clientId, String clientName, String formattedName, boolean isConnect) {
         if (isConnect) {
             if (!userList.containsKey(clientId)) {
                 logger.info(String.format("Adding %s[%s]", clientName, clientId));
-                userList.put(clientId, clientName);
-                chatPanel.addUserListItem(clientId, String.format("%s (%s)", clientName, clientId));
+                userList.put(clientId, formattedName);
+                chatPanel.addUserListItem(clientId, String.format("%s (%s)", formattedName, clientId));
             }
         } else {
             if (userList.containsKey(clientId)) {
@@ -204,9 +204,9 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
     }
 
     @Override
-    public void onClientConnect(long clientId, String clientName, String message) {
+    public void onClientConnect(long clientId, String clientName, String formattedName, String message) {
         if (currentCard.ordinal() >= Card.CHAT.ordinal()) {
-            processClientConnectionStatus(clientId, clientName, true);
+            processClientConnectionStatus(clientId, clientName, formattedName, true);
             chatPanel.addText(String.format("*%s %s*", clientName, message));
         }
     }
@@ -214,7 +214,7 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
     @Override
     public void onClientDisconnect(long clientId, String clientName, String message) {
         if (currentCard.ordinal() >= Card.CHAT.ordinal()) {
-            processClientConnectionStatus(clientId, clientName, false);
+            processClientConnectionStatus(clientId, clientName, null, false);
             chatPanel.addText(String.format("*%s %s*", clientName, message));
         }
     }
@@ -245,9 +245,9 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
     }
 
     @Override
-    public void onSyncClient(long clientId, String clientName) {
+    public void onSyncClient(long clientId, String clientName, String formattedName) {
         if (currentCard.ordinal() >= Card.CHAT.ordinal()) {
-            processClientConnectionStatus(clientId, clientName, true);
+            processClientConnectionStatus(clientId, clientName, formattedName, true);
         }
     }
 

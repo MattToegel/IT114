@@ -274,22 +274,6 @@ public class GameRoom extends Room {
             }
         }
     }
-    @Deprecated
-    private synchronized void broadcastLife(Player playerChanged) {
-        synchronized (players) {
-            Iterator<Player> iter = players.iterator();
-            while (iter.hasNext()) {
-                Player p = iter.next();
-                if (p != null && p.isReady()) {
-                    boolean messageSent = p.getClient().sendCurrentLife(playerChanged.getClientId(),
-                            playerChanged.getLife());
-                    if (!messageSent) {
-                        logger.severe("Failed to send message to " + p.getClientName());
-                    }
-                }
-            }
-        }
-    }
 
     private synchronized void broadcastStart() {
         synchronized (players) {
@@ -300,29 +284,6 @@ public class GameRoom extends Room {
                     boolean messageSent = p.getClient().sendStart();
                     if (!messageSent) {
                         logger.severe("Failed to send message to " + p.getClientName());
-                    }
-                }
-            }
-        }
-    }
-    @Deprecated
-    private synchronized void broadcastPositionAndRotation(Player playerChanged) {
-        synchronized (players) {
-            for (int i = players.size() - 1; i >= 0; i--) {
-                Player p = players.get(i);
-                if (p != null && p.isReady()) {
-
-                    boolean messageSent = p.getClient().sendPRH(
-                            playerChanged.getClientId(),
-                            playerChanged.getPosition(),
-                            playerChanged.getHeading(),
-                            playerChanged.getRotation());
-                    if (!messageSent) {
-                        players.remove(i);
-                        logger.severe("Failed to send message to " + p.getClientName());
-                        logger.info("Removed client " + p.getClientName());
-                        checkClients();
-                        sendConnectionStatus(p.getClient(), false);
                     }
                 }
             }
@@ -363,31 +324,6 @@ public class GameRoom extends Room {
                         }
                     }
                     break;
-                }
-            }
-        }
-    }
-    @Deprecated
-    private void broadcastProjectileSync(Projectile pr) {
-        synchronized (players) {
-            Iterator<Player> iter = players.iterator();
-            while (iter.hasNext()) {
-                Player p = iter.next();
-                if (p != null && p.isReady()) {
-                    logger.info("Sending Projectile sync: " + pr);
-                    boolean messageSent = p.getClient().sendProjectileSync(pr.getClientId(),
-                            pr.getProjectileId(),
-                            pr.getPosition(),
-                            pr.getHeading(),
-                            pr.getLife(),
-                            pr.getSpeed());
-                    if (!messageSent) {
-                        logger.severe("Failed to send message to " + p.getClientName());
-                        iter.remove();
-                        logger.info("Removed client " + p.getClientName());
-                        checkClients();
-                        sendConnectionStatus(p.getClient(), false);
-                    }
                 }
             }
         }

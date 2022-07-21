@@ -5,6 +5,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 
+import LifeForLife.common.ClientPayload;
 import LifeForLife.common.Constants;
 import LifeForLife.common.MyLogger;
 import LifeForLife.common.PRHPayload;
@@ -20,6 +21,7 @@ import LifeForLife.common.Vector2;
 public class ServerThread extends Thread {
     private Socket client;
     private String clientName;
+    private String formattedName;
     private boolean isRunning = false;
     private ObjectOutputStream out;// exposed here for send()
     // private Server server;// ref to our server so we can call methods on it
@@ -54,6 +56,14 @@ public class ServerThread extends Thread {
 
     }
 
+    public void setFormattedName(String name) {
+        formattedName = name;
+    }
+
+    public String getFormattedName() {
+        return formattedName;
+    }
+
     protected void setClientName(String name) {
         if (name == null || name.isBlank()) {
             System.err.println("Invalid client name being set");
@@ -79,7 +89,7 @@ public class ServerThread extends Thread {
     }
 
     public void disconnect() {
-        sendConnectionStatus(myId, getClientName(), false);
+        sendConnectionStatus(myId, getClientName(), null, false);
         info("Thread being disconnected by server");
         isRunning = false;
         cleanup();
@@ -155,10 +165,11 @@ public class ServerThread extends Thread {
         return send(payload);
     }
 
-    public boolean sendExistingClient(long clientId, String clientName) {
-        Payload p = new Payload();
+    public boolean sendExistingClient(long clientId, String clientName, String formattedName) {
+        ClientPayload p = new ClientPayload();
         p.setPayloadType(PayloadType.SYNC_CLIENT);
         p.setClientId(clientId);
+        p.setFormattedName(formattedName);
         p.setClientName(clientName);
         return send(p);
     }
@@ -184,10 +195,11 @@ public class ServerThread extends Thread {
         return send(p);
     }
 
-    public boolean sendConnectionStatus(long clientId, String who, boolean isConnected) {
-        Payload p = new Payload();
+    public boolean sendConnectionStatus(long clientId, String who, String formattedName, boolean isConnected) {
+        ClientPayload p = new ClientPayload();
         p.setPayloadType(isConnected ? PayloadType.CONNECT : PayloadType.DISCONNECT);
         p.setClientId(clientId);
+        p.setFormattedName(formattedName);
         p.setClientName(who);
         p.setMessage(isConnected ? "connected" : "disconnected");
         return send(p);

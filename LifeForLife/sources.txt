@@ -12,6 +12,7 @@
 ./client/views/RoomsPanel.java
 ./client/views/UserInputPanel.java
 ./client/views/UserListPanel.java
+./common/ClientPayload.java
 ./common/Constants.java
 ./common/Countdown.java
 ./common/GeneralUtils.java

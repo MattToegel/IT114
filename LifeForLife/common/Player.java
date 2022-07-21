@@ -27,6 +27,7 @@ public class Player {
     private static MyLogger logger = MyLogger.getLogger(Player.class.getName());
     private Shooter gun = new Shooter();
     private boolean hasPendingUpdate = true;
+    private Color color;
 
     /** Server-side constructor */
     public Player(ServerThread st, ProjectilePool pp) {
@@ -41,10 +42,12 @@ public class Player {
     }
 
     /** client-side constructor */
-    public Player(long clientId, String clientName) {
+    public Player(long clientId, String clientName, String formattedName) {
         this.clientId = clientId;
         this.clientName = clientName;
         this.player = new Ellipse2D.Float(0, 0, Constants.PLAYER_SIZE, Constants.PLAYER_SIZE);
+        String hexColor = formattedName.split("\"#")[1].split("\"")[0].trim();
+        color = Color.decode("#"+hexColor);
 
     }
 
@@ -110,7 +113,7 @@ public class Player {
                 (int) player.getBounds2D().getWidth(),
                 (int) player.getBounds2D().getHeight());
         // player color (will be made into teams later)
-        g2d.setColor(Color.RED);
+        g2d.setColor(color);
         g2d.fill(player);
         // player outline (undecided what I'll do with this, maybe it'll become a team
         // id instead of fill)
