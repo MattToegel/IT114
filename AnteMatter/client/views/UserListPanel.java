@@ -80,7 +80,7 @@ public class UserListPanel extends JPanel {
         logger.info("Adding user to list: " + clientName);
         JPanel content = userListArea;
         logger.info("Userlist: " + content.getSize());
-        JEditorPane textContainer = new JEditorPane("text/plain", clientName);
+        JEditorPane textContainer = new JEditorPane("text/html", clientName);
         textContainer.setName(clientId + "");
         // sizes the panel to attempt to take up the width of the container
         // and expand in height based on word wrapping

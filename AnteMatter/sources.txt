@@ -13,6 +13,7 @@
 ./client/views/UserInputPanel.java
 ./client/views/UserListPanel.java
 ./common/BGPayload.java
+./common/ClientPayload.java
 ./common/Constants.java
 ./common/Countdown.java
 ./common/GeneralUtils.java
@@ -20,6 +21,7 @@
 ./common/Payload.java
 ./common/PayloadType.java
 ./common/Phase.java
+./common/PhasePayload.java
 ./common/Player.java
 ./common/RoomResultPayload.java
 ./server/GameRoom.java

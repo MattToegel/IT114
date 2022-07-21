@@ -6,10 +6,13 @@ import java.io.ObjectOutputStream;
 import java.net.Socket;
 
 import AnteMatter.common.BGPayload;
+import AnteMatter.common.ClientPayload;
 import AnteMatter.common.Constants;
 import AnteMatter.common.MyLogger;
 import AnteMatter.common.Payload;
 import AnteMatter.common.PayloadType;
+import AnteMatter.common.Phase;
+import AnteMatter.common.PhasePayload;
 import AnteMatter.common.RoomResultPayload;
 
 /**
@@ -18,6 +21,7 @@ import AnteMatter.common.RoomResultPayload;
 public class ServerThread extends Thread {
     private Socket client;
     private String clientName;
+    private String formattedName;
     private boolean isRunning = false;
     private ObjectOutputStream out;// exposed here for send()
     // private Server server;// ref to our server so we can call methods on it
@@ -50,6 +54,14 @@ public class ServerThread extends Thread {
 
     }
 
+    public void setFormattedName(String name) {
+        formattedName = name;
+    }
+
+    public String getFormattedName() {
+        return formattedName;
+    }
+
     protected void setClientName(String name) {
         if (name == null || name.isBlank()) {
             System.err.println("Invalid client name being set");
@@ -75,18 +87,24 @@ public class ServerThread extends Thread {
     }
 
     public void disconnect() {
-        sendConnectionStatus(myId, getClientName(), false);
+        sendConnectionStatus(myId, getClientName(), null, false);
         info("Thread being disconnected by server");
         isRunning = false;
         cleanup();
     }
 
     // send methods
-    public boolean sendRestartNotice(){
+    public boolean sendCurrentPhase(Phase phase){
+        PhasePayload p = new PhasePayload();
+        p.setPhase(phase);
+        return send(p);
+    }
+    public boolean sendRestartNotice() {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.RESTART);
         return send(p);
     }
+
     public boolean sendWinner(long clientId) {
         Payload p = new Payload();
         p.setClientId(clientId);
@@ -134,10 +152,11 @@ public class ServerThread extends Thread {
         return send(payload);
     }
 
-    public boolean sendExistingClient(long clientId, String clientName) {
-        Payload p = new Payload();
+    public boolean sendExistingClient(long clientId, String clientName, String formattedName) {
+        ClientPayload p = new ClientPayload();
         p.setPayloadType(PayloadType.SYNC_CLIENT);
         p.setClientId(clientId);
+        p.setFormattedName(formattedName);
         p.setClientName(clientName);
         return send(p);
     }
@@ -163,10 +182,11 @@ public class ServerThread extends Thread {
         return send(p);
     }
 
-    public boolean sendConnectionStatus(long clientId, String who, boolean isConnected) {
-        Payload p = new Payload();
+    public boolean sendConnectionStatus(long clientId, String who, String formattedName, boolean isConnected) {
+        ClientPayload p = new ClientPayload();
         p.setPayloadType(isConnected ? PayloadType.CONNECT : PayloadType.DISCONNECT);
         p.setClientId(clientId);
+        p.setFormattedName(formattedName);
         p.setClientName(who);
         p.setMessage(isConnected ? "connected" : "disconnected");
         return send(p);

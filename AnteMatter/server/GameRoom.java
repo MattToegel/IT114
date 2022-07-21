@@ -8,6 +8,7 @@ import java.util.List;
 import AnteMatter.common.Constants;
 import AnteMatter.common.Countdown;
 import AnteMatter.common.MyLogger;
+import AnteMatter.common.Phase;
 import AnteMatter.common.Player;
 
 public class GameRoom extends Room {
@@ -20,6 +21,7 @@ public class GameRoom extends Room {
     private List<Player> players = Collections.synchronizedList(new ArrayList<Player>());
     private long currentPlayer = Constants.DEFAULT_CLIENT_ID;
     private Countdown turnTimer;
+    private Phase currentPhase = Phase.READY_CHECK;
 
     public GameRoom(String name) {
         super(name);
@@ -31,6 +33,7 @@ public class GameRoom extends Room {
         super.addClient(client);
         Player player = new Player(client);
         players.add(player);
+        player.getClient().sendCurrentPhase(currentPhase);
     }
 
     @Override
@@ -41,6 +44,9 @@ public class GameRoom extends Room {
                                                                                           // loop
         logger.info("GameRoom Removed Player: " + (removed ? "true" : "false"));
         checkClients();
+        if (currentPhase == Phase.READY_CHECK) {
+            readyCheck();
+        }
     }
 
     @Override
@@ -58,6 +64,10 @@ public class GameRoom extends Room {
      * @param clientId
      */
     public synchronized void setReady(long clientId) {
+        if(currentPhase != Phase.READY_CHECK){
+            sendMessage(null, "Current phase is not ready check");
+            return;
+        }
         synchronized (players) {
             Iterator<Player> iter = players.iterator();
             while (iter.hasNext()) {
@@ -117,6 +127,10 @@ public class GameRoom extends Room {
     }
 
     private void setupGame() {
+        if (currentPhase == Phase.READY_CHECK) {
+            currentPhase = Phase.ANTE;
+        }
+
         logger.info("Initializing Game");
         round = 0;
         nextRound();// start off the cycle
@@ -145,7 +159,7 @@ public class GameRoom extends Room {
         } else {
             estMaxRoundMatter = actualMatter;
         }
-        sendMessage(null, "Starting round " + round);
+        sendMessage(null, "<b>Starting round " + round + "</b>");
         logger.info("Current Estimate: " + estMaxRoundMatter);
         synchronized (players) {
             Iterator<Player> iter = players.iterator();
@@ -192,6 +206,10 @@ public class GameRoom extends Room {
     }
 
     public void setAnteAndGuess(long clientId, long ante, long guess) {
+        if (currentPhase != Phase.ANTE) {
+            sendMessage(null, "Not in the ante/guess phase yet");
+            return;
+        }
         // https://www.baeldung.com/find-list-element-java#5-java-8-stream-api
         Player p = players.stream().filter(player -> player.getClientId() == clientId).findFirst().orElse(null);
         logger.info("setAnteAndGuess player: " + p + " "
@@ -205,7 +223,7 @@ public class GameRoom extends Room {
             p.setAnte(ante);// record round bet
             p.setGuess(guess);// record round guess
             p.modifyMatter(-ante);// deduct ante (will broadcast beginning of next round)
-            sendMessage(null, p.getClientName() + " placed their ante and guess");
+            sendMessage(null, "<i>" + p.getClientName() + " placed their ante and guess</i>");
         } else {
             logger.info("Invalid ante/guess");
         }
@@ -259,7 +277,7 @@ public class GameRoom extends Room {
             }
         }
         int count = winners.size();
-        sendMessage(null, String.format("There %s %s winner%s this round", count == 1 ? "is" : "are", count,
+        sendMessage(null, String.format("<b><u>There %s %s winner%s this round</u></b>", count == 1 ? "is" : "are", count,
                 count == 1 ? "" : "s"));
         long reward = count == 1 ? actualMatter : (long) Math.ceil((double) actualMatter / (double) count);
         logger.info("End of Round Reward: " + reward);
@@ -272,7 +290,7 @@ public class GameRoom extends Room {
                             player.isReady(), player.hasGuess()));
                     if (player != null && player.isReady()) {
                         player.modifyMatter(reward);
-                        sendMessage(null, String.format("%s received %s matter", player.getClientName(), reward));
+                        sendMessage(null, String.format("<font color=\"green\" %s received %s matter</font>", player.getClient().getFormattedName(), reward));
                         // broadcastMatter(player);//not needed since nextRound does the same
                     }
                 }
@@ -299,6 +317,11 @@ public class GameRoom extends Room {
     }
 
     private void gameOver() {
+        if (currentPhase != Phase.REVEAL) {
+            currentPhase = Phase.REVEAL;
+        } else {
+            return;
+        }
         logger.info("Game Over, sorting players");
         // sort to get winner
         players.sort((a, b) -> {
@@ -339,6 +362,16 @@ public class GameRoom extends Room {
             // find the current player's index and move to the next person
             p = availablePlayers.stream().filter(player -> player.getClientId() == currentPlayer).findFirst()
                     .orElse(null);
+            if(p == null){
+                logger.info("Player likely disconnected, attempting to find available player");
+                p = availablePlayers.stream().filter(player -> !player.hasGuess() && player.isReady() && !player.isOut()).findFirst()
+                    .orElse(null);
+                if(p == null && availablePlayers.size() > 1){
+                    logger.info("Couldn't find any available players, checking antes");
+                    checkAntes();
+                    return;
+                }
+            }
             int index = availablePlayers.indexOf(p);
             if (index > -1) {
                 index++;
@@ -361,7 +394,7 @@ public class GameRoom extends Room {
         turnTimer = new Countdown("Turn expires", 30);
         turnTimer.setExpireCallback(() -> {
 
-            sendMessage(null, "Turned skipped, auto ante for player");
+            sendMessage(null, "<b><font color=\"red\">Turned skipped, auto ante for player</font></b>");
             setAnteAndGuess(currentPlayer, 1, 1);
             // nextPlayer();
         });
@@ -419,13 +452,20 @@ public class GameRoom extends Room {
             if (turnTimer != null) {
                 turnTimer.cancel();
             }
-            turnTimer = new Countdown("Restart", 30);
+            turnTimer = new Countdown("Restart", 29);
             turnTimer.setExpireCallback(() -> {
+                currentPhase = Phase.READY_CHECK;
                 sendMessage(null, "Commence Ready Check.");
             });
         }
     }
-
+    @Override
+    protected void handleDisconnect(Iterator<ServerThread> iter, ServerThread client){
+        if(client.getClientId() == currentPlayer){
+            nextPlayer();
+        }
+        super.handleDisconnect(iter, client);
+    }
     @Override
     public void close() {
         super.close();

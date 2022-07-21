@@ -2,10 +2,13 @@ package AnteMatter.server;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map.Entry;
 
 import AnteMatter.common.Constants;
+import AnteMatter.common.GeneralUtils;
 import AnteMatter.common.MyLogger;
 
 public class Room implements AutoCloseable {
@@ -20,7 +23,7 @@ public class Room implements AutoCloseable {
 	private final static String LOGOUT = "logout";
 	private final static String LOGOFF = "logoff";
 	private static MyLogger logger = MyLogger.getLogger(Room.class.getName());
-
+	private HashMap<String, String> converter = null;
 	public Room(String name) {
 		this.name = name;
 		isRunning = true;
@@ -46,6 +49,8 @@ public class Room implements AutoCloseable {
 		if (clients.indexOf(client) > -1) {
 			info("Attempting to add a client that already exists");
 		} else {
+			client.setFormattedName(String.format("<font color=\"%s\">%s</font>", GeneralUtils.getRandomHexColor(),
+					client.getClientName()));
 			clients.add(client);
 			sendConnectionStatus(client, true);
 			sendRoomJoined(client);
@@ -168,6 +173,7 @@ public class Room implements AutoCloseable {
 			// it was a command, don't broadcast
 			return;
 		}
+		message = formatMessage(message);
 		long from = (sender == null) ? Constants.DEFAULT_CLIENT_ID : sender.getClientId();
 		synchronized (clients) {
 			Iterator<ServerThread> iter = clients.iterator();
@@ -181,6 +187,39 @@ public class Room implements AutoCloseable {
 		}
 	}
 
+	protected String formatMessage(String message) {
+		String alteredMessage = message;
+		
+		// expect pairs ** -- __
+		if(converter == null){
+			converter = new HashMap<String, String>();
+			// user symbol => output text separated by |
+			converter.put("\\*{2}", "<b>|</b>");
+			converter.put("--", "<i>|</i>");
+			converter.put("__", "<u>|</u>");
+			converter.put("#r#", "<font color=\"red\">|</font>");
+			converter.put("#g#", "<font color=\"green\">|</font>");
+			converter.put("#b#", "<font color=\"blue\">|</font>");
+		}
+		for (Entry<String, String> kvp : converter.entrySet()) {
+			if (GeneralUtils.countOccurencesInString(alteredMessage, kvp.getKey().toLowerCase()) >= 2) {
+				String[] s1 = alteredMessage.split(kvp.getKey().toLowerCase());
+				String m = "";
+				for (int i = 0; i < s1.length; i++) {
+					if (i % 2 == 0) {
+						m += s1[i];
+					} else {
+						String[] wrapper = kvp.getValue().split("\\|");
+						m += String.format("%s%s%s", wrapper[0], s1[i], wrapper[1]);
+					}
+				}
+				alteredMessage = m;
+			}
+		}
+
+		return alteredMessage;
+	}
+
 	protected synchronized void sendUserListToClient(ServerThread receiver) {
 		info(String.format("Room[%s] Syncing client list of %s to %s", getName(), clients.size(),
 				receiver.getClientName()));
@@ -190,7 +229,8 @@ public class Room implements AutoCloseable {
 				ServerThread clientInRoom = iter.next();
 				if (clientInRoom.getClientId() != receiver.getClientId()) {
 					boolean messageSent = receiver.sendExistingClient(clientInRoom.getClientId(),
-							clientInRoom.getClientName());
+							clientInRoom.getClientName(),
+							clientInRoom.getFormattedName());
 					// receiver somehow disconnected mid iteration
 					if (!messageSent) {
 						handleDisconnect(null, receiver);
@@ -219,6 +259,7 @@ public class Room implements AutoCloseable {
 			for (int i = clients.size() - 1; i >= 0; i--) {
 				ServerThread client = clients.get(i);
 				boolean messageSent = client.sendConnectionStatus(sender.getClientId(), sender.getClientName(),
+						sender.getFormattedName(),
 						isConnected);
 				if (!messageSent) {
 					clients.remove(i);
