@@ -149,7 +149,7 @@ public class RoomsPanel extends JPanel {
             System.out.println("Adding: " + room);
             RoomListItem r = new RoomListItem(room, (String roomName) -> handleSelection(roomName));
             Dimension size = new Dimension(this.getSize().width, 40);
-            r.setPreferredSize(size);
+            //r.setPreferredSize(size);
             r.setMaximumSize(size);
             r.setMinimumSize(size);
             container.add(r);

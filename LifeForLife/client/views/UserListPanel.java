@@ -6,8 +6,6 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.event.ContainerEvent;
 import java.awt.event.ContainerListener;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import javax.swing.BoxLayout;
 import javax.swing.JEditorPane;
@@ -17,11 +15,12 @@ import javax.swing.ScrollPaneConstants;
 
 import LifeForLife.client.ClientUtils;
 import LifeForLife.client.ICardControls;
+import LifeForLife.common.MyLogger;
 
 public class UserListPanel extends JPanel {
     JPanel userListArea;
     JPanel wrapper;
-    private static Logger logger = Logger.getLogger(UserListPanel.class.getName());
+    private static MyLogger logger = MyLogger.getLogger(UserListPanel.class.getName());
 
     public UserListPanel(ICardControls controls) {
         super(new BorderLayout(10, 10));
@@ -48,6 +47,7 @@ public class UserListPanel extends JPanel {
             @Override
             public void componentAdded(ContainerEvent e) {
                 if (userListArea.isVisible()) {
+                    logger.info("Added visible item");
                     userListArea.revalidate();
                     userListArea.repaint();
                 }
@@ -62,32 +62,42 @@ public class UserListPanel extends JPanel {
             }
 
         });
-       
     }
+
     protected void resizeUserListItems() {
         for (Component p : userListArea.getComponents()) {
             if (p.isVisible()) {
-                p.setPreferredSize(
+                //tooltip is storing the original unformated clientName
+                p.setMinimumSize(
                         new Dimension(wrapper.getWidth(), ClientUtils.calcHeightForText(this,
-                                ((JEditorPane) p).getText(), wrapper.getWidth())));
-                p.setMaximumSize(p.getPreferredSize());
+                                ((JEditorPane) p).getToolTipText(), wrapper.getWidth())));
+                p.setMaximumSize(p.getMinimumSize());
             }
         }
         userListArea.revalidate();
         userListArea.repaint();
     }
-    protected void addUserListItem(long clientId, String clientName) {
-        logger.log(Level.INFO, "Adding user to list: " + clientName);
+    /**
+     * Adds user info to the user list panel
+     * @param clientId - unique identifier
+     * @param clientName - used to calculate proper sizing
+     * @param formattedName - used to display the actual value
+     */
+    protected void addUserListItem(long clientId, String clientName, String formattedName) {
+        logger.info("Adding user to list: " + clientName);
         JPanel content = userListArea;
-        logger.log(Level.INFO, "Userlist: " + content.getSize());
-        JEditorPane textContainer = new JEditorPane("text/plain", clientName);
+        logger.info("Userlist: " + wrapper.getSize());
+        JEditorPane textContainer = new JEditorPane("text/html", formattedName);
         textContainer.setName(clientId + "");
+        textContainer.setToolTipText(clientName);//store original unformatted clientNAme
         // sizes the panel to attempt to take up the width of the container
         // and expand in height based on word wrapping
-        textContainer.setLayout(null);
-        textContainer.setPreferredSize(
-                new Dimension(content.getWidth(), ClientUtils.calcHeightForText(this, clientName, content.getWidth())));
-        textContainer.setMaximumSize(textContainer.getPreferredSize());
+        textContainer.setAlignmentX(JEditorPane.LEFT_ALIGNMENT);
+        //textContainer.setLayout(null);
+        textContainer.setMinimumSize(
+                new Dimension(wrapper.getWidth(), ClientUtils.calcHeightForText(this, clientName, wrapper.getWidth())));
+        textContainer.setMaximumSize(textContainer.getMinimumSize());
+        logger.info("User List Item: " + textContainer.getMinimumSize());
         textContainer.setEditable(false);
         // remove background and border (comment these out to see what it looks like
         // otherwise)
@@ -97,7 +107,7 @@ public class UserListPanel extends JPanel {
     }
 
     protected void removeUserListItem(long clientId) {
-        logger.log(Level.INFO, "removing user list item for id " + clientId);
+        logger.info("removing user list item for id " + clientId);
         Component[] cs = userListArea.getComponents();
         for (Component c : cs) {
             if (c.getName().equals(clientId + "")) {

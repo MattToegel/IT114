@@ -25,6 +25,7 @@ import LifeForLife.client.views.RoomsPanel;
 import LifeForLife.client.views.UserInputPanel;
 import LifeForLife.common.Constants;
 import LifeForLife.common.MyLogger;
+import LifeForLife.common.Phase;
 import LifeForLife.common.Vector2;
 
 public class ClientUI extends JFrame implements IClientEvents, ICardControls {
@@ -56,7 +57,9 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
             public void componentResized(ComponentEvent e) {
                 // System.out.println("Resized to " + e.getComponent().getSize());
                 // rough concepts for handling resize
-                container.setPreferredSize(e.getComponent().getSize());
+                // container.setPreferredSize(e.getComponent().getSize());
+                container.setMinimumSize(e.getComponent().getSize());
+
                 container.revalidate();
                 container.repaint();
             }
@@ -182,12 +185,16 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
      * @param clientName
      * @param isConnect
      */
-    private synchronized void processClientConnectionStatus(long clientId, String clientName, boolean isConnect) {
+    private synchronized void processClientConnectionStatus(long clientId, String clientName, String formattedName,
+            boolean isConnect) {
         if (isConnect) {
             if (!userList.containsKey(clientId)) {
                 logger.info(String.format("Adding %s[%s]", clientName, clientId));
-                userList.put(clientId, clientName);
-                chatPanel.addUserListItem(clientId, String.format("%s (%s)", clientName, clientId));
+                userList.put(clientId, formattedName);
+                chatPanel.addUserListItem(
+                        clientId,
+                        String.format("%s (%s)", clientName, clientId),
+                        String.format("%s (%s)", formattedName, clientId));
             }
         } else {
             if (userList.containsKey(clientId)) {
@@ -204,9 +211,9 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
     }
 
     @Override
-    public void onClientConnect(long clientId, String clientName, String message) {
+    public void onClientConnect(long clientId, String clientName, String formattedName, String message) {
         if (currentCard.ordinal() >= Card.CHAT.ordinal()) {
-            processClientConnectionStatus(clientId, clientName, true);
+            processClientConnectionStatus(clientId, clientName, formattedName, true);
             chatPanel.addText(String.format("*%s %s*", clientName, message));
         }
     }
@@ -214,7 +221,7 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
     @Override
     public void onClientDisconnect(long clientId, String clientName, String message) {
         if (currentCard.ordinal() >= Card.CHAT.ordinal()) {
-            processClientConnectionStatus(clientId, clientName, false);
+            processClientConnectionStatus(clientId, clientName, null, false);
             chatPanel.addText(String.format("*%s %s*", clientName, message));
         }
     }
@@ -245,9 +252,9 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
     }
 
     @Override
-    public void onSyncClient(long clientId, String clientName) {
+    public void onSyncClient(long clientId, String clientName, String formattedName) {
         if (currentCard.ordinal() >= Card.CHAT.ordinal()) {
-            processClientConnectionStatus(clientId, clientName, true);
+            processClientConnectionStatus(clientId, clientName, formattedName, true);
         }
     }
 
@@ -267,7 +274,9 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
     @Override
     public void onRoomJoin(String roomName) {
         if (currentCard.ordinal() >= Card.CHAT.ordinal()) {
+            chatPanel.clearChatHistory();
             chatPanel.addText("Joined room " + roomName);
+
         }
     }
 
@@ -300,6 +309,19 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
     public void onReceiveProjectileSync(long clientId, long projectileId, Vector2 position, Vector2 heading, long life,
             int speed) {
         // TODO Auto-generated method stub
-        
+
+    }
+
+    @Override
+    public void onReceiveCurrentPhase(Phase phase) {
+        if (currentCard.ordinal() >= Card.CHAT.ordinal()) {
+            chatPanel.addText(String.format("Current Phase: <b>%s</b>", phase.name()));
+        }
+    }
+
+    @Override
+    public void onReceiveTimeSync(int time) {
+        // TODO Auto-generated method stub
+
     }
 }

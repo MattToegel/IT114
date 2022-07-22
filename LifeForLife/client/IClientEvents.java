@@ -1,5 +1,6 @@
 package LifeForLife.client;
 
+import LifeForLife.common.Phase;
 import LifeForLife.common.Vector2;
 
 public interface IClientEvents {
@@ -9,7 +10,7 @@ public interface IClientEvents {
      * @param clientName
      * @param message
      */
-    void onClientConnect(long id, String clientName, String message);
+    void onClientConnect(long id, String clientName, String formattedName, String message);
 
     /**
      * Triggered when a client disconnects
@@ -40,7 +41,7 @@ public interface IClientEvents {
      * @param id
      * @param clientName
      */
-    void onSyncClient(long id, String clientName);
+    void onSyncClient(long id, String clientName, String formattedName);
 
     /**
      * Triggered when we need to clear the user list, likely during a room
@@ -93,8 +94,10 @@ public interface IClientEvents {
      * @param rotation
      */
     void onReceivePositionAndRotation(long clientId, Vector2 position, Vector2 heading, float rotation);
+
     /**
      * Receives projectile updates to add/update on the client-side
+     * 
      * @param clientId
      * @param projectileId
      * @param position
@@ -102,5 +105,19 @@ public interface IClientEvents {
      * @param life
      * @param speed
      */
-    void onReceiveProjectileSync(long clientId, long projectileId, Vector2 position, Vector2 heading, long life, int speed);
+    void onReceiveProjectileSync(long clientId, long projectileId, Vector2 position, Vector2 heading, long life,
+            int speed);
+
+    /**
+     * Receives current phase from the server
+     * 
+     * @param phase
+     */
+    void onReceiveCurrentPhase(Phase phase);
+
+    /**
+     * Receives current server game duration
+     * @param time
+     */
+    void onReceiveTimeSync(int time);
 }

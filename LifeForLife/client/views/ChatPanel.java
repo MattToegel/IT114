@@ -1,8 +1,11 @@
 package LifeForLife.client.views;
 
+import java.awt.Adjustable;
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.event.AdjustmentEvent;
+import java.awt.event.AdjustmentListener;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.ContainerEvent;
@@ -10,8 +13,6 @@ import java.awt.event.ContainerListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.io.IOException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
@@ -27,9 +28,10 @@ import LifeForLife.client.Card;
 import LifeForLife.client.Client;
 import LifeForLife.client.ClientUtils;
 import LifeForLife.client.ICardControls;
+import LifeForLife.common.MyLogger;
 
 public class ChatPanel extends JPanel {
-    private static Logger logger = Logger.getLogger(ChatPanel.class.getName());
+    private static MyLogger logger = MyLogger.getLogger(ChatPanel.class.getName());
     private JPanel chatArea = null;
     private JPanel wrapper = null;
     private UserListPanel userListPanel;
@@ -86,8 +88,8 @@ public class ChatPanel extends JPanel {
                     textValue.setText("");// clear the original text
 
                     // debugging
-                    logger.log(Level.FINEST, "Content: " + content.getSize());
-                    logger.log(Level.FINEST, "Parent: " + this.getSize());
+                    logger.fine("Content: " + content.getSize());
+                    logger.fine("Parent: " + this.getSize());
 
                 }
             } catch (NullPointerException e) {
@@ -109,8 +111,30 @@ public class ChatPanel extends JPanel {
             @Override
             public void componentAdded(ContainerEvent e) {
                 if (chatArea.isVisible()) {
+                    // scroll down on new message
+
                     chatArea.revalidate();
                     chatArea.repaint();
+                    /**
+                     * Note: with the setValue(maxValue) it seemed to have a gap.
+                     * The gap would cut off the last message.
+                     * The updated logic below from https://stackoverflow.com/a/34086741
+                     * solves this.
+                     */
+                    JScrollBar vertical = ((JScrollPane) chatArea.getParent().getParent()).getVerticalScrollBar();
+                    AdjustmentListener scroller = new AdjustmentListener() {
+                        @Override
+                        public void adjustmentValueChanged(AdjustmentEvent e) {
+                            Adjustable adjustable = e.getAdjustable();
+                            adjustable.setValue(vertical.getMaximum());
+                            // We have to remove the listener, otherwise the
+                            // user would be unable to scroll afterwards
+                            vertical.removeAdjustmentListener(this);
+                        }
+
+                    };
+                    vertical.addAdjustmentListener(scroller);
+
                 }
             }
 
@@ -128,7 +152,7 @@ public class ChatPanel extends JPanel {
             public void componentShown(ComponentEvent e) {
 
                 super.componentShown(e);
-                logger.log(Level.INFO, "Component shown");
+                logger.info("Component shown");
 
                 doResize();
             }
@@ -158,26 +182,31 @@ public class ChatPanel extends JPanel {
         if (deltaX >= 5 || deltaY >= 5) {
             lastSize = frameSize;
 
-            logger.log(Level.INFO, "Wrapper size: " + frameSize);
-            int w = (int) Math.ceil(frameSize.getWidth() * .3f);
-
-            userListPanel.setPreferredSize(new Dimension(w, (int) frameSize.getHeight()));
+            logger.info("Wrapper size: " + frameSize);
+            int w = Math.min( (int) Math.ceil(frameSize.getWidth() * .3f), 30);
+            
+            userListPanel.setMinimumSize(new Dimension(w, (int) frameSize.getHeight()));
             userListPanel.revalidate();
             userListPanel.repaint();
-            w = (int) Math.ceil(frameSize.getWidth() * .7f);
-            chatArea.setPreferredSize(new Dimension(w, (int) frameSize.getHeight()));
+            w = Math.min((int) Math.ceil(frameSize.getWidth() * .7f), 100);
+            // preferred size was preventing it from growing with its children
+            // chatArea.setPreferredSize(new Dimension(w, (int) Short.MAX_VALUE));
+            chatArea.setMinimumSize(new Dimension(w, (int) frameSize.getHeight()));
             userListPanel.resizeUserListItems();
             resizeMessages();
+            // scroll down on new message
+            JScrollBar vertical = ((JScrollPane) chatArea.getParent().getParent()).getVerticalScrollBar();
+            vertical.setValue(vertical.getMaximum());
         }
     }
 
     private void resizeMessages() {
         for (Component p : chatArea.getComponents()) {
             if (p.isVisible()) {
-                p.setPreferredSize(
+                p.setMinimumSize(
                         new Dimension(wrapper.getWidth(), ClientUtils.calcHeightForText(this,
                                 ((JEditorPane) p).getText(), wrapper.getWidth())));
-                p.setMaximumSize(p.getPreferredSize());
+                p.setMaximumSize(p.getMinimumSize());
 
             }
         }
@@ -185,8 +214,10 @@ public class ChatPanel extends JPanel {
         chatArea.repaint();
     }
 
-    public void addUserListItem(long clientId, String clientName) {
-        userListPanel.addUserListItem(clientId, clientName);
+    public void addUserListItem(long clientId, String clientName, String formattedName) {
+        userListPanel.addUserListItem(clientId, clientName, formattedName);
+        userListPanel.revalidate();
+        userListPanel.repaint();
     }
 
     public void removeUserListItem(long clientId) {
@@ -200,20 +231,23 @@ public class ChatPanel extends JPanel {
     public void addText(String text) {
         JPanel content = chatArea;
         // add message
-        JEditorPane textContainer = new JEditorPane("text/plain", text);
+        JEditorPane textContainer = new JEditorPane("text/html", text);
 
         // sizes the panel to attempt to take up the width of the container
         // and expand in height based on word wrapping
-        textContainer.setLayout(null);
-        textContainer.setPreferredSize(
-                new Dimension(content.getWidth(), ClientUtils.calcHeightForText(this, text, content.getWidth())));
-        textContainer.setMaximumSize(textContainer.getPreferredSize());
+        textContainer.setAlignmentX(JEditorPane.LEFT_ALIGNMENT);
+        //textContainer.setLayout(null);
+        textContainer.setMinimumSize(
+                new Dimension(wrapper.getWidth(), ClientUtils.calcHeightForText(this, text, wrapper.getWidth())));
+        textContainer.setMaximumSize(textContainer.getMinimumSize());
         textContainer.setEditable(false);
         ClientUtils.clearBackground(textContainer);
         // add to container and tell the layout to revalidate
         content.add(textContainer);
-        // scroll down on new message
-        JScrollBar vertical = ((JScrollPane) chatArea.getParent().getParent()).getVerticalScrollBar();
-        vertical.setValue(vertical.getMaximum());
+
+    }
+
+    public void clearChatHistory() {
+        chatArea.removeAll();
     }
 }

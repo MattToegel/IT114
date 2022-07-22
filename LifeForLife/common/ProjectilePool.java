@@ -1,5 +1,6 @@
 package LifeForLife.common;
 
+import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.util.ArrayList;
@@ -96,7 +97,7 @@ public class ProjectilePool {
      * @param speed
      */
     public synchronized void syncProjectile(long clientId, long pid, Vector2 position, Vector2 heading, long life,
-            int speed) {
+            int speed, Color color) {
         Projectile p = projectiles.stream().filter((t) -> t.getProjectileId() == pid).findFirst().orElse(null);
         if (p == null) {
             p = addProjectile(pid);
@@ -106,6 +107,7 @@ public class ProjectilePool {
             p.syncData(position, heading, life, speed);
             // logger.info("Projectile sync: " + p);
         }
+        p.setColor(color);
 
     }
 
@@ -117,10 +119,12 @@ public class ProjectilePool {
                     if (s - 1 >= 0) {
                         projectiles.remove(s - 1);
                     }
-                    if (s - 2 >= 0) {
-                        projectiles.get(s - 2).disable();
-                    }
                 }
+            }
+        }
+        synchronized(projectiles){
+            for(Projectile p : projectiles){
+                p.disable();
             }
         }
     }

@@ -27,6 +27,35 @@ public class Player {
     private static MyLogger logger = MyLogger.getLogger(Player.class.getName());
     private Shooter gun = new Shooter();
     private boolean hasPendingUpdate = true;
+    private Color color;
+    private int targetHits = 0;
+    private int gotHit = 0;
+
+    public void addHitTarget() {
+        targetHits++;
+    }
+
+    public void addGotHit() {
+        gotHit++;
+    }
+
+    public int getTargetHits() {
+        return targetHits;
+    }
+
+    public int getHits() {
+        return gotHit;
+    }
+
+    public void reset(){
+        gotHit = 0;
+        targetHits = 0;
+        //added after the recording
+        heading.x = 0;
+        heading.y = 0;
+        position.x = 0;
+        position.y = 0;
+    }
 
     /** Server-side constructor */
     public Player(ServerThread st, ProjectilePool pp) {
@@ -41,10 +70,12 @@ public class Player {
     }
 
     /** client-side constructor */
-    public Player(long clientId, String clientName) {
+    public Player(long clientId, String clientName, String formattedName) {
         this.clientId = clientId;
         this.clientName = clientName;
         this.player = new Ellipse2D.Float(0, 0, Constants.PLAYER_SIZE, Constants.PLAYER_SIZE);
+        String hexColor = formattedName.split("\"#")[1].split("\"")[0].trim();
+        color = Color.decode("#" + hexColor);
 
     }
 
@@ -96,6 +127,10 @@ public class Player {
         hasPendingUpdate = true;
     }
 
+    public void forceUpdate(){
+        setPendingUpdate();
+    }
+
     public void draw(Graphics2D g) {
         // create a copy of Graphics2D for easier transformation
         Graphics2D g2d = (Graphics2D) g.create();
@@ -110,7 +145,7 @@ public class Player {
                 (int) player.getBounds2D().getWidth(),
                 (int) player.getBounds2D().getHeight());
         // player color (will be made into teams later)
-        g2d.setColor(Color.RED);
+        g2d.setColor(color);
         g2d.fill(player);
         // player outline (undecided what I'll do with this, maybe it'll become a team
         // id instead of fill)
@@ -240,6 +275,10 @@ public class Player {
 
     public boolean canShoot() {
         return gun.canShoot();
+    }
+
+    public Color getColor() {
+        return color;
     }
 
     @Override

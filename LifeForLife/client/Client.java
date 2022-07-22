@@ -8,6 +8,7 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 
+import LifeForLife.common.ClientPayload;
 import LifeForLife.common.MyLogger;
 import LifeForLife.common.PRHPayload;
 import LifeForLife.common.Payload;
@@ -15,6 +16,7 @@ import LifeForLife.common.PayloadType;
 import LifeForLife.common.ProjectilePayload;
 import LifeForLife.common.RoomResultPayload;
 import LifeForLife.common.Vector2;
+import LifeForLife.common.PhasePayload;
 
 //Enum Singleton: https://www.geeksforgeeks.org/advantages-and-disadvantages-of-using-enum-as-singleton-in-java/
 public enum Client {
@@ -194,7 +196,9 @@ public enum Client {
         }
         switch (p.getPayloadType()) {
             case CONNECT:
-                events.forEach(e -> e.onClientConnect(p.getClientId(), p.getClientName(), p.getMessage()));
+                ClientPayload cp = (ClientPayload) p;
+                events.forEach(e -> e.onClientConnect(cp.getClientId(), cp.getClientName(), cp.getFormattedName(),
+                        cp.getMessage()));
                 break;
             case DISCONNECT:
                 events.forEach(e -> e.onClientDisconnect(p.getClientId(), p.getClientName(), p.getMessage()));
@@ -209,7 +213,8 @@ public enum Client {
                 events.forEach(e -> e.onResetUserList());
                 break;
             case SYNC_CLIENT:
-                events.forEach(e -> e.onSyncClient(p.getClientId(), p.getClientName()));
+                ClientPayload c = (ClientPayload) p;
+                events.forEach(e -> e.onSyncClient(c.getClientId(), c.getClientName(), c.getFormattedName()));
                 break;
             case GET_ROOMS:
                 events.forEach(e -> e.onReceiveRoomList(((RoomResultPayload) p).getRooms(), p.getMessage()));
@@ -238,6 +243,12 @@ public enum Client {
                 // logger.info("Projectile position: " + pp.getPosition());
                 events.forEach(e -> e.onReceiveProjectileSync(pp.getClientId(), pp.getProjectileId(),
                         pp.getPosition(), pp.getHeading(), pp.getLife(), pp.getSpeed()));
+                break;
+            case PHASE:
+                events.forEach(e -> e.onReceiveCurrentPhase(((PhasePayload) p).getPhase()));
+                break;
+            case TIME:
+                events.forEach(e -> e.onReceiveTimeSync((int)p.getNumber()));
                 break;
             default:
                 logger.warning("Unhandled payload type");
