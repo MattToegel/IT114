@@ -231,6 +231,7 @@ public enum Client {
                 break;
             case PHASE:
                 events.forEach(e -> e.onReceiveCurrentPhase(((PhasePayload)p).getPhase()));
+                break;
             default:
                 logger.warning("Unhandled payload type");
                 break;
