@@ -452,6 +452,12 @@ public class GamePanel extends JPanel implements IClientEvents {
             setVisible(false);
         } else {
             setVisible(true);
+            //added during video
+            isReady = false;
+            numReady = 0;
+            for(Player p : players.values()){
+                p.setIsReady(false);
+            }
         }
 
     }
