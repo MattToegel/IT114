@@ -15,7 +15,7 @@ public class Projectile {
     private Vector2 direction = new Vector2(0, 0);
     private Color color = Color.WHITE;
     private long life = 1;
-    private int speed = 5;
+    private int speed = 10;
     private boolean didHit = true;
     private long relatedClientId = Constants.DEFAULT_CLIENT_ID;
     private Countdown lifetime = null;
@@ -26,6 +26,9 @@ public class Projectile {
     public Projectile(long projectileId) {
         this.projectileId = projectileId;
         disable();
+    }
+    public void setColor(Color color){
+        this.color = color;
     }
     public boolean hasPendingUpdate(){
         return hasPendingUpdate;
@@ -52,6 +55,7 @@ public class Projectile {
     }
     public void disable() {
         clearTimer();
+        color = Color.WHITE;
         position.x = -10_000;// off screen
         direction.x = 0;
         direction.y = 0;
@@ -80,7 +84,7 @@ public class Projectile {
 
     public void setData(long clientId, Vector2 position, Vector2 heading, long life) {
         didHit = false;
-        speed = 5;// default speed
+        speed = 10;// default speed
         this.life = life;
         relatedClientId = clientId;
         this.position.x = position.x;
@@ -163,11 +167,12 @@ public class Projectile {
         }
         // create a copy of Graphics2D for easier transformation
         g.setColor(color);
-        g.fillOval((int)position.x, (int)position.y, size, size);
         if (speed <= 0) {// pickup indicator
             g.setColor(Color.LIGHT_GRAY);
-            g.drawOval((int)position.x, (int)position.y, size, size);
+            g.fillOval((int)position.x-1, (int)position.y-1, size+1, size+1);
         }
+        g.fillOval((int)position.x, (int)position.y, size, size);
+        
         g.setColor(Color.BLACK);
         g.setFont(new Font("Monospaced", Font.PLAIN, 12));
         ClientUtils.drawCenteredString(life + "", (int)position.x, (int)position.y, size, size, g);

@@ -20,6 +20,7 @@
 ./common/Payload.java
 ./common/PayloadType.java
 ./common/Phase.java
+./common/PhasePayload.java
 ./common/Player.java
 ./common/PRHPayload.java
 ./common/Projectile.java

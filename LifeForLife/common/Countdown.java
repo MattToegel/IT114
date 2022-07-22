@@ -92,4 +92,14 @@ public class Countdown {
         }
         return String.format("%s: %s", message, time);
     }
+    /**
+     * Used to override the remaining countdown duration
+     */
+    public void setDuration(int d){
+        time = d;
+    }
+
+    public int getRemainingTime(){
+        return time;
+    }
 }

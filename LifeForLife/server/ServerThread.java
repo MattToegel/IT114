@@ -11,6 +11,8 @@ import LifeForLife.common.MyLogger;
 import LifeForLife.common.PRHPayload;
 import LifeForLife.common.Payload;
 import LifeForLife.common.PayloadType;
+import LifeForLife.common.Phase;
+import LifeForLife.common.PhasePayload;
 import LifeForLife.common.ProjectilePayload;
 import LifeForLife.common.RoomResultPayload;
 import LifeForLife.common.Vector2;
@@ -96,6 +98,19 @@ public class ServerThread extends Thread {
     }
 
     // send methods
+    public boolean sendClockSync(int time) {
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.TIME);
+        p.setNumber(time);
+        return send(p);
+    }
+
+    public boolean sendCurrentPhase(Phase phase) {
+        PhasePayload p = new PhasePayload();
+        p.setPhase(phase);
+        return send(p);
+    }
+
     public boolean sendProjectileSync(long clientId, long projectileId, Vector2 position, Vector2 heading, long life,
             int speed) {
         ProjectilePayload p = new ProjectilePayload();

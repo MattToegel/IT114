@@ -44,7 +44,7 @@ public class ChatPanel extends JPanel {
         JPanel content = new JPanel();
         content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
         content.setAlignmentY(Component.BOTTOM_ALIGNMENT);
-        
+
         // wraps a viewport to provide scroll capabilities
         JScrollPane scroll = new JScrollPane(content);
         scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
@@ -112,7 +112,7 @@ public class ChatPanel extends JPanel {
             public void componentAdded(ContainerEvent e) {
                 if (chatArea.isVisible()) {
                     // scroll down on new message
-                    
+
                     chatArea.revalidate();
                     chatArea.repaint();
                     /**
@@ -134,7 +134,7 @@ public class ChatPanel extends JPanel {
 
                     };
                     vertical.addAdjustmentListener(scroller);
-                    
+
                 }
             }
 
@@ -183,14 +183,14 @@ public class ChatPanel extends JPanel {
             lastSize = frameSize;
 
             logger.info("Wrapper size: " + frameSize);
-            int w = (int) Math.ceil(frameSize.getWidth() * .3f);
-
-            userListPanel.setPreferredSize(new Dimension(w, (int) frameSize.getHeight()));
+            int w = Math.min( (int) Math.ceil(frameSize.getWidth() * .3f), 30);
+            
+            userListPanel.setMinimumSize(new Dimension(w, (int) frameSize.getHeight()));
             userListPanel.revalidate();
             userListPanel.repaint();
-            w = (int) Math.ceil(frameSize.getWidth() * .7f);
-            //preferred size was preventing it from growing with its children
-            //chatArea.setPreferredSize(new Dimension(w, (int) Short.MAX_VALUE));
+            w = Math.min((int) Math.ceil(frameSize.getWidth() * .7f), 100);
+            // preferred size was preventing it from growing with its children
+            // chatArea.setPreferredSize(new Dimension(w, (int) Short.MAX_VALUE));
             chatArea.setMinimumSize(new Dimension(w, (int) frameSize.getHeight()));
             userListPanel.resizeUserListItems();
             resizeMessages();
@@ -203,10 +203,10 @@ public class ChatPanel extends JPanel {
     private void resizeMessages() {
         for (Component p : chatArea.getComponents()) {
             if (p.isVisible()) {
-                p.setPreferredSize(
+                p.setMinimumSize(
                         new Dimension(wrapper.getWidth(), ClientUtils.calcHeightForText(this,
                                 ((JEditorPane) p).getText(), wrapper.getWidth())));
-                p.setMaximumSize(p.getPreferredSize());
+                p.setMaximumSize(p.getMinimumSize());
 
             }
         }
@@ -214,8 +214,10 @@ public class ChatPanel extends JPanel {
         chatArea.repaint();
     }
 
-    public void addUserListItem(long clientId, String clientName) {
-        userListPanel.addUserListItem(clientId, clientName);
+    public void addUserListItem(long clientId, String clientName, String formattedName) {
+        userListPanel.addUserListItem(clientId, clientName, formattedName);
+        userListPanel.revalidate();
+        userListPanel.repaint();
     }
 
     public void removeUserListItem(long clientId) {
@@ -233,14 +235,19 @@ public class ChatPanel extends JPanel {
 
         // sizes the panel to attempt to take up the width of the container
         // and expand in height based on word wrapping
-        textContainer.setLayout(null);
-        textContainer.setPreferredSize(
-                new Dimension(content.getWidth(), ClientUtils.calcHeightForText(this, text, content.getWidth())));
-        textContainer.setMaximumSize(textContainer.getPreferredSize());
+        textContainer.setAlignmentX(JEditorPane.LEFT_ALIGNMENT);
+        //textContainer.setLayout(null);
+        textContainer.setMinimumSize(
+                new Dimension(wrapper.getWidth(), ClientUtils.calcHeightForText(this, text, wrapper.getWidth())));
+        textContainer.setMaximumSize(textContainer.getMinimumSize());
         textContainer.setEditable(false);
         ClientUtils.clearBackground(textContainer);
         // add to container and tell the layout to revalidate
         content.add(textContainer);
-        
+
+    }
+
+    public void clearChatHistory() {
+        chatArea.removeAll();
     }
 }

@@ -16,6 +16,7 @@ import LifeForLife.common.PayloadType;
 import LifeForLife.common.ProjectilePayload;
 import LifeForLife.common.RoomResultPayload;
 import LifeForLife.common.Vector2;
+import LifeForLife.common.PhasePayload;
 
 //Enum Singleton: https://www.geeksforgeeks.org/advantages-and-disadvantages-of-using-enum-as-singleton-in-java/
 public enum Client {
@@ -242,6 +243,12 @@ public enum Client {
                 // logger.info("Projectile position: " + pp.getPosition());
                 events.forEach(e -> e.onReceiveProjectileSync(pp.getClientId(), pp.getProjectileId(),
                         pp.getPosition(), pp.getHeading(), pp.getLife(), pp.getSpeed()));
+                break;
+            case PHASE:
+                events.forEach(e -> e.onReceiveCurrentPhase(((PhasePayload) p).getPhase()));
+                break;
+            case TIME:
+                events.forEach(e -> e.onReceiveTimeSync((int)p.getNumber()));
                 break;
             default:
                 logger.warning("Unhandled payload type");

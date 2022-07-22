@@ -26,6 +26,7 @@ import LifeForLife.client.Client;
 import LifeForLife.client.ClientUtils;
 import LifeForLife.client.IClientEvents;
 import LifeForLife.common.Constants;
+import LifeForLife.common.Countdown;
 import LifeForLife.common.MyLogger;
 import LifeForLife.common.Phase;
 import LifeForLife.common.Player;
@@ -53,6 +54,7 @@ public class GamePanel extends JPanel implements IClientEvents {
     Point mp = new Point();
     private boolean isRunning = false;
     private ProjectilePool projectilePool = new ProjectilePool();
+    private Countdown gameTimer;
 
     // inner class keystates
     abstract class KeyStates {
@@ -60,6 +62,12 @@ public class GamePanel extends JPanel implements IClientEvents {
         public static boolean S = false;
         public static boolean A = false;
         public static boolean D = false;
+        public static void reset(){
+            W = false;
+            S = false;
+            A = false;
+            D = false;
+        }
     }
 
     // inner class keyboard action
@@ -111,7 +119,7 @@ public class GamePanel extends JPanel implements IClientEvents {
                 if (currentPhase == Phase.BATTLE) {
                     if (myPlayer != null) {
                         mp = e.getPoint();
-                        myPlayer.lookAtPoint(mp.x, mp.y);
+                        myPlayer.lookAtPoint(mp.x + 2, mp.y);
                         sendHeadingAndRotation();
 
                     }
@@ -139,7 +147,7 @@ public class GamePanel extends JPanel implements IClientEvents {
                         }
                         self.repaint();
                     }
-                } 
+                }
             }
 
             @Override
@@ -198,6 +206,7 @@ public class GamePanel extends JPanel implements IClientEvents {
                 projectilePool.draw(g2);
                 break;
             case END_GAME:
+                drawGameOver(g2);
                 break;
             default:
                 break;
@@ -227,7 +236,7 @@ public class GamePanel extends JPanel implements IClientEvents {
     }
 
     private void drawField(Graphics2D g) {
-
+        Dimension s = self.getSize();
         // debug draw border for panel size
         g.setColor(Color.YELLOW);
         g.drawRect(0, 0, getSize().width, getSize().height);
@@ -239,6 +248,20 @@ public class GamePanel extends JPanel implements IClientEvents {
         for (Player p : players.values()) {
             p.draw(g);
         }
+        int time = gameTimer.getRemainingTime();
+        int minutes = time / 60;
+        int seconds = time % 60;
+        ClientUtils.drawCenteredString(String.format("%02d:%02d", minutes, seconds), 0, 0, (int) s.getWidth(), 100, g);
+    }
+
+    private void drawGameOver(Graphics2D g) {
+        Dimension s = self.getSize();
+        g.setColor(Color.WHITE);
+        g.setFont(new Font("Monospaced", Font.PLAIN, 32));
+        ClientUtils.drawCenteredString("GAME OVER", 0, 0, (int) s.getWidth(), 300, g);
+        g.setFont(new Font("Monospaced", Font.PLAIN, 16));
+        ClientUtils.drawCenteredString("Check the scores in the chat sections; game will restart shortly", 0, 100,
+                (int) s.getWidth(), 300, g);
     }
 
     private void sendHeadingAndRotation() {
@@ -274,12 +297,15 @@ public class GamePanel extends JPanel implements IClientEvents {
         am.put("left_released", new KeyboardAction(KeyEvent.VK_A, false));
         am.put("right_pressed", new KeyboardAction(KeyEvent.VK_D, true));
         am.put("right_released", new KeyboardAction(KeyEvent.VK_D, false));
+        if (inputThread != null) {
+            return;
+        }
         inputThread = new Thread() {
             @Override
             public void run() {
                 logger.info("GamePanel thread started");
                 Vector2 localHeading = new Vector2(0, 0);
-                while (self.isEnabled() && isRunning) {
+                while (self.isEnabled() && isRunning && currentPhase == Phase.BATTLE) {
                     if (myPlayer != null) {
                         Vector2 ch = myPlayer.getHeading();
                         localHeading.x = 0;
@@ -316,7 +342,8 @@ public class GamePanel extends JPanel implements IClientEvents {
         inputThread.start();
     }
 
-    private synchronized void processClientConnectionStatus(long clientId, String clientName, String formattedName, boolean isConnect) {
+    private synchronized void processClientConnectionStatus(long clientId, String clientName, String formattedName,
+            boolean isConnect) {
         if (isConnect) {
             if (!players.containsKey(clientId)) {
                 logger.info(String.format("Adding %s[%s]", clientName, clientId));
@@ -402,10 +429,11 @@ public class GamePanel extends JPanel implements IClientEvents {
                 if (clientId == myId) {
                     isReady = true;
                 }
-                numReady++;
-                self.repaint();
             }
         }
+        //added after the recording
+        numReady = (int)players.values().stream().filter(pl -> pl.isReady()).count();
+        self.repaint();
     }
 
     @Override
@@ -428,6 +456,10 @@ public class GamePanel extends JPanel implements IClientEvents {
                 public void run() {
                     currentPhase = Phase.BATTLE;
                     attachListeners();
+                    if (gameTimer != null) {
+                        gameTimer.cancel();
+                    }
+                    gameTimer = new Countdown("Duration", 60 * 5);
                     while (currentPhase == Phase.BATTLE && isRunning) {
                         self.repaint();
                         try {
@@ -455,7 +487,42 @@ public class GamePanel extends JPanel implements IClientEvents {
     @Override
     public void onReceiveProjectileSync(long clientId, long projectileId, Vector2 position, Vector2 heading, long life,
             int speed) {
-        projectilePool.syncProjectile(clientId, projectileId, position, heading, life, speed);
+        Player p = players.get(clientId);
+        Color c = Color.WHITE;
+        if (p != null) {
+            c = p.getColor();
+        }
+        projectilePool.syncProjectile(clientId, projectileId, position, heading, life, speed, c);
+    }
+
+    @Override
+    public void onReceiveCurrentPhase(Phase phase) {
+        currentPhase = phase;
+        if (currentPhase == Phase.END_GAME) {
+            projectilePool.reset();// added after the recording to clear out client-side projectiles
+            KeyStates.reset(); // added after the recording to reset unfocused windows that had movements active
+            for (Player p : players.values()) {
+                p.setIsReady(false);
+                p.reset();
+            }
+            isReady = false;
+            if (inputThread != null) {
+                inputThread = null;
+            }
+            if (drawLoop != null) {
+                drawLoop = null;
+            }
+            numReady = 0;
+        }
+        self.repaint();
+    }
+
+    @Override
+    public void onReceiveTimeSync(int time) {
+        if (gameTimer != null) {
+            gameTimer.setDuration(time);
+        }
+
     }
 
 }

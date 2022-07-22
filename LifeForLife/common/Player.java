@@ -28,6 +28,34 @@ public class Player {
     private Shooter gun = new Shooter();
     private boolean hasPendingUpdate = true;
     private Color color;
+    private int targetHits = 0;
+    private int gotHit = 0;
+
+    public void addHitTarget() {
+        targetHits++;
+    }
+
+    public void addGotHit() {
+        gotHit++;
+    }
+
+    public int getTargetHits() {
+        return targetHits;
+    }
+
+    public int getHits() {
+        return gotHit;
+    }
+
+    public void reset(){
+        gotHit = 0;
+        targetHits = 0;
+        //added after the recording
+        heading.x = 0;
+        heading.y = 0;
+        position.x = 0;
+        position.y = 0;
+    }
 
     /** Server-side constructor */
     public Player(ServerThread st, ProjectilePool pp) {
@@ -47,7 +75,7 @@ public class Player {
         this.clientName = clientName;
         this.player = new Ellipse2D.Float(0, 0, Constants.PLAYER_SIZE, Constants.PLAYER_SIZE);
         String hexColor = formattedName.split("\"#")[1].split("\"")[0].trim();
-        color = Color.decode("#"+hexColor);
+        color = Color.decode("#" + hexColor);
 
     }
 
@@ -97,6 +125,10 @@ public class Player {
 
     private void setPendingUpdate() {
         hasPendingUpdate = true;
+    }
+
+    public void forceUpdate(){
+        setPendingUpdate();
     }
 
     public void draw(Graphics2D g) {
@@ -243,6 +275,10 @@ public class Player {
 
     public boolean canShoot() {
         return gun.canShoot();
+    }
+
+    public Color getColor() {
+        return color;
     }
 
     @Override

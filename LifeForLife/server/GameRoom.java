@@ -7,11 +7,14 @@ import java.util.Iterator;
 import java.util.List;
 
 import LifeForLife.common.Constants;
+import LifeForLife.common.Countdown;
 import LifeForLife.common.GeneralUtils;
 import LifeForLife.common.MyLogger;
+import LifeForLife.common.Phase;
 import LifeForLife.common.Player;
 import LifeForLife.common.Projectile;
 import LifeForLife.common.ProjectilePool;
+import LifeForLife.common.Throttle;
 import LifeForLife.common.Vector2;
 
 public class GameRoom extends Room {
@@ -23,6 +26,9 @@ public class GameRoom extends Room {
     private Thread gameLoop = null;
     private Rectangle arenaBounds = new Rectangle(800, 600);
     private ProjectilePool projectilePool = new ProjectilePool(10);
+    private Countdown gameTimer;
+    private Phase currentPhase = Phase.READY_CHECK;
+    private Throttle delayClockSync = new Throttle(250);
     // Constants
 
     public GameRoom(String name) {
@@ -32,9 +38,10 @@ public class GameRoom extends Room {
     @Override
     protected synchronized void addClient(ServerThread client) {
         super.addClient(client);
-        Player player = new Player(client,projectilePool);
+        Player player = new Player(client, projectilePool);
         players.add(player);
         syncReadyStatus(player);
+        player.getClient().sendCurrentPhase(currentPhase);
     }
 
     @Override
@@ -44,10 +51,16 @@ public class GameRoom extends Room {
         boolean removed = players.removeIf(p -> p.getClientId() == client.getClientId()); // TODO see if this works w/o
                                                                                           // loop
         logger.info("GameRoom Removed Player: " + (removed ? "true" : "false"));
-
+        if(currentPhase == Phase.READY_CHECK){
+            readyCheck();
+        }
     }
 
     public synchronized void setReady(long clientId) {
+        if(currentPhase != Phase.READY_CHECK){
+            sendMessage(null, "Current phase is not ready check");
+            return;
+        }
         synchronized (players) {
             Iterator<Player> iter = players.iterator();
             while (iter.hasNext()) {
@@ -116,6 +129,12 @@ public class GameRoom extends Room {
     }
 
     private void setupGame() {
+        if (currentPhase == Phase.READY_CHECK) {
+            currentPhase = Phase.BATTLE;
+        } else if (currentPhase == Phase.BATTLE) {
+            sendMessage(null, "Game is already in progress");
+            return;
+        }
         logger.info("Initializing Game");
 
         synchronized (players) {
@@ -129,15 +148,23 @@ public class GameRoom extends Room {
                             GeneralUtils.randomRange((int) arenaBounds.getMinX(), (int) arenaBounds.getMaxX()),
                             GeneralUtils.randomRange((int) arenaBounds.getMinY(), (int) arenaBounds.getMaxY()));
                     p.setPosition(startingPosition);
+                    p.forceUpdate();
                     logger.info(String.format("Player %s moved to %s", p.getClientName(), p.getPosition()));
-                    //broadcastPositionAndRotation(p);//removed to avoid deadlock issues
-                    //broadcastLife(p);//removed to avoid deadlock issues
+                    // broadcastPositionAndRotation(p);//removed to avoid deadlock issues
+                    // broadcastLife(p);//removed to avoid deadlock issues
                     broadcastGameData();
                     // p.getClient().sendCurrentLife(Constants.STARTING_LIFE);
                 }
             }
         }
         logger.info("Ready to play");
+        if (gameTimer != null) {
+            gameTimer.cancel();
+        }
+        gameTimer = new Countdown("Duration", 60 * 5, () -> {
+            logger.info("Game Over: Time Expired");
+            gameOver();
+        });
         broadcastStart();
         if (gameLoop == null) {
             // TODO GAME LOOP
@@ -145,9 +172,22 @@ public class GameRoom extends Room {
                 @Override
                 public void run() {
                     logger.info("Game Loop Starting");
-                    /*ProjectilePool.INSTANCE.setSyncCallback((p) -> {
-                        //broadcastProjectileSync(p);//removed to avoid deadlock issues
-                    });*/
+                    sendMessage(null, """
+                            <h2>Rules</h2>
+                            Free-For-All
+                            <ul>
+                                <li>Each shot costs 1 life</li>
+                                <li>Each hit returns 1 life</li>
+                                <li>Stationary projectiles can be picked up to heal 1 life</li>
+                                <li>Game Round lasts for 5 minutes or until there is only 1 person remaining</li>
+                                <li>Players at 0 life can pickup stationary projectiles to get back in the game unless a game over condition triggers</li>
+                            </ul>
+                            """);   
+                    /*
+                     * ProjectilePool.INSTANCE.setSyncCallback((p) -> {
+                     * //broadcastProjectileSync(p);//removed to avoid deadlock issues
+                     * });
+                     */
                     projectilePool.setCollisionCallback(hitData -> {
                         if (hitData == null) {
                             logger.info("Hit data received as null");
@@ -158,37 +198,50 @@ public class GameRoom extends Room {
                         if (hitPlayer != null) {
                             if (hitData.didPickup) {
                                 hitPlayer.modifyLife(hitData.life);
-                                //sendMessage(null,
-                                //        String.format("%s gain %s life", hitPlayer.getClientName(), hitData.life));
+                                // sendMessage(null,
+                                // String.format("%s gain %s life", hitPlayer.getClientName(), hitData.life));
                             } else {
                                 hitPlayer.modifyLife(-hitData.life);
-                                Player shooter = players.stream().filter(p->p.getClientId() == hitData.sourceClientId).findFirst().orElse(null);
-                                if(shooter != null){
+                                hitPlayer.addGotHit();
+                                Player shooter = players.stream().filter(p -> p.getClientId() == hitData.sourceClientId)
+                                        .findFirst().orElse(null);
+                                if (shooter != null) {
                                     shooter.modifyLife(hitData.life);
+                                    shooter.addHitTarget();
                                 }
-                                //sendMessage(null,
-                                 //       String.format("%s lost %s life", hitPlayer.getClientName(), hitData.life));
+                                // sendMessage(null,
+                                // String.format("%s lost %s life", hitPlayer.getClientName(), hitData.life));
                             }
-                            //broadcastLife(hitPlayer);//removed to avoid deadlock issues
+                            // broadcastLife(hitPlayer);//removed to avoid deadlock issues
                         }
                     });
-                    while (isRunning()) {
+                    while (isRunning() && currentPhase == Phase.BATTLE) {
                         // move projectiles
                         projectilePool.move(arenaBounds);
                         // move players
+                        int playersRemaining = 0;
                         synchronized (players) {
                             Iterator<Player> iter = players.iterator();
                             while (iter.hasNext()) {
                                 Player p = iter.next();
                                 if (p != null && p.isReady()) {
                                     p.move(arenaBounds);
-                                    //broadcastPositionAndRotation(p);
+                                    // broadcastPositionAndRotation(p);
+
                                     // check collisions
                                     projectilePool.checkCollision(p);
+                                    //check players remaining (i.e., still alive)
+                                    if (p.getLife() > 0) {
+                                        playersRemaining++;
+                                    }
                                 }
                             }
                         }
                         broadcastGameData();
+                        if (playersRemaining <= 1) {
+                            logger.info("Game Over: Last man standing");
+                            gameOver();
+                        }
                         try {
                             Thread.sleep(16);
                         } catch (Exception e) {
@@ -200,6 +253,7 @@ public class GameRoom extends Room {
             gameLoop.start();
         }
     }
+
     /**
      * Handles periodic syncing of data to avoid deadlock issues
      */
@@ -229,13 +283,13 @@ public class GameRoom extends Room {
                     for (int pi = 0, l = activePlayers.size(); pi < l; pi++) {
                         Player ap = activePlayers.get(pi);
                         if (ap != null) {
-                            //sync life
+                            // sync life
                             messageSent = p.getClient().sendCurrentLife(ap.getClientId(),
                                     ap.getLife());
                             if (!messageSent) {
                                 break;
                             }
-                            //sync position/rotation
+                            // sync position/rotation
                             messageSent = p.getClient().sendPRH(
                                     ap.getClientId(),
                                     ap.getPosition(),
@@ -245,6 +299,9 @@ public class GameRoom extends Room {
                                 break;
                             }
                         }
+                    }
+                    if (delayClockSync.ready() && gameTimer != null) {
+                        messageSent = p.getClient().sendClockSync(gameTimer.getRemainingTime());
                     }
                     if (!messageSent) {
                         players.remove(i);
@@ -258,14 +315,14 @@ public class GameRoom extends Room {
                     logger.warning("Removing null player");
                 }
             }
-            //reset pending projectiles
+            // reset pending projectiles
             for (int pri = 0, l = activeProjectiles.size(); pri < l; pri++) {
                 Projectile pr = activeProjectiles.get(pri);
                 if (pr != null) {
                     pr.resetPendingUpdate();
                 }
             }
-            //reset pending players
+            // reset pending players
             for (int pi = 0, l = activePlayers.size(); pi < l; pi++) {
                 Player ap = activePlayers.get(pi);
                 if (ap != null) {
@@ -318,14 +375,115 @@ public class GameRoom extends Room {
                         if (pr != null) {
                             // sendMessage(null, String.format("Projectile %s %s", pr.getPosition(),
                             // pr.getHeading()));
-                            //broadcastProjectileSync(pr);
+                            // broadcastProjectileSync(pr);
                             p.modifyLife(-pr.getLife());
-                            //broadcastLife(p);
+                            // broadcastLife(p);
                         }
                     }
                     break;
                 }
             }
+        }
+    }
+
+    private void broadcastPhase(Phase phase) {
+        synchronized (players) {
+            Iterator<Player> iter = players.iterator();
+            while (iter.hasNext()) {
+                Player p = iter.next();
+                if (p != null) {
+                    p.getClient().sendCurrentPhase(phase);
+                }
+            }
+        }
+    }
+
+    private void gameOver() {
+        if (currentPhase == Phase.END_GAME) {
+            return;
+        } else {
+            currentPhase = Phase.END_GAME;
+            broadcastPhase(currentPhase);
+            // player with highest life is winner
+            players.sort((a, b) -> {
+                if (a.getLife() == b.getLife()) {
+                    return 0;
+                } else if (a.getLife() < b.getLife()) {
+                    return 1;
+                }
+                return -1;
+            });
+            Player winner = players.get(0);
+            long topLife = winner.getLife();
+            // secondary sort if more than one player has the same life value
+            List<Player> sameLife = players.stream().filter(p -> p.getLife() == topLife).toList();
+            if (sameLife.size() > 1) {
+                // secondary sort based on # of targets hit
+                sameLife.sort((a, b) -> {
+                    if (a.getTargetHits() == b.getTargetHits()) {
+                        return 0;
+                    } else if (a.getTargetHits() < b.getTargetHits()) {
+                        return 1;
+                    }
+                    return -1;
+                });
+                winner = sameLife.get(0);
+            }
+            // TODO can add other sorting metrics in the future
+
+            //generate scoreboard
+            List<Player> scoreboard = players.stream().filter(p -> p.isReady()).toList();
+            StringBuilder sb = new StringBuilder();
+            sb.append("""
+                    <h2>Scoreboard</h2>
+                    <table>
+                    <thead>
+                        <tr>
+                            <td>Rank</td>
+                            <td>Player</td>
+                            <td>Life</td>
+                            <td>Targets Hit</td>
+                            <td>Got Hit</td>
+                        </tr>
+                    </thead>
+                        <tbody>
+                            """);
+            for (int i = 0, l = scoreboard.size(); i < l; i++) {
+                Player p = scoreboard.get(i);
+                sb.append(String.format("""
+                        <tr style=\"%s\">
+                            <td>%s</td>
+                            <td>%s</td>
+                            <td>%s</td>
+                            <td>%s</td>
+                            <td>%s</td>
+                        </tr>
+                        """,
+                        p.getClientId() == winner.getClientId() ? "font-weight:bold;" : "",
+                        (i+1),
+                        p.getClient().getFormattedName(),
+                        p.getLife(),
+                        p.getTargetHits(),
+                        p.getHits()));
+                        //reset player data
+                        p.setIsReady(false);
+                        p.reset();
+            }
+            sb.append("""
+                        </tbody>
+                        </table>
+                    """);
+            final String scoreString = sb.toString();
+            sendMessage(null, scoreString);
+            projectilePool.reset();
+            if (gameTimer != null) {
+                gameTimer.cancel();
+            }
+            gameLoop = null;
+            gameTimer = new Countdown("Restart", 5, ()->{
+                currentPhase = Phase.READY_CHECK;
+                broadcastPhase(currentPhase);
+            });
         }
     }
 }
