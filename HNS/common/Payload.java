@@ -1,3 +1,5 @@
+package HNS.common;
+
 import java.io.Serializable;
 
 public class Payload implements Serializable {
@@ -30,6 +32,16 @@ public class Payload implements Serializable {
         this.clientName = clientName;
     }
 
+    private long clientId;
+
+    public long getClientId() {
+        return clientId;
+    }
+
+    public void setClientId(long clientId) {
+        this.clientId = clientId;
+    }
+
     /**
      * Generic text based message
      */
@@ -43,22 +55,10 @@ public class Payload implements Serializable {
         this.message = message;
     }
 
-    /**
-     * Generic number for example sake
-     */
-    private int number;
-
-    public int getNumber() {
-        return number;
-    }
-
-    public void setNumber(int number) {
-        this.number = number;
-    }
-
     @Override
     public String toString() {
-        return String.format("Type[%s], Number[%s], Message[%s]", getPayloadType().toString(), getNumber(),
+        return String.format("Type[%s],ClientId[%s,] ClientName[%s], Message[%s]", getPayloadType().toString(),
+                getClientId(), getClientName(),
                 getMessage());
     }
 }

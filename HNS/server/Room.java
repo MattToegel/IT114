@@ -1,6 +1,11 @@
+package HNS.server;
+
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.logging.Logger;
+
+import HNS.common.Constants;
 
 public class Room implements AutoCloseable {
     protected static Server server;// used to refer to accessible server functions
@@ -14,18 +19,19 @@ public class Room implements AutoCloseable {
     private final static String DISCONNECT = "disconnect";
     private final static String LOGOUT = "logout";
     private final static String LOGOFF = "logoff";
+    private static Logger logger = Logger.getLogger(Room.class.getName());
 
     public Room(String name) {
         this.name = name;
         isRunning = true;
     }
 
-    private void info(String message) {
-        System.out.println(String.format("Room[%s]: %s", name, message));
-    }
-
     public String getName() {
         return name;
+    }
+
+    public boolean isRunning() {
+        return isRunning;
     }
 
     protected synchronized void addClient(ServerThread client) {
@@ -34,25 +40,12 @@ public class Room implements AutoCloseable {
         }
         client.setCurrentRoom(this);
         if (clients.indexOf(client) > -1) {
-            info("Attempting to add a client that already exists");
+            logger.warning("Attempting to add client that already exists in room");
         } else {
             clients.add(client);
-            new Thread() {
-                @Override
-                public void run() {
-                    // slight delay to let potentially new client to finish
-                    // binding input/output streams
-                    // comment out the Thread.sleep to see what happens
-                    try {
-                        Thread.sleep(100);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                    // sendMessage(client, "joined the room " + getName());
-                    sendConnectionStatus(client, true);
-                }
-            }.start();
-
+            client.sendResetUserList();
+            syncCurrentUsers(client);
+            sendConnectionStatus(client, true);
         }
     }
 
@@ -60,14 +53,34 @@ public class Room implements AutoCloseable {
         if (!isRunning) {
             return;
         }
-        clients.remove(client);
-        // we don't need to broadcast it to the server
-        // only to our own Room
+        // attempt to remove client from room
+        try {
+            clients.remove(client);
+        } catch (Exception e) {
+            logger.severe(String.format("Error removing client from room %s", e.getMessage()));
+            e.printStackTrace();
+        }
+        // if there are still clients tell them this person left
         if (clients.size() > 0) {
-            // sendMessage(client, "left the room");
             sendConnectionStatus(client, false);
         }
         checkClients();
+    }
+
+    private void syncCurrentUsers(ServerThread client) {
+        Iterator<ServerThread> iter = clients.iterator();
+        while (iter.hasNext()) {
+            ServerThread existingClient = iter.next();
+            if (existingClient.getClientId() == client.getClientId()) {
+                continue;// don't sync ourselves
+            }
+            boolean messageSent = client.sendExistingClient(existingClient.getClientId(),
+                    existingClient.getClientName());
+            if (!messageSent) {
+                handleDisconnect(iter, existingClient);
+                break;// since it's only 1 client receiving all the data, break if any 1 send fails
+            }
+        }
     }
 
     /***
@@ -76,7 +89,7 @@ public class Room implements AutoCloseable {
      */
     private void checkClients() {
         // Cleanup if room is empty and not lobby
-        if (!name.equalsIgnoreCase("lobby") && clients.size() == 0) {
+        if (!name.equalsIgnoreCase(Constants.LOBBY) && (clients == null || clients.size() == 0)) {
             close();
         }
     }
@@ -88,6 +101,8 @@ public class Room implements AutoCloseable {
      * @param client  The sender of the message (since they'll be the ones
      *                triggering the actions)
      */
+    @Deprecated // not used in my project as of this lesson, keeping it here in case things
+                // change
     private boolean processCommands(String message, ServerThread client) {
         boolean wasCommand = false;
         try {
@@ -116,7 +131,6 @@ public class Room implements AutoCloseable {
                         wasCommand = false;
                         break;
                 }
-
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -125,23 +139,34 @@ public class Room implements AutoCloseable {
     }
 
     // Command helper methods
+    protected static void getRooms(String query, ServerThread client) {
+        String[] rooms = Server.INSTANCE.getRooms(query).toArray(new String[0]);
+        client.sendRoomsList(rooms,
+                (rooms != null && rooms.length == 0) ? "No rooms found containing your query string" : null);
+    }
+
     protected static void createRoom(String roomName, ServerThread client) {
         if (server.createNewRoom(roomName)) {
-            // server.joinRoom(roomName, client);
             Room.joinRoom(roomName, client);
         } else {
-            client.sendMessage("Server", String.format("Room %s already exists", roomName));
+            client.sendMessage(Constants.DEFAULT_CLIENT_ID, String.format("Room %s already exists", roomName));
         }
     }
 
+    /**
+     * Will cause the client to leave the current room and be moved to the new room
+     * if applicable
+     * 
+     * @param roomName
+     * @param client
+     */
     protected static void joinRoom(String roomName, ServerThread client) {
         if (!server.joinRoom(roomName, client)) {
-            client.sendMessage("Server", String.format("Room %s doesn't exist", roomName));
+            client.sendMessage(Constants.DEFAULT_CLIENT_ID, String.format("Room %s doesn't exist", roomName));
         }
     }
 
     protected static void disconnectClient(ServerThread client, Room room) {
-        client.setCurrentRoom(null);
         client.disconnect();
         room.removeClient(client);
     }
@@ -159,13 +184,12 @@ public class Room implements AutoCloseable {
         if (!isRunning) {
             return;
         }
-        info("Sending message to " + clients.size() + " clients");
+        logger.info(String.format("Sending message to %s clients", clients.size()));
         if (sender != null && processCommands(message, sender)) {
             // it was a command, don't broadcast
             return;
         }
-
-        String from = (sender == null ? "Room" : sender.getClientName());
+        long from = sender == null ? Constants.DEFAULT_CLIENT_ID : sender.getClientId();
         Iterator<ServerThread> iter = clients.iterator();
         while (iter.hasNext()) {
             ServerThread client = iter.next();
@@ -179,25 +203,27 @@ public class Room implements AutoCloseable {
     protected synchronized void sendConnectionStatus(ServerThread sender, boolean isConnected) {
         Iterator<ServerThread> iter = clients.iterator();
         while (iter.hasNext()) {
-            ServerThread client = iter.next();
-            boolean messageSent = client.sendConnectionStatus(sender.getClientName(), isConnected);
+            ServerThread receivingClient = iter.next();
+            boolean messageSent = receivingClient.sendConnectionStatus(
+                    sender.getClientId(),
+                    sender.getClientName(),
+                    isConnected);
             if (!messageSent) {
-                handleDisconnect(iter, client);
+                handleDisconnect(iter, receivingClient);
             }
         }
     }
 
     private void handleDisconnect(Iterator<ServerThread> iter, ServerThread client) {
         iter.remove();
-        info("Removed client " + client.getClientName());
-        checkClients();
+        logger.info(String.format("Removed client %s", client.getClientName()));
         sendMessage(null, client.getClientName() + " disconnected");
+        checkClients();
     }
 
     public void close() {
         server.removeRoom(this);
-        server = null;
         isRunning = false;
-        clients = null;
+        clients.clear();
     }
 }

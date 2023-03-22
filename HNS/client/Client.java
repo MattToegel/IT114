@@ -1,11 +1,23 @@
+package HNS.client;
+
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.Hashtable;
+import java.util.Iterator;
 import java.util.Scanner;
+import java.util.Map.Entry;
+import java.util.logging.Logger;
 
-public class Client {
+import HNS.common.Constants;
+import HNS.common.Payload;
+import HNS.common.PayloadType;
+import HNS.common.RoomResultPayload;
+
+public enum Client {
+    Instance;
 
     Socket server = null;
     ObjectOutputStream out = null;
@@ -16,10 +28,10 @@ public class Client {
     private Thread inputThread;
     private Thread fromServerThread;
     private String clientName = "";
+    private long myClientId = Constants.DEFAULT_CLIENT_ID;
+    private static Logger logger = Logger.getLogger(Client.class.getName());
 
-    public Client() {
-        System.out.println("");
-    }
+    private Hashtable<Long, String> userList = new Hashtable<Long, String>();
 
     public boolean isConnected() {
         if (server == null) {
@@ -47,8 +59,8 @@ public class Client {
             out = new ObjectOutputStream(server.getOutputStream());
             // channel to listen to server
             in = new ObjectInputStream(server.getInputStream());
-            System.out.println("Client connected");
-            listenForServerMessage();
+            logger.info("Client connected");
+            listenForServerPayload();
             sendConnect();
         } catch (UnknownHostException e) {
             e.printStackTrace();
@@ -74,16 +86,19 @@ public class Client {
      * @param text
      * @return
      */
+    @Deprecated // remove in Milestone3
     private boolean isConnection(String text) {
         // https://www.w3schools.com/java/java_regex.asp
         return text.matches(ipAddressPattern)
                 || text.matches(localhostPattern);
     }
 
+    @Deprecated // remove in Milestone3
     private boolean isQuit(String text) {
         return text.equalsIgnoreCase("/quit");
     }
 
+    @Deprecated // remove in Milestone3
     private boolean isName(String text) {
         if (text.startsWith("/name")) {
             String[] parts = text.split(" ");
@@ -97,7 +112,7 @@ public class Client {
     }
 
     /**
-     * Controller for handling various text commands.
+     * Controller for handling various text commands from the client
      * <p>
      * Add more here as needed
      * </p>
@@ -105,7 +120,8 @@ public class Client {
      * @param text
      * @return true if a text was a command or triggered a command
      */
-    private boolean processCommand(String text) {
+    @Deprecated // removing in Milestone3
+    private boolean processClientCommand(String text) throws IOException {
         if (isConnection(text)) {
             if (clientName.isBlank()) {
                 System.out.println("You must set your name before you can connect via: /name your_name");
@@ -118,23 +134,74 @@ public class Client {
             connect(parts[0].trim(), Integer.parseInt(parts[1].trim()));
             return true;
         } else if (isQuit(text)) {
+            sendDisconnect();
             isRunning = false;
             return true;
         } else if (isName(text)) {
+            return true;
+        } else if (text.startsWith("/joinroom")) {
+            String roomName = text.replace("/joinroom", "").trim();
+            sendJoinRoom(roomName);
+            return true;
+        } else if (text.startsWith("/createroom")) {
+            String roomName = text.replace("/createroom", "").trim();
+            sendCreateRoom(roomName);
+            return true;
+        } else if (text.startsWith("/rooms")) {
+            String query = text.replace("/rooms", "").trim();
+            sendListRooms(query);
+            return true;
+        } else if (text.equalsIgnoreCase("/users")) {
+            Iterator<Entry<Long, String>> iter = userList.entrySet().iterator();
+            System.out.println("Listing Local User List:");
+            if (userList.size() == 0) {
+                System.out.println("No local users in list");
+            }
+            while (iter.hasNext()) {
+                Entry<Long, String> user = iter.next();
+                System.out.println(String.format("%s[%s]", user.getValue(), user.getKey()));
+            }
             return true;
         }
         return false;
     }
 
     // Send methods
-    private void sendConnect() throws IOException {
+    protected void sendListRooms(String query) throws IOException {
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.GET_ROOMS);
+        p.setMessage(query);
+        out.writeObject(p);
+    }
+
+    protected void sendJoinRoom(String roomName) throws IOException {
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.JOIN_ROOM);
+        p.setMessage(roomName);
+        out.writeObject(p);
+    }
+
+    protected void sendCreateRoom(String roomName) throws IOException {
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.CREATE_ROOM);
+        p.setMessage(roomName);
+        out.writeObject(p);
+    }
+
+    protected void sendDisconnect() throws IOException {
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.DISCONNECT);
+        out.writeObject(p);
+    }
+
+    protected void sendConnect() throws IOException {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.CONNECT);
         p.setClientName(clientName);
         out.writeObject(p);
     }
 
-    private void sendMessage(String message) throws IOException {
+    protected void sendMessage(String message) throws IOException {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.MESSAGE);
         p.setMessage(message);
@@ -143,34 +210,35 @@ public class Client {
     }
 
     // end send methods
+    @Deprecated // remove in Milestone3
     private void listenForKeyboard() {
         inputThread = new Thread() {
             @Override
             public void run() {
-                System.out.println("Listening for input");
+                logger.info("Listening for input");
                 try (Scanner si = new Scanner(System.in);) {
                     String line = "";
                     isRunning = true;
                     while (isRunning) {
                         try {
-                            System.out.println("Waiting for input");
+                            logger.info("Waiting for input");
                             line = si.nextLine();
-                            if (!processCommand(line)) {
+                            if (!processClientCommand(line)) {
                                 if (isConnected()) {
                                     if (line != null && line.trim().length() > 0) {
                                         sendMessage(line);
                                     }
 
                                 } else {
-                                    System.out.println("Not connected to server");
+                                    logger.info("Not connected to server");
                                 }
                             }
                         } catch (Exception e) {
-                            System.out.println("Connection dropped");
+                            logger.warning("Connection dropped");
                             break;
                         }
                     }
-                    System.out.println("Exited loop");
+                    logger.info("Exited loop");
                 } catch (Exception e) {
                     e.printStackTrace();
                 } finally {
@@ -181,62 +249,114 @@ public class Client {
         inputThread.start();
     }
 
-    private void listenForServerMessage() {
+    private void listenForServerPayload() {
         fromServerThread = new Thread() {
             @Override
             public void run() {
                 try {
                     Payload fromServer;
 
-                    // while we're connected, listen for strings from server
-                    while (!server.isClosed() && !server.isInputShutdown()
+                    // while we're connected, listen for objects from server
+                    while (isRunning && !server.isClosed() && !server.isInputShutdown()
                             && (fromServer = (Payload) in.readObject()) != null) {
 
-                        System.out.println("Debug Info: " + fromServer);
-                        processMessage(fromServer);
+                        logger.info("Debug Info: " + fromServer);
+                        processPayload(fromServer);
 
                     }
-                    System.out.println("Loop exited");
+                    logger.info("listenForServerPayload() loop exited");
                 } catch (Exception e) {
                     e.printStackTrace();
-                    if (!server.isClosed()) {
-                        System.out.println("Server closed connection");
-                    } else {
-                        System.out.println("Connection closed");
-                    }
                 } finally {
+                    logger.info("Stopped listening to server input");
                     close();
-                    System.out.println("Stopped listening to server input");
                 }
             }
         };
         fromServerThread.start();// start the thread
     }
 
-    private void processMessage(Payload p) {
+    protected String getClientNameById(long id) {
+        if (userList.containsKey(id)) {
+            return userList.get(id);
+        }
+        if (id == Constants.DEFAULT_CLIENT_ID) {
+            return "[Server]";
+        }
+        return "unkown user";
+    }
+
+    /**
+     * Processes incoming payloads from ServerThread
+     * 
+     * @param p
+     */
+    private void processPayload(Payload p) {
         switch (p.getPayloadType()) {
-            case CONNECT:// for now connect,disconnect are all the same
-            case DISCONNECT:
+            case CONNECT:
+                if (!userList.containsKey(p.getClientId())) {
+                    userList.put(p.getClientId(), p.getClientName());
+                }
                 System.out.println(String.format("*%s %s*",
                         p.getClientName(),
                         p.getMessage()));
                 break;
-            case MESSAGE:
-                System.out.println(String.format("%s: %s",
+            case DISCONNECT:
+                if (userList.containsKey(p.getClientId())) {
+                    userList.remove(p.getClientId());
+                }
+                if (p.getClientId() == myClientId) {
+                    myClientId = Constants.DEFAULT_CLIENT_ID;
+                }
+                System.out.println(String.format("*%s %s*",
                         p.getClientName(),
                         p.getMessage()));
                 break;
+            case SYNC_CLIENT:
+                if (!userList.containsKey(p.getClientId())) {
+                    userList.put(p.getClientId(), p.getClientName());
+                }
+            case MESSAGE:
+                System.out.println(String.format("%s: %s",
+                        getClientNameById(p.getClientId()),
+                        p.getMessage()));
+                break;
+            case CLIENT_ID:
+                if (myClientId == Constants.DEFAULT_CLIENT_ID) {
+                    myClientId = p.getClientId();
+                } else {
+                    logger.warning("Receiving client id despite already being set");
+                }
+                break;
+            case GET_ROOMS:
+                RoomResultPayload rp = (RoomResultPayload) p;
+                System.out.println("Received Room List:");
+                if (rp.getMessage() != null) {
+                    System.out.println(rp.getMessage());
+                } else {
+                    for (int i = 0, l = rp.getRooms().length; i < l; i++) {
+                        System.out.println(String.format("%s) %s", (i + 1), rp.getRooms()[i]));
+                    }
+                }
+                break;
+            case RESET_USER_LIST:
+                userList.clear();
+                break;
             default:
+                logger.warning(String.format("Unhandled Payload type: %s", p.getPayloadType()));
                 break;
 
         }
     }
 
+    @Deprecated // removing in Milestone3
     public void start() throws IOException {
         listenForKeyboard();
     }
 
     private void close() {
+        myClientId = Constants.DEFAULT_CLIENT_ID;
+        userList.clear();
         try {
             inputThread.interrupt();
         } catch (Exception e) {
@@ -276,12 +396,11 @@ public class Client {
         }
     }
 
+    @Deprecated // removing in Milestone3
     public static void main(String[] args) {
-        Client client = new Client();
-
         try {
             // if start is private, it's valid here since this main is part of the class
-            client.start();
+            Client.Instance.start();
         } catch (IOException e) {
             e.printStackTrace();
         }
