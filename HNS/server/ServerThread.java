@@ -136,7 +136,6 @@ public class ServerThread extends Thread {
         p.setPayloadType(isConnected ? PayloadType.CONNECT : PayloadType.DISCONNECT);
         p.setClientId(clientId);
         p.setClientName(who);
-        // p.setMessage(isConnected ? "connected" : "disconnected");
         p.setMessage(String.format("%s the room %s", (isConnected ? "Joined" : "Left"), currentRoom.getName()));
         return send(p);
     }
