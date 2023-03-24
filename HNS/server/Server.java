@@ -32,7 +32,7 @@ public enum Server {
             Socket incoming_client = null;
             logger.info(String.format("Server is listening on port %s", port));
             isRunning = true;
-            Room.server = this;
+            // Room.server = this;//since server is a singleton now we don't need this
             startQueueManager();
             // create a lobby on start
             lobby = new Room(Constants.LOBBY);

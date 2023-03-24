@@ -8,7 +8,9 @@ import java.util.logging.Logger;
 import HNS.common.Constants;
 
 public class Room implements AutoCloseable {
-    protected static Server server;// used to refer to accessible server functions
+    // server is a singleton now so we don't need this
+    // protected static Server server;// used to refer to accessible server
+    // functions
     private String name;
     private List<ServerThread> clients = new ArrayList<ServerThread>();
     private boolean isRunning = false;
@@ -146,7 +148,7 @@ public class Room implements AutoCloseable {
     }
 
     protected static void createRoom(String roomName, ServerThread client) {
-        if (server.createNewRoom(roomName)) {
+        if (Server.INSTANCE.createNewRoom(roomName)) {
             Room.joinRoom(roomName, client);
         } else {
             client.sendMessage(Constants.DEFAULT_CLIENT_ID, String.format("Room %s already exists", roomName));
@@ -161,7 +163,7 @@ public class Room implements AutoCloseable {
      * @param client
      */
     protected static void joinRoom(String roomName, ServerThread client) {
-        if (!server.joinRoom(roomName, client)) {
+        if (!Server.INSTANCE.joinRoom(roomName, client)) {
             client.sendMessage(Constants.DEFAULT_CLIENT_ID, String.format("Room %s doesn't exist", roomName));
         }
     }
@@ -222,7 +224,7 @@ public class Room implements AutoCloseable {
     }
 
     public void close() {
-        server.removeRoom(this);
+        Server.INSTANCE.removeRoom(this);
         isRunning = false;
         clients.clear();
     }
