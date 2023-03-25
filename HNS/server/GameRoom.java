@@ -1,7 +1,7 @@
 package HNS.server;
 
-import java.util.Hashtable;
 import java.util.Iterator;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 import HNS.common.Constants;
@@ -12,7 +12,7 @@ public class GameRoom extends Room {
     Phase currentPhase = Phase.READY;
     private static Logger logger = Logger.getLogger(GameRoom.class.getName());
     private TimedEvent readyTimer = null;
-    private Hashtable<Long, Player> players = new Hashtable<Long, Player>();
+    private ConcurrentHashMap<Long, Player> players = new ConcurrentHashMap<Long, Player>();
 
     public GameRoom(String name) {
         super(name);
@@ -21,14 +21,12 @@ public class GameRoom extends Room {
     @Override
     protected void addClient(ServerThread client) {
         logger.info("Adding client as player");
-        if (!players.containsKey(client.getClientId())) {
+        players.computeIfAbsent(client.getClientId(), id -> {
             Player player = new Player(client);
-            players.put(client.getClientId(), player);
             super.addClient(client);
             logger.info(String.format("Total clients %s", clients.size()));
-        }
-
-        // super.addClient(p);
+            return player;
+        });
     }
 
     protected void setReady(ServerThread client) {
@@ -58,7 +56,10 @@ public class GameRoom extends Room {
         if (currentPhase != Phase.READY) {
             return;
         }
-        int numReady = players.values().stream().mapToInt((p) -> p.isReady() ? 1 : 0).sum();
+        // two examples for the same result
+        // int numReady = players.values().stream().mapToInt((p) -> p.isReady() ? 1 :
+        // 0).sum();
+        long numReady = players.values().stream().filter(Player::isReady).count();
         if (numReady >= Constants.MINIMUM_PLAYERS) {
             updatePhase(Phase.IN_PROGRESS);
             if (timerExpired) {
@@ -99,6 +100,8 @@ public class GameRoom extends Room {
             return;
         }
         currentPhase = phase;
+        // NOTE: since the collection can yield a removal during iteration, an iterator
+        // is better than relying on forEach
         Iterator<Player> iter = players.values().stream().iterator();
         while (iter.hasNext()) {
             Player client = iter.next();
