@@ -10,19 +10,20 @@ import java.util.logging.Logger;
 import HNS.common.Constants;
 import HNS.common.Payload;
 import HNS.common.PayloadType;
+import HNS.common.Phase;
 import HNS.common.RoomResultPayload;
 
 /**
  * A server-side representation of a single client
  */
 public class ServerThread extends Thread {
-    private Socket client;
+    protected Socket client;
     private String clientName;
     private boolean isRunning = false;
     private ObjectOutputStream out;// exposed here for send()
     // private Server server;// ref to our server so we can call methods on it
     // more easily
-    private Room currentRoom;
+    protected Room currentRoom;
     private static Logger logger = Logger.getLogger(ServerThread.class.getName());
     private long myClientId;
 
@@ -78,6 +79,12 @@ public class ServerThread extends Thread {
     }
 
     // send methods
+    public boolean sendPhaseSync(Phase phase) {
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.PHASE);
+        p.setMessage(phase.name());
+        return send(p);
+    }
 
     public boolean sendReadyStatus(long clientId) {
         Payload p = new Payload();
@@ -215,7 +222,12 @@ public class ServerThread extends Thread {
                 Room.joinRoom(p.getMessage().trim(), this);
                 break;
             case READY:
-                // ((GameRoom) currentRoom).setReady(myClientId);
+                try {
+                    ((GameRoom) currentRoom).readyCheck(this);
+                } catch (Exception e) {
+                    logger.severe(String.format("There was a problem during readyCheck %s", e.getMessage()));
+                    e.printStackTrace();
+                }
                 break;
             default:
                 break;

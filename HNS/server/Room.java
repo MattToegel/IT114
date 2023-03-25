@@ -12,7 +12,7 @@ public class Room implements AutoCloseable {
     // protected static Server server;// used to refer to accessible server
     // functions
     private String name;
-    private List<ServerThread> clients = new ArrayList<ServerThread>();
+    protected List<ServerThread> clients = new ArrayList<ServerThread>();
     private boolean isRunning = false;
     // Commands
     private final static String COMMAND_TRIGGER = "/";
@@ -37,6 +37,7 @@ public class Room implements AutoCloseable {
     }
 
     protected synchronized void addClient(ServerThread client) {
+        logger.info("Room addClient called");
         if (!isRunning) {
             return;
         }
@@ -216,8 +217,10 @@ public class Room implements AutoCloseable {
         }
     }
 
-    private void handleDisconnect(Iterator<ServerThread> iter, ServerThread client) {
-        iter.remove();
+    protected void handleDisconnect(Iterator<ServerThread> iter, ServerThread client) {
+        if (iter != null) {
+            iter.remove();
+        }
         logger.info(String.format("Removed client %s", client.getClientName()));
         sendMessage(null, client.getClientName() + " disconnected");
         checkClients();
