@@ -31,42 +31,51 @@ public class GameRoom extends Room {
         // super.addClient(p);
     }
 
-    protected void readyCheck(ServerThread client) {
+    protected void setReady(ServerThread client) {
         logger.info("Ready check triggered");
         if (currentPhase != Phase.READY) {
             logger.warning(String.format("readyCheck() incorrect phase: %s", Phase.READY.name()));
             return;
         }
-        players.values().stream().filter(p -> p.getClient().getClientId() == client.getClientId()).findFirst()
-                .ifPresent(p -> {
-                    ((Player) p).setReady(true);
-                    logger.info(String.format("Marked player %s[%s] as ready", p.getClient().getClientName(), p
-                            .getClient().getClientId()));
-                    syncReadyStatus(p.getClient().getClientId());
-                });
-        int numReady = players.values().stream().mapToInt((p) -> p.isReady() ? 1 : 0).sum();
-        if (numReady >= players.values().size() && numReady >= Constants.MINIMUM_PLAYERS) {
-            // start immediately
-            updatePhase(Phase.IN_PROGRESS);
-            sendMessage(null, "Everyone in the room marked themselves ready, starting session");
-            if (readyTimer != null) {
-                readyTimer.cancel();
-                readyTimer = null;
-            }
-        }
         if (readyTimer == null) {
             sendMessage(null, "Ready Check Initiated, 30 seconds to join");
             readyTimer = new TimedEvent(30, () -> {
                 readyTimer = null;
-                if (numReady >= Constants.MINIMUM_PLAYERS) {
-                    updatePhase(Phase.IN_PROGRESS);
-                    sendMessage(null, "Ready Timer expired, starting session");
-                    start();
-                } else {
-                    resetSession();
-                    sendMessage(null, "Ready Timer expired, not enough players. Resetting ready check");
-                }
+                readyCheck(true);
             });
+        }
+        players.values().stream().filter(p -> p.getClient().getClientId() == client.getClientId()).findFirst()
+                .ifPresent(p -> {
+                    p.setReady(true);
+                    logger.info(String.format("Marked player %s[%s] as ready", p.getClient().getClientName(), p
+                            .getClient().getClientId()));
+                    syncReadyStatus(p.getClient().getClientId());
+                });
+        readyCheck(false);
+    }
+
+    private void readyCheck(boolean timerExpired) {
+        if (currentPhase != Phase.READY) {
+            return;
+        }
+        int numReady = players.values().stream().mapToInt((p) -> p.isReady() ? 1 : 0).sum();
+        if (numReady >= Constants.MINIMUM_PLAYERS) {
+            updatePhase(Phase.IN_PROGRESS);
+            if (timerExpired) {
+                sendMessage(null, "Ready Timer expired, starting session");
+            } else if (numReady >= players.size()) {
+                sendMessage(null, "Everyone in the room marked themselves ready, starting session");
+                if (readyTimer != null) {
+                    readyTimer.cancel();
+                    readyTimer = null;
+                }
+            }
+            start();
+        } else {
+            if (timerExpired) {
+                resetSession();
+                sendMessage(null, "Ready Timer expired, not enough players. Resetting ready check");
+            }
         }
     }
 
@@ -86,6 +95,9 @@ public class GameRoom extends Room {
     }
 
     private void updatePhase(Phase phase) {
+        if (currentPhase == phase) {
+            return;
+        }
         currentPhase = phase;
         Iterator<Player> iter = players.values().stream().iterator();
         while (iter.hasNext()) {

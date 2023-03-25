@@ -223,7 +223,7 @@ public class ServerThread extends Thread {
                 break;
             case READY:
                 try {
-                    ((GameRoom) currentRoom).readyCheck(this);
+                    ((GameRoom) currentRoom).setReady(this);
                 } catch (Exception e) {
                     logger.severe(String.format("There was a problem during readyCheck %s", e.getMessage()));
                     e.printStackTrace();
