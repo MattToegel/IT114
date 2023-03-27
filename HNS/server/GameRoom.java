@@ -12,7 +12,7 @@ public class GameRoom extends Room {
     Phase currentPhase = Phase.READY;
     private static Logger logger = Logger.getLogger(GameRoom.class.getName());
     private TimedEvent readyTimer = null;
-    private ConcurrentHashMap<Long, Player> players = new ConcurrentHashMap<Long, Player>();
+    private ConcurrentHashMap<Long, ServerPlayer> players = new ConcurrentHashMap<Long, ServerPlayer>();
 
     public GameRoom(String name) {
         super(name);
@@ -22,7 +22,7 @@ public class GameRoom extends Room {
     protected void addClient(ServerThread client) {
         logger.info("Adding client as player");
         players.computeIfAbsent(client.getClientId(), id -> {
-            Player player = new Player(client);
+            ServerPlayer player = new ServerPlayer(client);
             super.addClient(client);
             logger.info(String.format("Total clients %s", clients.size()));
             return player;
@@ -59,7 +59,7 @@ public class GameRoom extends Room {
         // two examples for the same result
         // int numReady = players.values().stream().mapToInt((p) -> p.isReady() ? 1 :
         // 0).sum();
-        long numReady = players.values().stream().filter(Player::isReady).count();
+        long numReady = players.values().stream().filter(ServerPlayer::isReady).count();
         if (numReady >= Constants.MINIMUM_PLAYERS) {
             updatePhase(Phase.IN_PROGRESS);
             if (timerExpired) {
@@ -89,7 +89,7 @@ public class GameRoom extends Room {
                 });
     }
 
-    private void resetSession() {
+    private synchronized void resetSession() {
         players.values().stream().forEach(p -> p.setReady(false));
         updatePhase(Phase.READY);
         sendMessage(null, "Session ended, please intiate ready check to begin a new one");
@@ -102,9 +102,9 @@ public class GameRoom extends Room {
         currentPhase = phase;
         // NOTE: since the collection can yield a removal during iteration, an iterator
         // is better than relying on forEach
-        Iterator<Player> iter = players.values().stream().iterator();
+        Iterator<ServerPlayer> iter = players.values().stream().iterator();
         while (iter.hasNext()) {
-            Player client = iter.next();
+            ServerPlayer client = iter.next();
             boolean success = client.getClient().sendPhaseSync(currentPhase);
             if (!success) {
                 handleDisconnect(client);
@@ -112,7 +112,7 @@ public class GameRoom extends Room {
         }
     }
 
-    protected void handleDisconnect(Player player) {
+    protected void handleDisconnect(ServerPlayer player) {
         if (players.containsKey(player.getClient().getClientId())) {
             players.remove(player.getClient().getClientId());
             super.handleDisconnect(null, player.getClient());
@@ -125,9 +125,9 @@ public class GameRoom extends Room {
     }
 
     private void syncReadyStatus(long clientId) {
-        Iterator<Player> iter = players.values().stream().iterator();
+        Iterator<ServerPlayer> iter = players.values().stream().iterator();
         while (iter.hasNext()) {
-            Player client = iter.next();
+            ServerPlayer client = iter.next();
             boolean success = client.getClient().sendReadyStatus(clientId);
             if (!success) {
                 handleDisconnect(client);
