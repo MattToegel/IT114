@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.logging.Logger;
 
 import HNS.common.Constants;
-import HNS.server.ServerThread;
 
 public class Room implements AutoCloseable {
     // server is a singleton now so we don't need this
@@ -221,8 +220,7 @@ public class Room implements AutoCloseable {
     protected void handleDisconnect(Iterator<ServerThread> iter, ServerThread client) {
         if (iter != null) {
             iter.remove();
-        }
-        else {
+        } else {
             Iterator<ServerThread> iter2 = clients.iterator();
             while (iter2.hasNext()) {
                 ServerThread th = iter2.next();

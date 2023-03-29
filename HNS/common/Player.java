@@ -22,6 +22,33 @@ public class Player {
         return currentCell;
     }
 
+    private boolean isOut = false;
+
+    public void setIsOut(boolean isOut) {
+        this.isOut = true;
+    }
+
+    public boolean isOut() {
+        return isOut;
+    }
+
+    private int points = 0;
+
+    public void setPoints(int points) {
+        this.points = points;
+    }
+
+    public void changePoints(int points) {
+        this.points += points;
+        if (this.points < 0) {
+            this.points = 0;
+        }
+    }
+
+    public int getPoints() {
+        return points;
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();

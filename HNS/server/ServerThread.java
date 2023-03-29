@@ -11,6 +11,7 @@ import HNS.common.Constants;
 import HNS.common.Payload;
 import HNS.common.PayloadType;
 import HNS.common.Phase;
+import HNS.common.PositionPayload;
 import HNS.common.RoomResultPayload;
 
 /**
@@ -79,6 +80,27 @@ public class ServerThread extends Thread {
     }
 
     // send methods
+    public boolean sendOut(long clientId) {
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.SEEK);
+        p.setClientId(clientId);
+        return send(p);
+    }
+
+    public boolean sendSeeker(long clientId) {
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.SEEKER);
+        p.setClientId(clientId);
+        return send(p);
+    }
+
+    public boolean sendHidePosition(int x, int y, long clientId) {
+        PositionPayload pp = new PositionPayload();// defaults to hide
+        pp.setCoord(x, y);
+        pp.setClientId(clientId);
+        return send(pp);
+    }
+
     public boolean sendPhaseSync(Phase phase) {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.PHASE);
@@ -226,6 +248,24 @@ public class ServerThread extends Thread {
                     ((GameRoom) currentRoom).setReady(this);
                 } catch (Exception e) {
                     logger.severe(String.format("There was a problem during readyCheck %s", e.getMessage()));
+                    e.printStackTrace();
+                }
+                break;
+            case SEEK:
+                try {
+                    PositionPayload pp = (PositionPayload) p;
+                    ((GameRoom) currentRoom).checkSeekPosition(pp.getX(), pp.getY(), myClientId);
+                } catch (Exception e) {
+                    logger.severe(String.format("There was a problem during checkSeekPosition %s", e.getMessage()));
+                    e.printStackTrace();
+                }
+                break;
+            case HIDE:
+                try {
+                    PositionPayload pp = (PositionPayload) p;
+                    ((GameRoom) currentRoom).setHidePosition(pp.getX(), pp.getY(), myClientId);
+                } catch (Exception e) {
+                    logger.severe(String.format("There was a problem during setHidePosition %s", e.getMessage()));
                     e.printStackTrace();
                 }
                 break;

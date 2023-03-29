@@ -14,6 +14,7 @@ import java.util.logging.Logger;
 import HNS.common.Constants;
 import HNS.common.Payload;
 import HNS.common.PayloadType;
+import HNS.common.PositionPayload;
 import HNS.common.RoomResultPayload;
 
 public enum Client {
@@ -29,6 +30,7 @@ public enum Client {
     private Thread fromServerThread;
     private String clientName = "";
     private long myClientId = Constants.DEFAULT_CLIENT_ID;
+    private boolean isSeeker = false;
     private static Logger logger = Logger.getLogger(Client.class.getName());
 
     private Hashtable<Long, String> userList = new Hashtable<Long, String>();
@@ -164,11 +166,49 @@ public enum Client {
             return true;
         } else if (text.equalsIgnoreCase("/ready")) {
             sendReadyStatus();
+        } else if (text.startsWith("/hide")) {
+            String data = text.replace("/hide", "");
+            String[] parts = data.split(",");
+            if (parts.length >= 2) {
+                try {
+                    int x = Integer.parseInt(parts[0].trim());
+                    int y = Integer.parseInt(parts[1].trim());
+                    sendHidePosition(x, y);
+                } catch (Exception e) {
+                    System.out.println("Invalid coordinate, please try again in the format of /hide x,y");
+                }
+            }
+            return true;// definitely don't share this one :)
+        } else if (text.startsWith("/seek")) {
+            String data = text.replace("/seek", "");
+            String[] parts = data.split(",");
+            if (parts.length >= 2) {
+                try {
+                    int x = Integer.parseInt(parts[0].trim());
+                    int y = Integer.parseInt(parts[1].trim());
+                    sendHidePosition(x, y);
+                } catch (Exception e) {
+                    System.out.println("Invalid coordinate, please try again in the format of /seek x,y");
+                }
+            }
+            return true;
         }
         return false;
     }
 
     // Send methods
+    protected void sendSeekPosition(int x, int y) throws IOException {
+        PositionPayload pp = new PositionPayload(PayloadType.SEEK);
+        pp.setCoord(x, y);
+        out.writeObject(pp);
+    }
+
+    protected void sendHidePosition(int x, int y) throws IOException {
+        PositionPayload pp = new PositionPayload();
+        pp.setCoord(x, y);
+        out.writeObject(pp);
+    }
+
     protected void sendReadyStatus() throws IOException {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.READY);
@@ -315,6 +355,7 @@ public enum Client {
                 }
                 if (p.getClientId() == myClientId) {
                     myClientId = Constants.DEFAULT_CLIENT_ID;
+                    isSeeker = false;
                 }
                 System.out.println(String.format("*%s %s*",
                         p.getClientName(),
@@ -324,10 +365,11 @@ public enum Client {
                 if (!userList.containsKey(p.getClientId())) {
                     userList.put(p.getClientId(), p.getClientName());
                 }
+                break;
             case MESSAGE:
-                System.out.println(String.format("%s: %s",
+                System.out.println(Constants.ANSI_CYAN + String.format("%s: %s",
                         getClientNameById(p.getClientId()),
-                        p.getMessage()));
+                        p.getMessage()) + Constants.ANSI_RESET);
                 break;
             case CLIENT_ID:
                 if (myClientId == Constants.DEFAULT_CLIENT_ID) {
@@ -351,12 +393,42 @@ public enum Client {
                 userList.clear();
                 break;
             case READY:
-                System.out.println(String.format("Player %s is ready", getClientNameById(p.getClientId())));
+                System.out.println(String.format("Player %s is ready", getClientNameById(p.getClientId()))
+                        + Constants.ANSI_RESET);
                 break;
             case PHASE:
-                System.out.println(String.format("The current phase is %s", p.getMessage()));
+                System.out.println(Constants.ANSI_YELLOW + String.format("The current phase is %s", p.getMessage())
+                        + Constants.ANSI_RESET);
+                break;
+            case SEEKER:
+                isSeeker = p.getClientId() == myClientId;
+                if (isSeeker) {
+                    System.out.println(Constants.ANSI_GREEN + "You are the seeker" + Constants.ANSI_RESET);
+                } else {
+                    System.out.println(Constants.ANSI_GREEN + getClientNameById(p.getClientId()) + " is the seeker"
+                            + Constants.ANSI_RESET);
+                }
+                break;
+            case HIDE:
+                try {
+                    PositionPayload pp = (PositionPayload) p;
+                    System.out
+                            .println(Constants.ANSI_BLUE + String.format("Player %s is hiding at [%s,%s]",
+                                    getClientNameById(p.getClientId()),
+                                    pp.getX(), pp.getY()) + Constants.ANSI_RESET);
+                } catch (Exception e) {
+                    logger.severe(Constants.ANSI_RED + String.format("Error handling position payload: %s", e)
+                            + Constants.ANSI_RESET);
+                }
+                break;
+            case SEEK:
+                System.out.println(
+                        Constants.ANSI_BLUE + String.format("Player %s is out!", getClientNameById(p.getClientId()))
+                                + Constants.ANSI_RESET);
+                break;
             default:
-                logger.warning(String.format("Unhandled Payload type: %s", p.getPayloadType()));
+                logger.warning(Constants.ANSI_RED + String.format("Unhandled Payload type: %s", p.getPayloadType())
+                        + Constants.ANSI_RESET);
                 break;
 
         }
