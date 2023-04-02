@@ -61,17 +61,19 @@ public class GameRoom extends Room {
         // 0).sum();
         long numReady = players.values().stream().filter(ServerPlayer::isReady).count();
         if (numReady >= Constants.MINIMUM_PLAYERS) {
-            updatePhase(Phase.IN_PROGRESS);
+
             if (timerExpired) {
                 sendMessage(null, "Ready Timer expired, starting session");
+                start();
             } else if (numReady >= players.size()) {
                 sendMessage(null, "Everyone in the room marked themselves ready, starting session");
                 if (readyTimer != null) {
                     readyTimer.cancel();
                     readyTimer = null;
                 }
+                start();
             }
-            start();
+
         } else {
             if (timerExpired) {
                 resetSession();
@@ -81,6 +83,7 @@ public class GameRoom extends Room {
     }
 
     private void start() {
+        updatePhase(Phase.IN_PROGRESS);
         // TODO example
         sendMessage(null, "Session started");
         new TimedEvent(30, () -> resetSession())
