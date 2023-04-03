@@ -1,8 +1,11 @@
 package HNS.common;
 
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+
+import HNS.server.ServerPlayer;
 
 public class Cell {
     ConcurrentHashMap<Long, Player> playersInCell = new ConcurrentHashMap<Long, Player>();
@@ -56,9 +59,18 @@ public class Cell {
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append(String.format("In cell[%s, %s,] (", x, y));
-        playersInCell.forEach((clientId, player) -> {
-            sb.append(String.format("%s - %s", clientId, player));
-        });
+        Iterator<Player> iter = playersInCell.values().iterator();
+        while (iter.hasNext()) {
+            Player p = iter.next();
+            if (p instanceof ServerPlayer) {
+                ServerPlayer sp = (ServerPlayer) p;
+                sb.append(String.format("%s - %s", sp.getClient().getClientId(), sp.getClient().getClientName()));
+            } else {
+                sb.append(String.format("%s", "A player is here"));
+            }
+            sb.append(System.lineSeparator()); // Start a new line after each row
+        }
+
         sb.append(")");
         return sb.toString();
     }

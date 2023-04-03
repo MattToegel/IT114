@@ -393,11 +393,9 @@ public class GameRoom extends Room {
         Iterator<ServerPlayer> iter = players.values().stream().iterator();
         while (iter.hasNext()) {
             ServerPlayer sp = iter.next();
-            if (sp != currentSeeker && sp.getClient().getClientId() != currentSeeker.getClient().getClientId()) {
-                boolean success = sp.getClient().sendOut(clientId);
-                if (!success) {
-                    handleDisconnect(sp);
-                }
+            boolean success = sp.getClient().sendOut(clientId);
+            if (!success) {
+                handleDisconnect(sp);
             }
         }
     }

@@ -186,7 +186,7 @@ public enum Client {
                 try {
                     int x = Integer.parseInt(parts[0].trim());
                     int y = Integer.parseInt(parts[1].trim());
-                    sendHidePosition(x, y);
+                    sendSeekPosition(x, y);
                 } catch (Exception e) {
                     System.out.println("Invalid coordinate, please try again in the format of /seek x,y");
                 }
