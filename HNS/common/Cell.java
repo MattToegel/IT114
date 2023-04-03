@@ -1,8 +1,12 @@
 package HNS.common;
 
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+
+import HNS.client.ClientPlayer;
+import HNS.server.ServerPlayer;
 
 public class Cell {
     ConcurrentHashMap<Long, Player> playersInCell = new ConcurrentHashMap<Long, Player>();
@@ -31,6 +35,10 @@ public class Cell {
         return blocked;
     }
 
+    public void setBlocked(boolean isBlocked) {
+        this.blocked = isBlocked;
+    }
+
     public void reset() {
         playersInCell.clear();
         blocked = false;
@@ -56,9 +64,19 @@ public class Cell {
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append(String.format("In cell[%s, %s,] (", x, y));
-        playersInCell.forEach((clientId, player) -> {
-            sb.append(String.format("%s - %s", clientId, player));
-        });
+        Iterator<Player> iter = playersInCell.values().iterator();
+        while (iter.hasNext()) {
+            Player p = iter.next();
+            if (p instanceof ServerPlayer) {
+                ServerPlayer sp = (ServerPlayer) p;
+                sb.append(String.format("%s - %s", sp.getClient().getClientId(), sp.getClient().getClientName()));
+            } else if (p instanceof ClientPlayer) {
+                ClientPlayer cp = (ClientPlayer) p;
+                sb.append(String.format("%s - %s", cp.getClientId(), cp.getClientName()));
+            }
+            sb.append(System.lineSeparator()); // Start a new line after each row
+        }
+
         sb.append(")");
         return sb.toString();
     }

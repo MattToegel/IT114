@@ -1,7 +1,6 @@
 package HNS.common;
 
 import java.util.logging.Logger;
-
 import HNS.server.ServerPlayer;
 
 public class Grid {
@@ -44,8 +43,12 @@ public class Grid {
         try {
             cells[x][y].add(y, p);
             p.setCurrentCell(cells[x][y]);
+            logger.info(Constants.ANSI_RED
+                    + String.format("Added to Cell[%s,%s] has %s", x, y, cells[x][y].playersInCell.size())
+                    + Constants.ANSI_RESET);
             return true;
         } catch (Exception e) {
+            e.printStackTrace();
             return false;
         }
     }
@@ -78,7 +81,9 @@ public class Grid {
     public boolean removePlayerFromCell(int x, int y, long clientId) {
         try {
             cells[x][y].remove(clientId);
-
+            logger.info(Constants.ANSI_RED
+                    + String.format("Removed from Cell[%s,%s] has %s", x, y, cells[x][y].playersInCell.size())
+                    + Constants.ANSI_RESET);
             return true;
         } catch (Exception e) {
             return false;
@@ -97,9 +102,64 @@ public class Grid {
         int total = 0;
         for (int row = 0, rows = cells.length; row < rows; row++) {
             for (int column = 0, columns = cells[0].length; column < columns; column++) {
-                total += cells[row][column].playersInCell.values().stream().count();
+                long count = cells[row][column].playersInCell.size();
+                total += count;
+                // logger.info(Constants.ANSI_RED + String.format("Cell[%s,%s] has %s", row,
+                // column, count)
+                // + Constants.ANSI_RESET);
             }
         }
         return total;
+    }
+
+    /**
+     * Called on the client side to import data from server
+     * 
+     * @param gd
+     */
+    public void importData(GridData gd) {
+        for (CellData cd : gd.getCells()) {
+            try {
+                Cell cell = cells[cd.getX()][cd.getY()];
+                cell.reset();
+                for (long clientId : cd.getPlayersInCell()) {
+                    cell.add(clientId, new Player());// don't need a real reference for now
+                }
+                cell.setBlocked(cd.isBlocked());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public GridData export() {
+        GridData gd = new GridData();
+        for (int row = 0, rows = cells.length; row < rows; row++) {
+            for (int column = 0, columns = cells[0].length; column < columns; column++) {
+                long[] playersInCell = cells[row][column].playersInCell.values().stream()
+                        .mapToLong(p -> ((ServerPlayer) p).getClient().getClientId()).toArray();
+                CellData cd = new CellData();
+                cd.setBlocked(cells[row][column].isBlocked());
+                cd.setCoord(row, column);
+                cd.setPlayersInCell(playersInCell);
+                gd.addCell(cd);
+            }
+        }
+        return gd;
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+
+        // Iterate through each row and column
+        for (int i = 0; i < cells.length; i++) {
+            for (int j = 0; j < cells[i].length; j++) {
+                // Append each element to the string builder with some formatting
+                sb.append(String.format("%s", cells[i][j])); // Assuming the grid contains integers
+            }
+            sb.append(System.lineSeparator()); // Start a new line after each row
+        }
+        return sb.toString();
     }
 }

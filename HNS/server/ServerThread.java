@@ -7,10 +7,15 @@ import java.net.Socket;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import HNS.common.CellData;
+import HNS.common.CellPayload;
 import HNS.common.Constants;
+import HNS.common.GridData;
+import HNS.common.GridPayload;
 import HNS.common.Payload;
 import HNS.common.PayloadType;
 import HNS.common.Phase;
+import HNS.common.PointsPayload;
 import HNS.common.PositionPayload;
 import HNS.common.RoomResultPayload;
 
@@ -80,9 +85,38 @@ public class ServerThread extends Thread {
     }
 
     // send methods
+    public boolean sendPoints(long clientId, int points) {
+        PointsPayload pp = new PointsPayload();
+        pp.setClientId(clientId);
+        pp.setPoints(points);
+        return send(pp);
+    }
+
+    public boolean sendCell(CellData cd) {
+        CellPayload cp = new CellPayload();
+        cp.setCellData(cd);
+        return send(cp);
+    }
+
+    /**
+     * 
+     * @param grid the grid to sync or null to tell clients to clear their grid
+     * @return
+     */
+    public boolean sendGrid(GridData grid) {
+        GridPayload gp = new GridPayload();
+        gp.setGrid(grid);
+        return send(gp);
+    }
+
+    /**
+     * 
+     * @param clientId if -1 will reset client's data, else marks player out
+     * @return
+     */
     public boolean sendOut(long clientId) {
         Payload p = new Payload();
-        p.setPayloadType(PayloadType.SEEK);
+        p.setPayloadType(PayloadType.OUT);
         p.setClientId(clientId);
         return send(p);
     }

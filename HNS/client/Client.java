@@ -5,15 +5,20 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Scanner;
 import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 import HNS.common.Constants;
+import HNS.common.Grid;
+import HNS.common.GridPayload;
 import HNS.common.Payload;
 import HNS.common.PayloadType;
+import HNS.common.Phase;
+import HNS.common.Player;
+import HNS.common.PointsPayload;
 import HNS.common.PositionPayload;
 import HNS.common.RoomResultPayload;
 
@@ -33,7 +38,10 @@ public enum Client {
     private boolean isSeeker = false;
     private static Logger logger = Logger.getLogger(Client.class.getName());
 
-    private Hashtable<Long, String> userList = new Hashtable<Long, String>();
+    // private Hashtable<Long, String> userList = new Hashtable<Long, String>();
+    private ConcurrentHashMap<Long, Player> players = new ConcurrentHashMap<Long, Player>();
+    private Grid grid;
+    private Phase currentPhase = Phase.READY;
 
     public boolean isConnected() {
         if (server == null) {
@@ -154,14 +162,15 @@ public enum Client {
             sendListRooms(query);
             return true;
         } else if (text.equalsIgnoreCase("/users")) {
-            Iterator<Entry<Long, String>> iter = userList.entrySet().iterator();
+            Iterator<Entry<Long, Player>> iter = players.entrySet().iterator();
             System.out.println("Listing Local User List:");
-            if (userList.size() == 0) {
+            if (players.size() == 0) {
                 System.out.println("No local users in list");
             }
             while (iter.hasNext()) {
-                Entry<Long, String> user = iter.next();
-                System.out.println(String.format("%s[%s]", user.getValue(), user.getKey()));
+                Entry<Long, Player> user = iter.next();
+                System.out.println(
+                        String.format("%s[%s]", ((ClientPlayer) user.getValue()).getClientName(), user.getKey()));
             }
             return true;
         } else if (text.equalsIgnoreCase("/ready")) {
@@ -186,12 +195,19 @@ public enum Client {
                 try {
                     int x = Integer.parseInt(parts[0].trim());
                     int y = Integer.parseInt(parts[1].trim());
-                    sendHidePosition(x, y);
+                    sendSeekPosition(x, y);
                 } catch (Exception e) {
                     System.out.println("Invalid coordinate, please try again in the format of /seek x,y");
                 }
             }
             return true;
+        } else if (text.equalsIgnoreCase("/grid")) {
+            System.out.println("Displaying grid data");
+            if (grid != null) {
+                System.out.println(grid.toString());
+            } else {
+                System.out.println("Grid isn't setup yet");
+            }
         }
         return false;
     }
@@ -324,14 +340,27 @@ public enum Client {
         fromServerThread.start();// start the thread
     }
 
-    protected String getClientNameById(long id) {
-        if (userList.containsKey(id)) {
-            return userList.get(id);
+    protected String getClientNameById(long clientId) {
+        if (players.containsKey(clientId)) {
+            return ((ClientPlayer) players.get(clientId)).getClientName();
         }
-        if (id == Constants.DEFAULT_CLIENT_ID) {
+        if (clientId == Constants.DEFAULT_CLIENT_ID) {
             return "[Server]";
         }
         return "unkown user";
+    }
+
+    private void addPlayer(long clientId, String clientName) {
+        if (!players.containsKey(clientId)) {
+            ClientPlayer cp = new ClientPlayer(clientId, clientName);
+            players.put(clientId, cp);
+        }
+    }
+
+    private void removePlayer(long clientId) {
+        if (players.containsKey(clientId)) {
+            players.remove(clientId);
+        }
     }
 
     /**
@@ -342,17 +371,14 @@ public enum Client {
     private void processPayload(Payload p) {
         switch (p.getPayloadType()) {
             case CONNECT:
-                if (!userList.containsKey(p.getClientId())) {
-                    userList.put(p.getClientId(), p.getClientName());
-                }
+
+                addPlayer(p.getClientId(), p.getClientName());
                 System.out.println(String.format("*%s %s*",
                         p.getClientName(),
                         p.getMessage()));
                 break;
             case DISCONNECT:
-                if (userList.containsKey(p.getClientId())) {
-                    userList.remove(p.getClientId());
-                }
+                removePlayer(p.getClientId());
                 if (p.getClientId() == myClientId) {
                     myClientId = Constants.DEFAULT_CLIENT_ID;
                     isSeeker = false;
@@ -362,9 +388,7 @@ public enum Client {
                         p.getMessage()));
                 break;
             case SYNC_CLIENT:
-                if (!userList.containsKey(p.getClientId())) {
-                    userList.put(p.getClientId(), p.getClientName());
-                }
+                addPlayer(p.getClientId(), p.getClientName());
                 break;
             case MESSAGE:
                 System.out.println(Constants.ANSI_CYAN + String.format("%s: %s",
@@ -390,15 +414,19 @@ public enum Client {
                 }
                 break;
             case RESET_USER_LIST:
-                userList.clear();
+                players.clear();
                 break;
             case READY:
                 System.out.println(String.format("Player %s is ready", getClientNameById(p.getClientId()))
                         + Constants.ANSI_RESET);
+                if (players.containsKey(p.getClientId())) {
+                    players.get(p.getClientId()).setReady(true);
+                }
                 break;
             case PHASE:
                 System.out.println(Constants.ANSI_YELLOW + String.format("The current phase is %s", p.getMessage())
                         + Constants.ANSI_RESET);
+                currentPhase = Phase.valueOf(p.getMessage());
                 break;
             case SEEKER:
                 isSeeker = p.getClientId() == myClientId;
@@ -412,19 +440,58 @@ public enum Client {
             case HIDE:
                 try {
                     PositionPayload pp = (PositionPayload) p;
-                    System.out
-                            .println(Constants.ANSI_BLUE + String.format("Player %s is hiding at [%s,%s]",
-                                    getClientNameById(p.getClientId()),
-                                    pp.getX(), pp.getY()) + Constants.ANSI_RESET);
+                    if (players.containsKey(pp.getClientId())) {
+                        grid.removePlayerFromCell(pp.getX(), pp.getY(), pp.getClientId());
+                        grid.addPlayerToCell(pp.getX(), pp.getY(), players.get(pp.getClientId()));
+                        System.out
+                                .println(Constants.ANSI_BLUE + String.format("Player %s is hiding at [%s,%s]",
+                                        getClientNameById(p.getClientId()),
+                                        pp.getX(), pp.getY()) + Constants.ANSI_RESET);
+                    }
                 } catch (Exception e) {
                     logger.severe(Constants.ANSI_RED + String.format("Error handling position payload: %s", e)
                             + Constants.ANSI_RESET);
                 }
                 break;
-            case SEEK:
-                System.out.println(
-                        Constants.ANSI_BLUE + String.format("Player %s is out!", getClientNameById(p.getClientId()))
-                                + Constants.ANSI_RESET);
+            case OUT:
+                if (p.getClientId() == Constants.DEFAULT_CLIENT_ID) {
+                    players.values().stream().forEach(player -> player.setIsOut(false));
+                    System.out.println("Resetting out players");
+                } else {
+                    System.out.println(
+                            Constants.ANSI_BLUE + String.format("Player %s is out!", getClientNameById(p.getClientId()))
+                                    + Constants.ANSI_RESET);
+                    if (players.containsKey(p.getClientId())) {
+                        players.get(p.getClientId()).setIsOut(true);
+                    }
+                }
+                break;
+            case GRID:
+                if (grid == null) {
+                    grid = new Grid();
+                    grid.build(5, 5);// TODO keep in sync with server, later server should send this info
+                }
+                try {
+                    GridPayload gp = (GridPayload) p;
+                    if (gp.getGrid() == null) {
+                        grid.reset();
+                    } else {
+                        grid.importData(gp.getGrid());
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                break;
+            case POINTS:
+                try {
+                    PointsPayload pp = (PointsPayload) p;
+                    if (players.containsKey(p.getClientId())) {
+                        players.get(p.getClientId()).setPoints(pp.getPoints());
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+
                 break;
             default:
                 logger.warning(Constants.ANSI_RED + String.format("Unhandled Payload type: %s", p.getPayloadType())
@@ -441,7 +508,7 @@ public enum Client {
 
     private void close() {
         myClientId = Constants.DEFAULT_CLIENT_ID;
-        userList.clear();
+        players.clear();
         try {
             inputThread.interrupt();
         } catch (Exception e) {

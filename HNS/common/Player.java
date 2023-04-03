@@ -25,7 +25,7 @@ public class Player {
     private boolean isOut = false;
 
     public void setIsOut(boolean isOut) {
-        this.isOut = true;
+        this.isOut = isOut;
     }
 
     public boolean isOut() {
