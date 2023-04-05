@@ -6,8 +6,19 @@ import HNS.server.ServerPlayer;
 public class Grid {
     private Cell[][] cells = null;
     private static Logger logger = Logger.getLogger(Grid.class.getName());
+    private int rows, columns;
+
+    public int getRowCount() {
+        return rows;
+    }
+
+    public int getColumnCount() {
+        return columns;
+    }
 
     public void build(int rows, int columns) {
+        this.rows = rows;
+        this.columns = columns;
         logger.info("Starting grid generation");
         cells = new Cell[rows][columns];
         for (int row = 0; row < rows; row++) {
