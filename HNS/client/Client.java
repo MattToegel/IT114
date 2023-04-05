@@ -174,7 +174,7 @@ public enum Client {
             public void run() {
                 try {
                     Payload fromServer;
-
+                    isRunning = true;
                     // while we're connected, listen for objects from server
                     while (isRunning && !server.isClosed() && !server.isInputShutdown()
                             && (fromServer = (Payload) in.readObject()) != null) {
@@ -390,13 +390,13 @@ public enum Client {
             inputThread.interrupt();
         } catch (Exception e) {
             System.out.println("Error interrupting input");
-            e.printStackTrace();
+            // e.printStackTrace();
         }
         try {
             fromServerThread.interrupt();
         } catch (Exception e) {
             System.out.println("Error interrupting listener");
-            e.printStackTrace();
+            // e.printStackTrace();
         }
         try {
             System.out.println("Closing output stream");
@@ -404,7 +404,7 @@ public enum Client {
         } catch (NullPointerException ne) {
             System.out.println("Server was never opened so this exception is ok");
         } catch (Exception e) {
-            e.printStackTrace();
+            // e.printStackTrace();
         }
         try {
             System.out.println("Closing input stream");
@@ -412,14 +412,14 @@ public enum Client {
         } catch (NullPointerException ne) {
             System.out.println("Server was never opened so this exception is ok");
         } catch (Exception e) {
-            e.printStackTrace();
+            // e.printStackTrace();
         }
         try {
             System.out.println("Closing connection");
             server.close();
             System.out.println("Closed socket");
         } catch (IOException e) {
-            e.printStackTrace();
+            // e.printStackTrace();
         } catch (NullPointerException ne) {
             System.out.println("Server was never opened so this exception is ok");
         }
