@@ -192,6 +192,8 @@ public class Room implements AutoCloseable {
             // it was a command, don't broadcast
             return;
         }
+        //is private message
+        //filter message
         long from = sender == null ? Constants.DEFAULT_CLIENT_ID : sender.getClientId();
         Iterator<ServerThread> iter = clients.iterator();
         while (iter.hasNext()) {

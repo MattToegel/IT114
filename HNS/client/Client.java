@@ -174,7 +174,7 @@ public enum Client {
             public void run() {
                 try {
                     Payload fromServer;
-
+                    isRunning = true;
                     // while we're connected, listen for objects from server
                     while (isRunning && !server.isClosed() && !server.isInputShutdown()
                             && (fromServer = (Payload) in.readObject()) != null) {
@@ -185,6 +185,7 @@ public enum Client {
                     }
                     logger.info("listenForServerPayload() loop exited");
                 } catch (Exception e) {
+                    logger.severe("Exception in payload");
                     e.printStackTrace();
                 } finally {
                     logger.info("Stopped listening to server input");
@@ -224,6 +225,7 @@ public enum Client {
      * @param p
      */
     private void processPayload(Payload p) {
+        try {
         switch (p.getPayloadType()) {
             case CONNECT:
 
@@ -381,6 +383,10 @@ public enum Client {
                 break;
 
         }
+    } catch (Exception e) {
+        logger.severe("Payload handling problem");
+        e.printStackTrace();
+    }
     }
 
     private void close() {
