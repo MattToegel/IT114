@@ -43,9 +43,10 @@ public class GamePanel extends JPanel implements IClientEvents {
     private void buildReadyCheck() {
         if (readyCheck == null) {
             readyCheck = new JPanel();
+            readyCheck.setLayout(new BorderLayout());
             JTextField tf = new JTextField(String.format("%s/%s", 0, Constants.MINIMUM_PLAYERS));
             tf.setName("readyText");
-            readyCheck.add(tf);
+            readyCheck.add(tf, BorderLayout.CENTER);
             JButton jb = new JButton("Ready");
             jb.addActionListener((event) -> {
                 if (!Client.INSTANCE.isCurrentPhase(Phase.READY)) {
@@ -57,6 +58,7 @@ public class GamePanel extends JPanel implements IClientEvents {
                     e.printStackTrace();
                 }
             });
+            readyCheck.add(jb, BorderLayout.SOUTH);
         }
     }
 
@@ -120,6 +122,9 @@ public class GamePanel extends JPanel implements IClientEvents {
 
     @Override
     public void onReceiveReadyCount(long count) {
+        logger.info(
+                Constants.ANSI_BRIGHT_BLUE + String.format("Received ready count %s", count) + Constants.ANSI_RESET);
+
         if (readyCheck != null) {
             for (Component c : readyCheck.getComponents()) {
                 if (c.getName().equalsIgnoreCase("readyText")) {
@@ -128,10 +133,14 @@ public class GamePanel extends JPanel implements IClientEvents {
                 }
             }
         }
+        this.validate();
+        this.repaint();
     }
 
     @Override
     public void onReceivePhase(Phase phase) {
+        this.setVisible(true);
+        logger.info(Constants.ANSI_BRIGHT_BLUE + String.format("Received phase %s", phase) + Constants.ANSI_RESET);
         if (phase == Phase.READY) {
             readyCheck.setVisible(true);
             gridLayout.setVisible(false);
@@ -139,6 +148,10 @@ public class GamePanel extends JPanel implements IClientEvents {
             readyCheck.setVisible(false);
             gridLayout.setVisible(true);
         }
+        this.validate();
+        this.repaint();
+        logger.info(
+                Constants.ANSI_BRIGHT_MAGENTA + String.format("Dimension %s", this.getSize()) + Constants.ANSI_RESET);
     }
 
     @Override

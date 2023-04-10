@@ -1,8 +1,11 @@
 package HNS.client.views;
 
+import java.awt.Adjustable;
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.event.AdjustmentEvent;
+import java.awt.event.AdjustmentListener;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.ContainerEvent;
@@ -86,8 +89,8 @@ public class ChatPanel extends JPanel {
                     textValue.setText("");// clear the original text
 
                     // debugging
-                    logger.log(Level.FINEST, "Content: " + content.getSize());
-                    logger.log(Level.FINEST, "Parent: " + this.getSize());
+                    logger.log(Level.INFO, "Content: " + content.getSize());
+                    logger.log(Level.INFO, "Parent: " + this.getSize());
 
                 }
             } catch (NullPointerException e) {
@@ -111,6 +114,26 @@ public class ChatPanel extends JPanel {
                 if (chatArea.isVisible()) {
                     chatArea.revalidate();
                     chatArea.repaint();
+                    /**
+                     * Note: with the setValue(maxValue) it seemed to have a gap.
+                     * The gap would cut off the last message.
+                     * The updated logic below from https://stackoverflow.com/a/34086741
+                     * solves this.
+                     */
+                    JScrollBar vertical = ((JScrollPane) chatArea.getParent().getParent()).getVerticalScrollBar();
+                    AdjustmentListener scroller = new AdjustmentListener() {
+                        @Override
+                        public void adjustmentValueChanged(AdjustmentEvent e) {
+                            Adjustable adjustable = e.getAdjustable();
+                            adjustable.setValue(vertical.getMaximum());
+                            // We have to remove the listener, otherwise the
+                            // user would be unable to scroll afterwards
+                            vertical.removeAdjustmentListener(this);
+                        }
+
+                    };
+                    vertical.addAdjustmentListener(scroller);
+
                 }
             }
 
@@ -158,16 +181,22 @@ public class ChatPanel extends JPanel {
         if (deltaX >= 5 || deltaY >= 5) {
             lastSize = frameSize;
 
-            logger.log(Level.INFO, "Wrapper size: " + frameSize);
-            int w = (int) Math.ceil(frameSize.getWidth() * .3f);
+            logger.info("Wrapper size: " + frameSize);
+            int w = Math.max((int) Math.ceil(frameSize.getWidth() * .3f), 30);
 
-            userListPanel.setPreferredSize(new Dimension(w, (int) frameSize.getHeight()));
+            userListPanel.setMinimumSize(new Dimension(w, (int) frameSize.getHeight()));
+            userListPanel.setPreferredSize(userListPanel.getMinimumSize());
             userListPanel.revalidate();
             userListPanel.repaint();
-            w = (int) Math.ceil(frameSize.getWidth() * .7f);
-            chatArea.setPreferredSize(new Dimension(w, (int) frameSize.getHeight()));
+            w = Math.max((int) Math.ceil(frameSize.getWidth() * .7f), 100);
+            // preferred size was preventing it from growing with its children
+            // chatArea.setPreferredSize(new Dimension(w, (int) Short.MAX_VALUE));
+            chatArea.setMinimumSize(new Dimension(w, (int) frameSize.getHeight()));
             userListPanel.resizeUserListItems();
             resizeMessages();
+            // scroll down on new message
+            JScrollBar vertical = ((JScrollPane) chatArea.getParent().getParent()).getVerticalScrollBar();
+            vertical.setValue(vertical.getMaximum());
         }
     }
 
@@ -178,7 +207,6 @@ public class ChatPanel extends JPanel {
                         new Dimension(wrapper.getWidth(), ClientUtils.calcHeightForText(this,
                                 ((JEditorPane) p).getText(), wrapper.getWidth())));
                 p.setMaximumSize(p.getPreferredSize());
-
             }
         }
         chatArea.revalidate();

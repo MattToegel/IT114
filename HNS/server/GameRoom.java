@@ -36,6 +36,7 @@ public class GameRoom extends Room {
             ServerPlayer player = new ServerPlayer(client);
             super.addClient(client);
             logger.info(String.format("Total clients %s", clients.size()));
+            client.sendPhaseSync(currentPhase);
             return player;
         });
     }

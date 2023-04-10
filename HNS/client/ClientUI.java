@@ -83,6 +83,7 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
         roomsPanel = new RoomsPanel(this);
         gamePanel = new GamePanel();
         gamePanel.setPreferredSize(new Dimension((int) (this.getWidth() * .5), (int) this.getHeight()));
+        gamePanel.setMinimumSize(gamePanel.getPreferredSize());
         chatPanel.add(gamePanel, BorderLayout.WEST);
 
         // https://stackoverflow.com/a/9093526
