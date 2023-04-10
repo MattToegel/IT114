@@ -49,7 +49,8 @@ public class ServerThread extends Thread {
         logger.info("ServerThread created");
         // get communication channels to single client
         this.client = myClient;
-        this.currentRoom = room;
+        // this.currentRoom = room;
+        setCurrentRoom(room);
 
     }
 
@@ -72,6 +73,7 @@ public class ServerThread extends Thread {
     protected synchronized void setCurrentRoom(Room room) {
         if (room != null) {
             currentRoom = room;
+            sendRoomName(room.getName());
         } else {
             logger.info("Passed in room was null, this shouldn't happen");
         }

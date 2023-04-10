@@ -272,6 +272,9 @@ public enum Client {
                 listeners.forEach(l -> l.onReceiveClientId(
                         p.getClientId()));
                 break;
+            case JOIN_ROOM:
+                listeners.forEach(l -> l.onRoomJoin(p.getMessage()));
+                break;
             case GET_ROOMS:
                 RoomResultPayload rp = (RoomResultPayload) p;
                 logger.info("Received Room List:");

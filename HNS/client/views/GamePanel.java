@@ -107,6 +107,9 @@ public class GamePanel extends JPanel implements IClientEvents {
 
     @Override
     public void onRoomJoin(String roomName) {
+        logger.info(
+                Constants.ANSI_BRIGHT_BLUE + String.format("Received room name %s", roomName) + Constants.ANSI_RESET);
+
         if (roomName.equalsIgnoreCase("lobby")) {
             setVisible(false);
         } else {
@@ -139,7 +142,6 @@ public class GamePanel extends JPanel implements IClientEvents {
 
     @Override
     public void onReceivePhase(Phase phase) {
-        this.setVisible(true);
         logger.info(Constants.ANSI_BRIGHT_BLUE + String.format("Received phase %s", phase) + Constants.ANSI_RESET);
         if (phase == Phase.READY) {
             readyCheck.setVisible(true);
