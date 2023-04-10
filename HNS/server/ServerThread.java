@@ -229,6 +229,7 @@ public class ServerThread extends Thread {
         try (ObjectOutputStream out = new ObjectOutputStream(client.getOutputStream());
                 ObjectInputStream in = new ObjectInputStream(client.getInputStream());) {
             this.out = out;
+            logger.info("Listening for Client Payloads");
             isRunning = true;
             Payload fromClient;
             while (isRunning && // flag to let us easily control the loop
@@ -242,7 +243,9 @@ public class ServerThread extends Thread {
             } // close while loop
         } catch (Exception e) {
             // happens when client disconnects
+            System.out.println(Constants.ANSI_BRIGHT_RED);
             e.printStackTrace();
+            System.out.println(Constants.ANSI_RESET);
             logger.info("Client disconnected");
         } finally {
             isRunning = false;
