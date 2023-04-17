@@ -191,9 +191,9 @@ public class GamePanel extends JPanel implements IClientEvents {
             JButton button = new JButton();
             button.setSize(new Dimension(2, 2));
             // convert to x coordinate
-            int x = i % rows;
+            int x = i / rows;
             // convert to y coordinate
-            int y = i / columns;
+            int y = i % columns;
             // %1 first param, %2 second param, etc
             String buttonText = String.format("%1$s:(%2$s, %3$s)", i, x, y);
             // show index and coordinate details on button
@@ -204,6 +204,18 @@ public class GamePanel extends JPanel implements IClientEvents {
             // override the default actionPerformed method to tell the code how to handle it
             button.addActionListener((event) -> {
                 // TODO
+                final int mx = x;
+                final int my = y;
+                try {
+                    if (Client.INSTANCE.isSeeker()) {
+                        Client.INSTANCE.sendSeekPosition(mx, my);
+                    } else {
+                        Client.INSTANCE.sendHidePosition(mx, my);
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    // TODO handle
+                }
             });
 
             this.gridLayout.add(button);

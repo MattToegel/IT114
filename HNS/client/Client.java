@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
+import HNS.common.Cell;
 import HNS.common.Constants;
 import HNS.common.Grid;
 import HNS.common.GridPayload;
@@ -55,6 +56,9 @@ public enum Client {
 
     }
 
+    public boolean isSeeker() {
+        return isSeeker;
+    }
     public Grid getGrid() {
         return grid;
     }
@@ -108,13 +112,13 @@ public enum Client {
     }
 
     // Send methods
-    protected void sendSeekPosition(int x, int y) throws IOException {
+    public void sendSeekPosition(int x, int y) throws IOException {
         PositionPayload pp = new PositionPayload(PayloadType.SEEK);
         pp.setCoord(x, y);
         out.writeObject(pp);
     }
 
-    protected void sendHidePosition(int x, int y) throws IOException {
+    public void sendHidePosition(int x, int y) throws IOException {
         PositionPayload pp = new PositionPayload();
         pp.setCoord(x, y);
         out.writeObject(pp);
@@ -323,14 +327,12 @@ public enum Client {
                     PositionPayload pp = (PositionPayload) p;
                     if (players.containsKey(pp.getClientId())) {
                         ClientPlayer cp = (ClientPlayer) players.get(pp.getClientId());
-                        if (cp.getCurrentCell() != null) {
-                            grid.removePlayerFromCell(cp.getCurrentCell().getX(), cp.getCurrentCell().getY(),
-                                    pp.getClientId());
-                        }
                         grid.addPlayerToCell(pp.getX(), pp.getY(), cp);
                         logger.info(Constants.ANSI_BLUE + String.format("Player %s is hiding at [%s,%s]",
                                 getClientNameById(p.getClientId()),
                                 pp.getX(), pp.getY()) + Constants.ANSI_RESET);
+                        Cell c = grid.getCell(pp.getX(), pp.getY());
+                        listeners.forEach(l -> l.onReceiveHide(pp.getX(), pp.getY(), c.getPlayersInCell().size()));
                     }
                 } catch (Exception e) {
                     logger.severe(Constants.ANSI_RED + String.format("Error handling position payload: %s", e)
