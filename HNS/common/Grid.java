@@ -1,6 +1,8 @@
 package HNS.common;
 
 import java.util.logging.Logger;
+
+import HNS.client.ClientPlayer;
 import HNS.server.ServerPlayer;
 
 public class Grid {
@@ -52,7 +54,21 @@ public class Grid {
      */
     public Boolean addPlayerToCell(int x, int y, Player p) {
         try {
-            cells[x][y].add(y, p);
+            if (p instanceof ServerPlayer) {
+                Cell c = p.getCurrentCell();
+                if (c != null) {
+                    removePlayerFromCell(c.getX(), c.getY(), (ServerPlayer) p);
+                }
+                cells[x][y].add(((ServerPlayer) p).getClient().getClientId(), p);
+            }
+            if (p instanceof ClientPlayer) {
+                Cell c = p.getCurrentCell();
+                if (c != null) {
+                    removePlayerFromCell(c.getX(), c.getY(), ((ClientPlayer) p).getClientId());
+                }
+                cells[x][y].add(((ClientPlayer) p).getClientId(), p);
+            }
+
             p.setCurrentCell(cells[x][y]);
             logger.info(Constants.ANSI_RED
                     + String.format("Added to Cell[%s,%s] has %s", x, y, cells[x][y].playersInCell.size())

@@ -415,7 +415,7 @@ public class GameRoom extends Room {
         while (iter.hasNext()) {
             ServerPlayer sp = iter.next();
             if (sp != currentSeeker && sp.getClient().getClientId() != currentSeeker.getClient().getClientId()) {
-                boolean success = sp.getClient().sendHidePosition(x, y, sp.getClient().getClientId());
+                boolean success = sp.getClient().sendHidePosition(x, y, hider.getClient().getClientId());
                 if (!success) {
                     handleDisconnect(sp);
                 }
