@@ -8,7 +8,9 @@ import java.awt.GridLayout;
 import java.io.IOException;
 import java.util.logging.Logger;
 
+import javax.swing.BoxLayout;
 import javax.swing.JButton;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 
@@ -17,6 +19,7 @@ import HNS.client.IClientEvents;
 import HNS.common.Constants;
 import HNS.common.Grid;
 import HNS.common.Phase;
+import HNS.common.TimedEvent;
 
 public class GamePanel extends JPanel implements IClientEvents {
 
@@ -26,13 +29,15 @@ public class GamePanel extends JPanel implements IClientEvents {
     GamePanel self;
     JPanel gridLayout;
     JPanel readyCheck;
-
+    UserListPanel ulp;
+    TimedEvent currentTimer;
+    Phase currentPhase;
     public GamePanel() {
         gridLayout = new JPanel();
         buildReadyCheck();
-        this.setLayout(new BorderLayout());
-        this.add(gridLayout, BorderLayout.CENTER);
-        this.add(readyCheck, BorderLayout.SOUTH);
+        this.setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+        this.add(gridLayout);
+        this.add(readyCheck);
         self = this;
         Client.INSTANCE.addListener(this);
         this.setFocusable(true);
@@ -40,12 +45,18 @@ public class GamePanel extends JPanel implements IClientEvents {
 
     }
 
+    public void setUserListPanel(UserListPanel ulp) {
+        this.ulp = ulp;
+    }
     private void buildReadyCheck() {
         if (readyCheck == null) {
             readyCheck = new JPanel();
             readyCheck.setLayout(new BorderLayout());
             JTextField tf = new JTextField(String.format("%s/%s", 0, Constants.MINIMUM_PLAYERS));
             tf.setName("readyText");
+            JLabel timeLabel = new JLabel("");
+            timeLabel.setName("time");
+            readyCheck.add(timeLabel, BorderLayout.NORTH);
             readyCheck.add(tf, BorderLayout.CENTER);
             JButton jb = new JButton("Ready");
             jb.addActionListener((event) -> {
@@ -120,14 +131,31 @@ public class GamePanel extends JPanel implements IClientEvents {
 
     @Override
     public void onReceiveReady(long clientId) {
-
+        if (currentTimer == null) {
+            currentTimer = new TimedEvent(30, () -> {
+                currentTimer = null;
+            });
+            currentTimer.setTickCallback((time) -> {
+                if (currentPhase == Phase.READY) {
+                    for (Component c : readyCheck.getComponents()) {
+                        if (c.getName().equals("time")) {
+                            ((JLabel) c).setText("Remaining: " + time);
+                            break;
+                        }
+                    }
+                }
+            });
+        }
     }
 
     @Override
     public void onReceiveReadyCount(long count) {
         logger.info(
                 Constants.ANSI_BRIGHT_BLUE + String.format("Received ready count %s", count) + Constants.ANSI_RESET);
-
+        if (currentTimer != null && count == 0) {
+            currentTimer.cancel();
+            currentTimer = null;
+        }
         if (readyCheck != null) {
             for (Component c : readyCheck.getComponents()) {
                 if (c.getName().equalsIgnoreCase("readyText")) {
@@ -143,6 +171,7 @@ public class GamePanel extends JPanel implements IClientEvents {
     @Override
     public void onReceivePhase(Phase phase) {
         logger.info(Constants.ANSI_BRIGHT_BLUE + String.format("Received phase %s", phase) + Constants.ANSI_RESET);
+        currentPhase = phase;
         if (phase == Phase.READY) {
             readyCheck.setVisible(true);
             gridLayout.setVisible(false);
@@ -150,6 +179,12 @@ public class GamePanel extends JPanel implements IClientEvents {
             readyCheck.setVisible(false);
             gridLayout.setVisible(true);
         }
+        // if (phase != Phase.READY) {
+        if (currentTimer != null) {
+            currentTimer.cancel();
+            currentTimer = null;
+        }
+        // }
         this.validate();
         this.repaint();
         logger.info(
@@ -158,9 +193,7 @@ public class GamePanel extends JPanel implements IClientEvents {
 
     @Override
     public void onReceiveSeeker(long clientId) {
-        // TODO Auto-generated method stub
-        // throw new UnsupportedOperationException("Unimplemented method
-        // 'onReceiveSeeker'");
+        ulp.setSeeker(clientId);
     }
 
     @Override
@@ -224,9 +257,9 @@ public class GamePanel extends JPanel implements IClientEvents {
 
     @Override
     public void onReceivePoints(long clientId, int points) {
-        // TODO Auto-generated method stub
-        // throw new UnsupportedOperationException("Unimplemented method
-        // 'onReceivePoints'");
+        if (ulp != null) {
+            ulp.setPointsForPlayer(clientId, points);
+        }
     }
 
 }

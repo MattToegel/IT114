@@ -2,6 +2,7 @@ package HNS.client;
 
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
+import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
@@ -85,7 +86,7 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
         gamePanel.setPreferredSize(new Dimension((int) (this.getWidth() * .5), (int) this.getHeight()));
         gamePanel.setMinimumSize(gamePanel.getPreferredSize());
         chatPanel.add(gamePanel, BorderLayout.WEST);
-
+        gamePanel.setUserListPanel(chatPanel.getUserListPanel());
         // https://stackoverflow.com/a/9093526
         // this tells the x button what to do (updated to be controlled via a prompt)
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
@@ -164,7 +165,10 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
     }
 
     private String mapClientId(long clientId) {
-        String clientName = userList.get(clientId);
+        String clientName = null;
+        if (userList.containsKey(clientId)) {
+            clientName = userList.get(clientId);
+        }
         if (clientName == null) {
             clientName = "Server";
         }
@@ -184,7 +188,7 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
             if (!userList.containsKey(clientId)) {
                 logger.log(Level.INFO, String.format("Adding %s[%s]", clientName, clientId));
                 userList.put(clientId, clientName);
-                chatPanel.addUserListItem(clientId, String.format("%s (%s)", clientName, clientId));
+                chatPanel.addUserListItem(clientId, clientName);
             }
         } else {
             if (userList.containsKey(clientId)) {
@@ -279,48 +283,37 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
         // TODO Auto-generated method stub
         // throw new UnsupportedOperationException("Unimplemented method
         // 'onReceivePhase'");
+        chatPanel.addText("Current Phase: " + phase.name(), Color.PINK);
     }
 
     @Override
     public void onReceiveSeeker(long clientId) {
-        // TODO Auto-generated method stub
-        // throw new UnsupportedOperationException("Unimplemented method
-        // 'onReceiveSeeker'");
+        chatPanel.addText(String.format("%s is the seeker", mapClientId(clientId)));
     }
 
     @Override
     public void onReceiveHide(int x, int y, long clientId) {
-        // TODO Auto-generated method stub
-        // throw new UnsupportedOperationException("Unimplemented method
-        // 'onReceiveHide'");
+        chatPanel.addText(String.format("%s is hiding at %s, %s", mapClientId(clientId), x, y));
     }
 
     @Override
     public void onReceiveOut(long clientId) {
-        // TODO Auto-generated method stub
-        // throw new UnsupportedOperationException("Unimplemented method
-        // 'onReceiveOut'");
+        chatPanel.addText(String.format("%s is out :(", mapClientId(clientId)));
     }
 
     @Override
     public void onReceiveGrid(Grid grid) {
-        // TODO Auto-generated method stub
-        // throw new UnsupportedOperationException("Unimplemented method
-        // 'onReceiveGrid'");
+
     }
 
     @Override
     public void onReceivePoints(long clientId, int points) {
-        // TODO Auto-generated method stub
-        // throw new UnsupportedOperationException("Unimplemented method
-        // 'onReceivePoints'");
+
     }
 
     @Override
     public void onReceiveReadyCount(long count) {
-        // TODO Auto-generated method stub
-        // throw new UnsupportedOperationException("Unimplemented method
-        // 'onReceiveReadyCount'");
+
     }
 
 }

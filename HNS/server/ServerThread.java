@@ -144,6 +144,11 @@ public class ServerThread extends Thread {
         return send(p);
     }
 
+    public boolean sendResetReadyCount() {
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.RESET_READY);
+        return send(p);
+    }
     public boolean sendReadyStatus(long clientId) {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.READY);

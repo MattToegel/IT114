@@ -124,7 +124,11 @@ public enum Server {
         if (newRoom != null && roomName != null) {
             if (oldRoom != null && oldRoom != newRoom) {
                 logger.info(String.format("Client %s leaving old room %s", client.getClientName(), oldRoom.getName()));
-                oldRoom.removeClient(client);
+                if (oldRoom instanceof GameRoom) {
+                    ((GameRoom) oldRoom).removeClient(client);
+                } else {
+                    oldRoom.removeClient(client);
+                }
             }
             logger.info(String.format("Client %s joining new room %s", client.getClientName(), newRoom.getName()));
             newRoom.addClient(client);

@@ -296,6 +296,9 @@ public enum Client {
                 players.clear();
                 listeners.forEach(l -> l.onResetUserList());
                 break;
+            case RESET_READY:
+                listeners.forEach(l -> l.onReceiveReadyCount(0));
+                break;
             case READY:
                 logger.info(String.format("Player %s is ready", getClientNameById(p.getClientId()))
                         + Constants.ANSI_RESET);
@@ -332,7 +335,7 @@ public enum Client {
                                 getClientNameById(p.getClientId()),
                                 pp.getX(), pp.getY()) + Constants.ANSI_RESET);
                         Cell c = grid.getCell(pp.getX(), pp.getY());
-                        listeners.forEach(l -> l.onReceiveHide(pp.getX(), pp.getY(), c.getPlayersInCell().size()));
+                        listeners.forEach(l -> l.onReceiveHide(pp.getX(), pp.getY(), pp.getClientId()));
                     }
                 } catch (Exception e) {
                     logger.severe(Constants.ANSI_RED + String.format("Error handling position payload: %s", e)

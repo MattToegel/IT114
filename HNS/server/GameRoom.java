@@ -89,6 +89,7 @@ public class GameRoom extends Room {
         } else {
             if (timerExpired) {
                 resetSession();
+                syncResetReadyCount();
                 sendMessage(null, "Ready Timer expired, not enough players. Resetting ready check");
             }
         }
@@ -147,6 +148,10 @@ public class GameRoom extends Room {
             pickSeeker();
         }
         if (players.isEmpty()) {
+            if (roundTimer != null) {
+                roundTimer.cancel();
+                roundTimer = null;
+            }
             close();
         }
     }
@@ -401,6 +406,13 @@ public class GameRoom extends Room {
         }
     }
 
+    protected synchronized void removeClient(ServerThread client) {
+        super.removeClient(client);
+        if (players.containsKey(client.getClientId())) {
+            players.remove(client.getClientId());
+        }
+    }
+
     /**
      * Sends all hiders a confirmation of a hiding player's position.
      * This will later update UI for hiders
@@ -440,6 +452,17 @@ public class GameRoom extends Room {
         }
     }
 
+    private void syncResetReadyCount() {
+        Iterator<ServerPlayer> iter = players.values().stream().iterator();
+        while (iter.hasNext()) {
+            ServerPlayer sp = iter.next();
+            // removed an if condition that didn't sync to current seeker (copy paste issue)
+            boolean success = sp.getClient().sendResetReadyCount();
+            if (!success) {
+                handleDisconnect(sp);
+            }
+        }
+    }
     /**
      * Used to one-shot sync the reset of out and current points for all palyers
      */
