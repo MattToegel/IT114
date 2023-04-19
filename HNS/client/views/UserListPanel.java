@@ -1,7 +1,6 @@
 package HNS.client.views;
 
 import java.awt.BorderLayout;
-import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.event.ContainerEvent;
@@ -9,15 +8,11 @@ import java.awt.event.ContainerListener;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.swing.BorderFactory;
-import javax.swing.Box;
 import javax.swing.BoxLayout;
-import javax.swing.JEditorPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.ScrollPaneConstants;
 
-import HNS.client.ClientUtils;
 import HNS.client.ICardControls;
 
 public class UserListPanel extends JPanel {
@@ -66,7 +61,7 @@ public class UserListPanel extends JPanel {
         });
     }
 
-    protected void resizeUserListItems() {
+    public void resizeUserListItems() {
         for (Component p : userListArea.getComponents()) {
             if (p.isVisible()) {
                 /*

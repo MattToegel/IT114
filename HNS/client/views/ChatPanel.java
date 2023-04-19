@@ -175,6 +175,7 @@ public class ChatPanel extends JPanel {
     public UserListPanel getUserListPanel() {
         return userListPanel;
     }
+
     private void doResize() {
         if (!this.isVisible()) {
             return;
@@ -184,20 +185,42 @@ public class ChatPanel extends JPanel {
         int deltaY = Math.abs(frameSize.height - lastSize.height);
         if (deltaX >= 5 || deltaY >= 5) {
             lastSize = frameSize;
+            // see if WEST slot is in use
+            Component c = ((BorderLayout) this.getLayout()).getLayoutComponent(BorderLayout.WEST);
+            float leftPanel = .5f;
+            float centerPanel = .2f;
+            float rightPanel = .3f;
+            int width = (int) Math.max(frameSize.getWidth(), 600);
+            int leftPanelWidth = (int) (width * leftPanel);
+            int centerPanelWidth = (int) (width * centerPanel);
+            int rightPanelWidth = (int) (width * rightPanel);
+            Dimension left = new Dimension(leftPanelWidth, (int) frameSize.getHeight());
+            Dimension center = new Dimension(centerPanelWidth, (int) frameSize.getHeight());
+            Dimension right = new Dimension(rightPanelWidth, (int) frameSize.getHeight());
 
+            if (c != null) {
+                if (c.getWidth() != left.getWidth()) {
+                    c.setMinimumSize(left);
+                    c.setPreferredSize(left);
+                }
+            }
             logger.info("Wrapper size: " + frameSize);
-            int w = Math.max((int) Math.ceil(frameSize.getWidth() * .4f), 40);
+            if (userListPanel.getWidth() != right.getWidth()) {
+                userListPanel.setMinimumSize(right);
+                userListPanel.setPreferredSize(right);
+                userListPanel.resizeUserListItems();
+            }
 
-            userListPanel.setMinimumSize(new Dimension(w, (int) frameSize.getHeight()));
-            userListPanel.setPreferredSize(userListPanel.getMinimumSize());
-            userListPanel.revalidate();
-            userListPanel.repaint();
-            w = Math.max((int) Math.ceil(frameSize.getWidth() * .6f), 100);
-            // preferred size was preventing it from growing with its children
-            // chatArea.setPreferredSize(new Dimension(w, (int) Short.MAX_VALUE));
-            chatArea.setMinimumSize(new Dimension(w, (int) frameSize.getHeight()));
-            userListPanel.resizeUserListItems();
-            resizeMessages();
+            // userListPanel.revalidate();
+            // userListPanel.repaint();
+            int originalWidth = chatArea.getWidth();
+            if (chatArea.getWidth() != center.getWidth()) {
+                chatArea.setMinimumSize(center);
+            }
+            if (Math.abs(originalWidth - chatArea.getWidth()) > 10) {
+                resizeMessages();
+            }
+
             // scroll down on new message
             JScrollBar vertical = ((JScrollPane) chatArea.getParent().getParent()).getVerticalScrollBar();
             vertical.setValue(vertical.getMaximum());

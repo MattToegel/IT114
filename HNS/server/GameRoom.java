@@ -271,9 +271,6 @@ public class GameRoom extends Room {
         if (players.containsKey(clientId)) {
             ServerPlayer sp = players.get(clientId);
             if (sp.isReady() && !sp.isOut()) {
-                if (sp.getCurrentCell() != null) {
-                    grid.removePlayerFromCell(sp.getCurrentCell().getX(), sp.getCurrentCell().getY(), sp);
-                }
                 boolean didHide = grid.addPlayerToCell(x, y, sp);
                 // logger.info(Constants.ANSI_BLUE + String.format("Did hide is %s", didHide) +
                 // Constants.ANSI_RESET);

@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
-import HNS.common.Cell;
 import HNS.common.Constants;
 import HNS.common.Grid;
 import HNS.common.GridPayload;
@@ -334,7 +333,6 @@ public enum Client {
                         logger.info(Constants.ANSI_BLUE + String.format("Player %s is hiding at [%s,%s]",
                                 getClientNameById(p.getClientId()),
                                 pp.getX(), pp.getY()) + Constants.ANSI_RESET);
-                        Cell c = grid.getCell(pp.getX(), pp.getY());
                         listeners.forEach(l -> l.onReceiveHide(pp.getX(), pp.getY(), pp.getClientId()));
                     }
                 } catch (Exception e) {

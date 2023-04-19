@@ -4,6 +4,7 @@ import java.util.logging.Logger;
 
 import HNS.client.ClientPlayer;
 import HNS.server.ServerPlayer;
+import java.util.Set;
 
 public class Grid {
     private Cell[][] cells = null;
@@ -23,9 +24,24 @@ public class Grid {
         this.columns = columns;
         logger.info("Starting grid generation");
         cells = new Cell[rows][columns];
+        int cellTotal = rows * columns;
+        int blockedCells = (int) (cellTotal * .6);
         for (int row = 0; row < rows; row++) {
             for (int column = 0; column < columns; column++) {
                 cells[row][column] = new Cell(row, column);
+            }
+        }
+        // mark cells to block
+        Set<Integer> cellsToBlock = SharedUtils.pickRandomNumbers(blockedCells, 0, cellTotal);
+        for (int index : cellsToBlock) {
+            // convert to x coordinate
+            int x = index / rows;
+            // convert to y coordinate
+            int y = index % columns;
+            try {
+                cells[x][y].setBlocked(true);
+            } catch (Exception e) {
+
             }
         }
         logger.info(String.format("Finished generating %s x %s grid", rows, columns));
@@ -54,6 +70,10 @@ public class Grid {
      */
     public Boolean addPlayerToCell(int x, int y, Player p) {
         try {
+            // can't hide here, it's blocked
+            if (cells[x][y].isBlocked()) {
+                return false;
+            }
             if (p instanceof ServerPlayer) {
                 Cell c = p.getCurrentCell();
                 if (c != null) {

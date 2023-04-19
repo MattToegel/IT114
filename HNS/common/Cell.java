@@ -41,7 +41,7 @@ public class Cell {
 
     public void reset() {
         playersInCell.clear();
-        blocked = false;
+        // blocked = false;
     }
 
     public void add(long clientId, Player p) {

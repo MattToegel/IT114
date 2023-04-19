@@ -20,6 +20,7 @@ import HNS.common.Constants;
 import HNS.common.Grid;
 import HNS.common.Phase;
 import HNS.common.TimedEvent;
+import HNS.common.Cell;
 
 public class GamePanel extends JPanel implements IClientEvents {
 
@@ -31,11 +32,17 @@ public class GamePanel extends JPanel implements IClientEvents {
     JPanel readyCheck;
     UserListPanel ulp;
     TimedEvent currentTimer;
+    JLabel timeLabel = new JLabel("");
     Phase currentPhase;
     public GamePanel() {
         gridLayout = new JPanel();
         buildReadyCheck();
         this.setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+        timeLabel.setName("time");
+        Dimension td = new Dimension(this.getWidth(), 30);
+        timeLabel.setMaximumSize(td);
+        timeLabel.setPreferredSize(td);
+        this.add(timeLabel);
         this.add(gridLayout);
         this.add(readyCheck);
         self = this;
@@ -54,9 +61,7 @@ public class GamePanel extends JPanel implements IClientEvents {
             readyCheck.setLayout(new BorderLayout());
             JTextField tf = new JTextField(String.format("%s/%s", 0, Constants.MINIMUM_PLAYERS));
             tf.setName("readyText");
-            JLabel timeLabel = new JLabel("");
-            timeLabel.setName("time");
-            readyCheck.add(timeLabel, BorderLayout.NORTH);
+
             readyCheck.add(tf, BorderLayout.CENTER);
             JButton jb = new JButton("Ready");
             jb.addActionListener((event) -> {
@@ -136,14 +141,7 @@ public class GamePanel extends JPanel implements IClientEvents {
                 currentTimer = null;
             });
             currentTimer.setTickCallback((time) -> {
-                if (currentPhase == Phase.READY) {
-                    for (Component c : readyCheck.getComponents()) {
-                        if (c.getName().equals("time")) {
-                            ((JLabel) c).setText("Remaining: " + time);
-                            break;
-                        }
-                    }
-                }
+                timeLabel.setText("Remaining: " + time);
             });
         }
     }
@@ -172,6 +170,9 @@ public class GamePanel extends JPanel implements IClientEvents {
     public void onReceivePhase(Phase phase) {
         logger.info(Constants.ANSI_BRIGHT_BLUE + String.format("Received phase %s", phase) + Constants.ANSI_RESET);
         currentPhase = phase;
+        Dimension td = new Dimension(this.getWidth(), 30);
+        timeLabel.setMaximumSize(td);
+        timeLabel.setPreferredSize(td);
         if (phase == Phase.READY) {
             readyCheck.setVisible(true);
             gridLayout.setVisible(false);
@@ -179,12 +180,21 @@ public class GamePanel extends JPanel implements IClientEvents {
             readyCheck.setVisible(false);
             gridLayout.setVisible(true);
         }
+
         // if (phase != Phase.READY) {
         if (currentTimer != null) {
             currentTimer.cancel();
             currentTimer = null;
         }
         // }
+        if (phase != Phase.READY) {
+            currentTimer = new TimedEvent(30, () -> {
+                currentTimer = null;
+            });
+            currentTimer.setTickCallback((time) -> {
+                timeLabel.setText("Remaining: " + time);
+            });
+        }
         this.validate();
         this.repaint();
         logger.info(
@@ -203,6 +213,24 @@ public class GamePanel extends JPanel implements IClientEvents {
         JButton jb = (JButton) gridLayout.getComponent(indexFrom2D);
         if (jb != null) {
             jb.setText("" + grid.getCell(x, y).getPlayersInCell().size());
+        }
+        // recalculate hiders in cells
+        for (Component c : gridLayout.getComponents()) {
+            if (c instanceof JButton) {
+                try {
+                    String n = c.getName();
+                    String[] nums = n.split(",");
+                    int cx = Integer.parseInt(nums[0]);
+                    int cy = Integer.parseInt(nums[1]);
+                    int hiders = grid.getCell(cx, cy).getPlayersInCell().size();
+                    if (hiders == 0) {
+                        ((JButton) c).setText("");
+                    } else {
+                        ((JButton) c).setText("" + hiders);
+                    }
+                } catch (Exception e) {
+                }
+            }
         }
         drawBoard();
     }
@@ -228,11 +256,23 @@ public class GamePanel extends JPanel implements IClientEvents {
             // convert to y coordinate
             int y = i % columns;
             // %1 first param, %2 second param, etc
-            String buttonText = String.format("%1$s:(%2$s, %3$s)", i, x, y);
-            // show index and coordinate details on button
+            String buttonText = "";// String.format("%1$s:(%2$s, %3$s)", i, x, y);
             button.setText(buttonText);
-
             button.setBackground(Color.white);
+            button.setName(x + "," + y);
+            // check blocked
+            try {
+                Cell cell = grid.getCell(x, y);
+                if (cell.isBlocked()) {
+                    button.setEnabled(false);
+                    button.setText("X");
+                    button.setBackground(Color.gray);
+                }
+            } catch (Exception e) {
+
+            }
+            // show index and coordinate details on button
+
             // create an action to perform when button is clicked
             // override the default actionPerformed method to tell the code how to handle it
             button.addActionListener((event) -> {
