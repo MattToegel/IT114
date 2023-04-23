@@ -267,6 +267,7 @@ public enum Client {
                         p.getClientId(), p.getMessage()));
                 break;
             case CLIENT_ID:
+                
                 if (myClientId == Constants.DEFAULT_CLIENT_ID) {
                     myClientId = p.getClientId();
                 } else {

@@ -230,6 +230,7 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
 
     @Override
     public void onReceiveClientId(long id) {
+        logger.info(Constants.ANSI_BRIGHT_BLUE + " client id " + id + Constants.ANSI_RESET);
         if (myId == Constants.DEFAULT_CLIENT_ID) {
             myId = id;
             gamePanel.setVisible(false);
