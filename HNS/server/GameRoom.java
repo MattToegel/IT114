@@ -7,6 +7,7 @@ import java.util.logging.Logger;
 
 import HNS.common.Cell;
 import HNS.common.Constants;
+import HNS.common.GameOptions;
 import HNS.common.Grid;
 import HNS.common.GridData;
 import HNS.common.Phase;
@@ -24,6 +25,9 @@ public class GameRoom extends Room {
     private int rounds = 0;
     private int maxRounds = 10;
     private TimedEvent roundTimer = null;
+    private GameOptions options = new GameOptions();
+    private boolean isEliminationMode = false;
+    private long hostId = Constants.DEFAULT_CLIENT_ID;
 
     public GameRoom(String name) {
         super(name);
@@ -36,9 +40,31 @@ public class GameRoom extends Room {
             ServerPlayer player = new ServerPlayer(client);
             super.addClient(client);
             logger.info(String.format("Total clients %s", clients.size()));
+            if (hostId == Constants.DEFAULT_CLIENT_ID) {
+                hostId = id;
+            }
+
+            // sync data on join
             client.sendPhaseSync(currentPhase);
+            client.sendHost(hostId);
+            client.sendGameOptions(options);
+            if (currentPhase != Phase.READY) {
+                if (currentSeeker != null) {
+                    client.sendSeeker(currentSeeker.getClient().getClientId());
+                }
+                client.sendGrid(grid.export());
+            }
+
             return player;
         });
+    }
+
+    protected void setGameOptions(GameOptions options) {
+        this.options = options;
+        maxSeeksPerRound = options.getSeeksPerRound();
+        isEliminationMode = options.isEliminationMode();
+        logger.info("Blockage " + options.getBlockage());
+        syncGameOptions();
     }
 
     protected void setReady(ServerThread client) {
@@ -54,13 +80,12 @@ public class GameRoom extends Room {
                 readyCheck(true);
             });
         }
-        players.values().stream().filter(p -> p.getClient().getClientId() == client.getClientId()).findFirst()
-                .ifPresent(p -> {
-                    p.setReady(true);
-                    logger.info(String.format("Marked player %s[%s] as ready", p.getClient().getClientName(), p
-                            .getClient().getClientId()));
-                    syncReadyStatus(p.getClient().getClientId());
-                });
+        if (players.containsKey(client.getClientId())) {
+            players.get(client.getClientId()).setReady(true);
+            logger.info(String.format("Marked player %s[%s] as ready", client.getClientName(), client.getClientId()));
+            syncReadyStatus(client.getClientId());
+        }
+
         readyCheck(false);
     }
 
@@ -96,7 +121,7 @@ public class GameRoom extends Room {
     }
 
     private void start() {
-        grid.build(5, 5);
+        grid.build(5, 5, options.getBlockage());
         rounds = maxRounds;
         startRound();
     }
@@ -107,9 +132,10 @@ public class GameRoom extends Room {
             p.setPoints(0);
             p.setIsOut(false);
             p.setReady(false);
+            p.setCurrentCell(null);
         });
 
-        syncSessionData();
+        syncSessionData(true);
         updatePhase(Phase.READY);
         sendMessage(null, "Session ended, please intiate ready check to begin a new one");
     }
@@ -147,12 +173,31 @@ public class GameRoom extends Room {
             logger.info("Seeker disconnected, picking new seeker");
             pickSeeker();
         }
+        if (hostId == player.getClient().getClientId()) {
+            ServerPlayer newhost = players.values().stream().findFirst().orElse(null);
+            if (newhost != null) {
+                logger.info("Migrating host");
+                hostId = newhost.getClient().getClientId();
+                syncHost(hostId);
+            }
+        }
         if (players.isEmpty()) {
             if (roundTimer != null) {
                 roundTimer.cancel();
                 roundTimer = null;
             }
             close();
+        }
+    }
+
+    private void syncHost(long clientId) {
+        Iterator<ServerPlayer> iter = players.values().stream().iterator();
+        while (iter.hasNext()) {
+            ServerPlayer client = iter.next();
+            boolean success = client.getClient().sendHost(clientId);
+            if (!success) {
+                handleDisconnect(client);
+            }
         }
     }
 
@@ -233,7 +278,13 @@ public class GameRoom extends Room {
      */
     public void setHidePosition(int x, int y, long clientId) {
         if (currentPhase != Phase.HIDE) {
-            sendMessage(null, "You can't hide at this time");
+            // sendMessage(null, "You can't hide at this time");
+            try {
+                players.get(clientId).getClient().sendMessage(Constants.DEFAULT_CLIENT_ID,
+                        "You can't hide at this time");
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
             return;
         }
         if (currentPhase == Phase.HIDE && currentSeeker.getClient().getClientId() != clientId) {
@@ -247,7 +298,13 @@ public class GameRoom extends Room {
 
     public void checkSeekPosition(int x, int y, long clientId) {
         if (currentPhase != Phase.SEEK && currentSeeker.getClient().getClientId() == clientId) {
-            sendMessage(null, "You can't seek at this time");
+            // sendMessage(null, "You can't seek at this time");
+            try {
+                players.get(clientId).getClient().sendMessage(Constants.DEFAULT_CLIENT_ID,
+                        "You can't seek at this time");
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
             return;
         }
         if (currentPhase == Phase.SEEK && currentSeeker.getClient().getClientId() == clientId) {
@@ -335,8 +392,11 @@ public class GameRoom extends Room {
      */
     private synchronized void startRound() {
         grid.reset();
-        players.values().stream().forEach(p -> p.setIsOut(false));
-        syncSessionData();
+
+        if (!isEliminationMode || rounds == maxRounds) {
+            players.values().stream().forEach(p -> p.setIsOut(false));
+        }
+        syncSessionData(false);
         pickSeeker();
         syncCurrentGrid();
         updatePhase(Phase.HIDE);
@@ -392,9 +452,36 @@ public class GameRoom extends Room {
         }
         if (didEnd) {
             rounds--;
+            List<ServerPlayer> remaining = players.values().stream().filter(p -> p.isReady() && !p.isOut())
+                    .toList();
+            boolean isOver = false;
+            logger.info(String.format("%s Remaining players %s %s", Constants.ANSI_BRIGHT_YELLOW, remaining.size(),
+                    Constants.ANSI_RESET));
             if (rounds <= 0) {// game session over
                 sendMessage(null, "Game Over!");
-                resetSession();// TODO milestone3 will handle a final score page prior to ready check
+                isOver = true;
+            } else if (isEliminationMode && remaining.size() == 1) {
+                sendMessage(null, "Elimination over!");
+                isOver = true;
+            }
+            if (isOver) {
+                remaining = players.values().stream().filter(p -> p.isReady())
+                        .sorted((a, b) -> {
+                            if (a.getPoints() == b.getPoints()) {
+                                return 0;
+                            } else if (a.getPoints() > b.getPoints()) {
+                                return -1;
+                            } else {
+                                return 1;
+                            }
+                        }).toList();
+                int i = 1;
+                for (ServerPlayer p : remaining) {
+                    sendMessage(null, String.format("Place %s: %s - Points %s",
+                            i, p.getClient().getClientName(), p.getPoints()));
+                    i++;
+                }
+                resetSession();
                 return;
             }
             // next round
@@ -407,6 +494,17 @@ public class GameRoom extends Room {
         super.removeClient(client);
         if (players.containsKey(client.getClientId())) {
             players.remove(client.getClientId());
+        }
+    }
+
+    private void syncGameOptions() {
+        Iterator<ServerPlayer> iter = players.values().stream().iterator();
+        while (iter.hasNext()) {
+            ServerPlayer sp = iter.next();
+            boolean success = sp.getClient().sendGameOptions(options);
+            if (!success) {
+                handleDisconnect(sp);
+            }
         }
     }
 
@@ -460,23 +558,27 @@ public class GameRoom extends Room {
             }
         }
     }
+
     /**
      * Used to one-shot sync the reset of out and current points for all palyers
      */
-    private synchronized void syncSessionData() {
+    private synchronized void syncSessionData(boolean endOFSession) {
 
         try {
             Iterator<ServerPlayer> inner = players.values().stream().iterator();
             while (inner.hasNext()) {
                 ServerPlayer innerPlayer = inner.next();
-                // removed an if condition that didn't sync to current seeker (copy paste issue)
-                // using -1 to tell clients to reset all isOut values (cheaper than client by
-                // client messages)
-                boolean success = innerPlayer.getClient().sendOut(Constants.DEFAULT_CLIENT_ID);
-                if (!success) {
-                    inner.remove();
-                    handleDisconnect(innerPlayer);
-                    continue;
+                boolean success = false;
+                if (!isEliminationMode || endOFSession) {
+                    // removed an if condition that didn't sync to current seeker (copy paste issue)
+                    // using -1 to tell clients to reset all isOut values (cheaper than client by
+                    // client messages)
+                    success = innerPlayer.getClient().sendOut(Constants.DEFAULT_CLIENT_ID);
+                    if (!success) {
+                        inner.remove();
+                        handleDisconnect(innerPlayer);
+                        continue;
+                    }
                 }
                 // using null value to tell clients to grid.clear()
                 success = innerPlayer.getClient().sendGrid(null);
@@ -484,6 +586,26 @@ public class GameRoom extends Room {
                     inner.remove();
                     handleDisconnect(innerPlayer);
                     continue;
+                }
+                success = innerPlayer.getClient().sendHost(hostId);
+                if (!success) {
+                    inner.remove();
+                    handleDisconnect(innerPlayer);
+                    continue;
+                }
+                if (endOFSession) {
+                    success = innerPlayer.getClient().sendSeeker(Constants.DEFAULT_CLIENT_ID);
+                    if (!success) {
+                        inner.remove();
+                        handleDisconnect(innerPlayer);
+                        continue;
+                    }
+                    success = innerPlayer.getClient().sendReadyStatus(Constants.DEFAULT_CLIENT_ID);
+                    if (!success) {
+                        inner.remove();
+                        handleDisconnect(innerPlayer);
+                        continue;
+                    }
                 }
             }
             Iterator<ServerPlayer> outer = players.values().stream().iterator();
@@ -501,6 +623,14 @@ public class GameRoom extends Room {
                         continue;
                     }
                     // TODO add any player state to sync
+                    if (isEliminationMode && outerPlayer.isOut()) {
+                        success = innerPlayer.getClient().sendOut(outerPlayer.getClient().getClientId());
+                        if (!success) {
+                            inner.remove();
+                            handleDisconnect(innerPlayer);
+                            continue;
+                        }
+                    }
                 }
             }
         } catch (Exception e) {

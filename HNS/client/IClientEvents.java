@@ -1,5 +1,6 @@
 package HNS.client;
 
+import HNS.common.GameOptions;
 import HNS.common.Grid;
 import HNS.common.Phase;
 
@@ -85,4 +86,8 @@ public interface IClientEvents {
     void onReceiveGrid(Grid grid);
 
     void onReceivePoints(long clientId, int points);
+
+    void onReceiveHost(long clientId);
+
+    void onReceiveGameOptions(GameOptions options);
 }

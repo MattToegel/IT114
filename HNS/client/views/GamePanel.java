@@ -17,6 +17,7 @@ import javax.swing.JTextField;
 import HNS.client.Client;
 import HNS.client.IClientEvents;
 import HNS.common.Constants;
+import HNS.common.GameOptions;
 import HNS.common.Grid;
 import HNS.common.Phase;
 import HNS.common.TimedEvent;
@@ -34,6 +35,8 @@ public class GamePanel extends JPanel implements IClientEvents {
     TimedEvent currentTimer;
     JLabel timeLabel = new JLabel("");
     Phase currentPhase;
+    OptionsPanel optionsPanel;
+
     public GamePanel() {
         gridLayout = new JPanel();
         buildReadyCheck();
@@ -55,13 +58,32 @@ public class GamePanel extends JPanel implements IClientEvents {
     public void setUserListPanel(UserListPanel ulp) {
         this.ulp = ulp;
     }
+
     private void buildReadyCheck() {
         if (readyCheck == null) {
             readyCheck = new JPanel();
             readyCheck.setLayout(new BorderLayout());
+            optionsPanel = new OptionsPanel(Client.INSTANCE.isHost());
+
+            optionsPanel.setCallback((go) -> {
+                // generate payload if I'm the host
+                if (Client.INSTANCE.isHost()) {
+                    try {
+                        logger.info("Sending game options");
+                        Client.INSTANCE.sendGameOptions(go);
+                    } catch (IOException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                    }
+                }
+            });
+
+            readyCheck.add(optionsPanel, BorderLayout.NORTH);
+
             JTextField tf = new JTextField(String.format("%s/%s", 0, Constants.MINIMUM_PLAYERS));
             tf.setName("readyText");
-
+            tf.setMaximumSize(new Dimension(readyCheck.getWidth(), 30));
+            tf.setPreferredSize(tf.getMaximumSize());
             readyCheck.add(tf, BorderLayout.CENTER);
             JButton jb = new JButton("Ready");
             jb.addActionListener((event) -> {
@@ -237,9 +259,7 @@ public class GamePanel extends JPanel implements IClientEvents {
 
     @Override
     public void onReceiveOut(long clientId) {
-        // TODO Auto-generated method stub
-        // throw new UnsupportedOperationException("Unimplemented method
-        // 'onReceiveOut'");
+        ulp.setOut(clientId);
     }
 
     @Override
@@ -299,6 +319,21 @@ public class GamePanel extends JPanel implements IClientEvents {
     public void onReceivePoints(long clientId, int points) {
         if (ulp != null) {
             ulp.setPointsForPlayer(clientId, points);
+        }
+    }
+
+    @Override
+    public void onReceiveHost(long clientId) {
+        if (optionsPanel != null) {
+            optionsPanel.setIsHost(Client.INSTANCE.isHost());
+        }
+        ulp.setHost(clientId);
+    }
+
+    @Override
+    public void onReceiveGameOptions(GameOptions options) {
+        if (optionsPanel != null) {
+            optionsPanel.setOptions(options);
         }
     }
 

@@ -27,6 +27,7 @@ import HNS.client.views.Menu;
 import HNS.client.views.RoomsPanel;
 import HNS.client.views.UserInputPanel;
 import HNS.common.Constants;
+import HNS.common.GameOptions;
 import HNS.common.Grid;
 import HNS.common.Phase;
 
@@ -83,8 +84,9 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
         chatPanel = new ChatPanel(this);
         roomsPanel = new RoomsPanel(this);
         gamePanel = new GamePanel();
-        //gamePanel.setPreferredSize(new Dimension((int) (this.getWidth() * .5), (int) this.getHeight()));
-        //gamePanel.setMinimumSize(gamePanel.getPreferredSize());
+        // gamePanel.setPreferredSize(new Dimension((int) (this.getWidth() * .5), (int)
+        // this.getHeight()));
+        // gamePanel.setMinimumSize(gamePanel.getPreferredSize());
         chatPanel.add(gamePanel, BorderLayout.WEST);
         gamePanel.setUserListPanel(chatPanel.getUserListPanel());
         // https://stackoverflow.com/a/9093526
@@ -318,6 +320,14 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
     @Override
     public void onReceiveReadyCount(long count) {
 
+    }
+
+    @Override
+    public void onReceiveHost(long clientId) {
+    }
+
+    @Override
+    public void onReceiveGameOptions(GameOptions options) {
     }
 
 }

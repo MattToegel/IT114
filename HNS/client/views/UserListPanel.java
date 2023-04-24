@@ -45,16 +45,18 @@ public class UserListPanel extends JPanel {
             @Override
             public void componentAdded(ContainerEvent e) {
                 if (userListArea.isVisible()) {
-                    userListArea.revalidate();
-                    userListArea.repaint();
+                    resizeUserListItems();
+                    // userListArea.revalidate();
+                    // userListArea.repaint();
                 }
             }
 
             @Override
             public void componentRemoved(ContainerEvent e) {
                 if (userListArea.isVisible()) {
-                    userListArea.revalidate();
-                    userListArea.repaint();
+                    resizeUserListItems();
+                    // userListArea.revalidate();
+                    // userListArea.repaint();
                 }
             }
 
@@ -115,6 +117,26 @@ public class UserListPanel extends JPanel {
         Component[] cs = userListArea.getComponents();
         for (Component c : cs) {
             userListArea.remove(c);
+        }
+    }
+
+    public void setOut(long clientId) {
+        Component[] cs = userListArea.getComponents();
+        for (Component c : cs) {
+            if (c instanceof UserListItem) {
+                UserListItem u = (UserListItem) c;
+                u.setOut(clientId);
+            }
+        }
+    }
+
+    public void setHost(long clientId) {
+        Component[] cs = userListArea.getComponents();
+        for (Component c : cs) {
+            if (c instanceof UserListItem) {
+                UserListItem u = (UserListItem) c;
+                u.setHost(clientId);
+            }
         }
     }
 

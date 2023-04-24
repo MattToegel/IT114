@@ -19,13 +19,17 @@ public class Grid {
         return columns;
     }
 
-    public void build(int rows, int columns) {
+    public void build(int rows, int columns, int blockage) {
         this.rows = rows;
         this.columns = columns;
         logger.info("Starting grid generation");
         cells = new Cell[rows][columns];
         int cellTotal = rows * columns;
-        int blockedCells = (int) (cellTotal * .6);
+        int blockedCells = (int) Math.ceil(cellTotal * (((float) blockage) / 100.0));
+        logger.info(String.format("%s blocked cell count %s %s",
+                Constants.ANSI_BRIGHT_GREEN,
+                blockedCells,
+                Constants.ANSI_RESET));
         for (int row = 0; row < rows; row++) {
             for (int column = 0; column < columns; column++) {
                 cells[row][column] = new Cell(row, column);

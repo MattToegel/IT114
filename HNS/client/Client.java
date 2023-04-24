@@ -11,6 +11,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 import HNS.common.Constants;
+import HNS.common.GameOptions;
+import HNS.common.GameOptionsPayload;
 import HNS.common.Grid;
 import HNS.common.GridPayload;
 import HNS.common.Payload;
@@ -42,6 +44,7 @@ public enum Client {
     private Grid grid;
     private Phase currentPhase = Phase.READY;
     List<IClientEvents> listeners = new ArrayList<IClientEvents>();
+    private long hostId;
 
     public boolean isConnected() {
         if (server == null) {
@@ -55,9 +58,14 @@ public enum Client {
 
     }
 
+    public boolean isHost() {
+        return hostId == myClientId;
+    }
+
     public boolean isSeeker() {
         return isSeeker;
     }
+
     public Grid getGrid() {
         return grid;
     }
@@ -111,6 +119,12 @@ public enum Client {
     }
 
     // Send methods
+    public void sendGameOptions(GameOptions options) throws IOException {
+        GameOptionsPayload gop = new GameOptionsPayload();
+        gop.setOptions(options);
+        out.writeObject(gop);
+    }
+
     public void sendSeekPosition(int x, int y) throws IOException {
         PositionPayload pp = new PositionPayload(PayloadType.SEEK);
         pp.setCoord(x, y);
@@ -229,171 +243,191 @@ public enum Client {
      */
     private void processPayload(Payload p) {
         try {
-        switch (p.getPayloadType()) {
-            case CONNECT:
+            switch (p.getPayloadType()) {
+                case CONNECT:
 
-                addPlayer(p.getClientId(), p.getClientName());
-                logger.info(String.format("*%s %s*",
-                        p.getClientName(),
-                        p.getMessage()));
-                listeners.forEach(l -> l.onClientConnect(
-                        p.getClientId(), p.getClientName(),
-                        String.format("*%s %s*", p.getClientName(), p.getMessage())));
-                break;
-            case DISCONNECT:
-                removePlayer(p.getClientId());
-                if (p.getClientId() == myClientId) {
-                    myClientId = Constants.DEFAULT_CLIENT_ID;
-                    isSeeker = false;
-                }
-                logger.info(String.format("*%s %s*",
-                        p.getClientName(),
-                        p.getMessage()));
-                listeners.forEach(l -> l.onClientDisconnect(
-                        p.getClientId(), p.getClientName(), (String.format("*%s %s*",
-                                p.getClientName(),
-                                p.getMessage()))));
-                break;
-            case SYNC_CLIENT:
-                addPlayer(p.getClientId(), p.getClientName());
-                listeners.forEach(l -> l.onSyncClient(
-                        p.getClientId(), p.getClientName()));
-                break;
-            case MESSAGE:
-                System.out.println(Constants.ANSI_CYAN + String.format("%s: %s",
-                        getClientNameById(p.getClientId()),
-                        p.getMessage()) + Constants.ANSI_RESET);
-                listeners.forEach(l -> l.onMessageReceive(
-                        p.getClientId(), p.getMessage()));
-                break;
-            case CLIENT_ID:
-                
-                if (myClientId == Constants.DEFAULT_CLIENT_ID) {
-                    myClientId = p.getClientId();
-                } else {
-                    logger.warning("Receiving client id despite already being set");
-                }
-                listeners.forEach(l -> l.onReceiveClientId(
-                        p.getClientId()));
-                break;
-            case JOIN_ROOM:
-                listeners.forEach(l -> l.onRoomJoin(p.getMessage()));
-                break;
-            case GET_ROOMS:
-                RoomResultPayload rp = (RoomResultPayload) p;
-                logger.info("Received Room List:");
-                if (rp.getMessage() != null) {
-                    logger.info(rp.getMessage());
-                } else {
-                    for (int i = 0, l = rp.getRooms().length; i < l; i++) {
-                        logger.info(String.format("%s) %s", (i + 1), rp.getRooms()[i]));
+                    addPlayer(p.getClientId(), p.getClientName());
+                    logger.info(String.format("*%s %s*",
+                            p.getClientName(),
+                            p.getMessage()));
+                    listeners.forEach(l -> l.onClientConnect(
+                            p.getClientId(), p.getClientName(),
+                            String.format("*%s %s*", p.getClientName(), p.getMessage())));
+                    break;
+                case DISCONNECT:
+                    removePlayer(p.getClientId());
+                    if (p.getClientId() == myClientId) {
+                        myClientId = Constants.DEFAULT_CLIENT_ID;
+                        isSeeker = false;
                     }
-                }
-                listeners.forEach(l -> l.onReceiveRoomList(
-                        rp.getRooms(), p.getMessage()));
-                break;
-            case RESET_USER_LIST:
-                players.clear();
-                listeners.forEach(l -> l.onResetUserList());
-                break;
-            case RESET_READY:
-                listeners.forEach(l -> l.onReceiveReadyCount(0));
-                break;
-            case READY:
-                logger.info(String.format("Player %s is ready", getClientNameById(p.getClientId()))
-                        + Constants.ANSI_RESET);
-                if (players.containsKey(p.getClientId())) {
-                    players.get(p.getClientId()).setReady(true);
-                }
-                listeners.forEach(l -> l.onReceiveReady(p.getClientId()));
-                long count = players.values().stream().filter(Player::isReady).count();
-                listeners.forEach(l -> l.onReceiveReadyCount(count));
-                break;
-            case PHASE:
-                logger.info(Constants.ANSI_YELLOW + String.format("The current phase is %s", p.getMessage())
-                        + Constants.ANSI_RESET);
-                currentPhase = Phase.valueOf(p.getMessage());
-                listeners.forEach(l -> l.onReceivePhase(Phase.valueOf(p.getMessage())));
-                break;
-            case SEEKER:
-                isSeeker = p.getClientId() == myClientId;
-                if (isSeeker) {
-                    logger.info(Constants.ANSI_GREEN + "You are the seeker" + Constants.ANSI_RESET);
-                } else {
-                    logger.info(Constants.ANSI_GREEN + getClientNameById(p.getClientId()) + " is the seeker"
-                            + Constants.ANSI_RESET);
-                }
-                listeners.forEach(l -> l.onReceiveSeeker(p.getClientId()));
-                break;
-            case HIDE:
-                try {
-                    PositionPayload pp = (PositionPayload) p;
-                    if (players.containsKey(pp.getClientId())) {
-                        ClientPlayer cp = (ClientPlayer) players.get(pp.getClientId());
-                        grid.addPlayerToCell(pp.getX(), pp.getY(), cp);
-                        logger.info(Constants.ANSI_BLUE + String.format("Player %s is hiding at [%s,%s]",
-                                getClientNameById(p.getClientId()),
-                                pp.getX(), pp.getY()) + Constants.ANSI_RESET);
-                        listeners.forEach(l -> l.onReceiveHide(pp.getX(), pp.getY(), pp.getClientId()));
-                    }
-                } catch (Exception e) {
-                    logger.severe(Constants.ANSI_RED + String.format("Error handling position payload: %s", e)
-                            + Constants.ANSI_RESET);
-                }
-                break;
-            case OUT:
-                if (p.getClientId() == Constants.DEFAULT_CLIENT_ID) {
-                    players.values().stream().forEach(player -> player.setIsOut(false));
-                    logger.info("Resetting out players");
-                } else {
-                    logger.info(
-                            Constants.ANSI_BLUE + String.format("Player %s is out!", getClientNameById(p.getClientId()))
-                                    + Constants.ANSI_RESET);
-                    if (players.containsKey(p.getClientId())) {
-                        players.get(p.getClientId()).setIsOut(true);
-                    }
-                }
-                listeners.forEach(l -> l.onReceiveOut(p.getClientId()));
-                break;
-            case GRID:
-                if (grid == null) {
-                    grid = new Grid();
-                    grid.build(5, 5);// TODO keep in sync with server, later server should send this info
-                }
-                try {
-                    GridPayload gp = (GridPayload) p;
-                    if (gp.getGrid() == null) {
-                        grid.reset();
+                    logger.info(String.format("*%s %s*",
+                            p.getClientName(),
+                            p.getMessage()));
+                    listeners.forEach(l -> l.onClientDisconnect(
+                            p.getClientId(), p.getClientName(), (String.format("*%s %s*",
+                                    p.getClientName(),
+                                    p.getMessage()))));
+                    break;
+                case SYNC_CLIENT:
+                    addPlayer(p.getClientId(), p.getClientName());
+                    listeners.forEach(l -> l.onSyncClient(
+                            p.getClientId(), p.getClientName()));
+                    break;
+                case MESSAGE:
+                    System.out.println(Constants.ANSI_CYAN + String.format("%s: %s",
+                            getClientNameById(p.getClientId()),
+                            p.getMessage()) + Constants.ANSI_RESET);
+                    listeners.forEach(l -> l.onMessageReceive(
+                            p.getClientId(), p.getMessage()));
+                    break;
+                case CLIENT_ID:
+
+                    if (myClientId == Constants.DEFAULT_CLIENT_ID) {
+                        myClientId = p.getClientId();
                     } else {
-                        grid.importData(gp.getGrid());
+                        logger.warning("Receiving client id despite already being set");
                     }
-                    listeners.forEach(l -> l.onReceiveGrid(grid));
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-                break;
-            case POINTS:
-                try {
-                    PointsPayload pp = (PointsPayload) p;
-                    if (players.containsKey(p.getClientId())) {
-                        players.get(p.getClientId()).setPoints(pp.getPoints());
+                    listeners.forEach(l -> l.onReceiveClientId(
+                            p.getClientId()));
+                    break;
+                case JOIN_ROOM:
+                    listeners.forEach(l -> l.onRoomJoin(p.getMessage()));
+                    break;
+                case GET_ROOMS:
+                    RoomResultPayload rp = (RoomResultPayload) p;
+                    logger.info("Received Room List:");
+                    if (rp.getMessage() != null) {
+                        logger.info(rp.getMessage());
+                    } else {
+                        for (int i = 0, l = rp.getRooms().length; i < l; i++) {
+                            logger.info(String.format("%s) %s", (i + 1), rp.getRooms()[i]));
+                        }
                     }
-                    listeners.forEach(l -> l.onReceivePoints(pp.getClientId(), pp.getPoints()));
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
+                    listeners.forEach(l -> l.onReceiveRoomList(
+                            rp.getRooms(), p.getMessage()));
+                    break;
+                case RESET_USER_LIST:
+                    players.clear();
+                    listeners.forEach(l -> l.onResetUserList());
+                    break;
+                case RESET_READY:
+                    listeners.forEach(l -> l.onReceiveReadyCount(0));
+                    break;
+                case READY:
+                    if (p.getClientId() == Constants.DEFAULT_CLIENT_ID) {
+                        players.values().forEach(pl -> pl.setReady(false));
+                    } else {
+                        logger.info(String.format("Player %s is ready", getClientNameById(p.getClientId()))
+                                + Constants.ANSI_RESET);
+                        if (players.containsKey(p.getClientId())) {
+                            players.get(p.getClientId()).setReady(true);
+                        }
+                    }
+                    listeners.forEach(l -> l.onReceiveReady(p.getClientId()));
+                    long count = players.values().stream().filter(Player::isReady).count();
+                    listeners.forEach(l -> l.onReceiveReadyCount(count));
+                    break;
+                case PHASE:
+                    logger.info(Constants.ANSI_YELLOW + String.format("The current phase is %s", p.getMessage())
+                            + Constants.ANSI_RESET);
+                    currentPhase = Phase.valueOf(p.getMessage());
+                    listeners.forEach(l -> l.onReceivePhase(Phase.valueOf(p.getMessage())));
+                    break;
+                case SEEKER:
+                    isSeeker = p.getClientId() == myClientId;
+                    if (isSeeker) {
+                        logger.info(Constants.ANSI_GREEN + "You are the seeker" + Constants.ANSI_RESET);
+                    } else {
+                        logger.info(Constants.ANSI_GREEN + getClientNameById(p.getClientId()) + " is the seeker"
+                                + Constants.ANSI_RESET);
+                    }
+                    listeners.forEach(l -> l.onReceiveSeeker(p.getClientId()));
+                    break;
+                case HIDE:
+                    try {
+                        PositionPayload pp = (PositionPayload) p;
+                        if (players.containsKey(pp.getClientId())) {
+                            ClientPlayer cp = (ClientPlayer) players.get(pp.getClientId());
+                            grid.addPlayerToCell(pp.getX(), pp.getY(), cp);
+                            logger.info(Constants.ANSI_BLUE + String.format("Player %s is hiding at [%s,%s]",
+                                    getClientNameById(p.getClientId()),
+                                    pp.getX(), pp.getY()) + Constants.ANSI_RESET);
+                            listeners.forEach(l -> l.onReceiveHide(pp.getX(), pp.getY(), pp.getClientId()));
+                        }
+                    } catch (Exception e) {
+                        logger.severe(Constants.ANSI_RED + String.format("Error handling position payload: %s", e)
+                                + Constants.ANSI_RESET);
+                    }
+                    break;
+                case OUT:
+                    logger.info("Client Id out " + p.getClientId());
+                    if (p.getClientId() == Constants.DEFAULT_CLIENT_ID) {
+                        players.values().stream().forEach(player -> player.setIsOut(false));
+                        logger.info("Resetting out players");
+                    } else {
+                        logger.info(
+                                Constants.ANSI_BLUE
+                                        + String.format("Player %s is out!", getClientNameById(p.getClientId()))
+                                        + Constants.ANSI_RESET);
+                        if (players.containsKey(p.getClientId())) {
+                            players.get(p.getClientId()).setIsOut(true);
+                        }
+                    }
+                    listeners.forEach(l -> l.onReceiveOut(p.getClientId()));
+                    break;
+                case GRID:
+                    if (grid == null) {
+                        grid = new Grid();
+                        // default should be fine, it should get synced later with real blockage
+                        grid.build(5, 5, 60);// TODO keep in sync with server, later server should send this info
+                    }
+                    try {
+                        GridPayload gp = (GridPayload) p;
+                        if (gp.getGrid() == null) {
+                            grid.reset();
+                        } else {
+                            grid.importData(gp.getGrid());
+                        }
+                        listeners.forEach(l -> l.onReceiveGrid(grid));
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    break;
+                case POINTS:
+                    try {
+                        PointsPayload pp = (PointsPayload) p;
+                        if (players.containsKey(p.getClientId())) {
+                            players.get(p.getClientId()).setPoints(pp.getPoints());
+                        }
+                        listeners.forEach(l -> l.onReceivePoints(pp.getClientId(), pp.getPoints()));
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
 
-                break;
-            default:
-                logger.warning(Constants.ANSI_RED + String.format("Unhandled Payload type: %s", p.getPayloadType())
-                        + Constants.ANSI_RESET);
-                break;
+                    break;
+                case HOST:
+                    hostId = p.getClientId();
 
+                    listeners.forEach(l -> l.onReceiveHost(hostId));
+                    break;
+                case GAME_OPTIONS:
+                    try {
+                        GameOptionsPayload gop = (GameOptionsPayload) p;
+                        listeners.forEach(l -> l.onReceiveGameOptions(gop.getOptions()));
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    break;
+                default:
+                    logger.warning(Constants.ANSI_RED + String.format("Unhandled Payload type: %s", p.getPayloadType())
+                            + Constants.ANSI_RESET);
+                    break;
+
+            }
+        } catch (Exception e) {
+            logger.severe("Payload handling problem");
+            e.printStackTrace();
         }
-    } catch (Exception e) {
-        logger.severe("Payload handling problem");
-        e.printStackTrace();
-    }
     }
 
     private void close() {

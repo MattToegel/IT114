@@ -10,6 +10,8 @@ import java.util.logging.Logger;
 import HNS.common.CellData;
 import HNS.common.CellPayload;
 import HNS.common.Constants;
+import HNS.common.GameOptions;
+import HNS.common.GameOptionsPayload;
 import HNS.common.GridData;
 import HNS.common.GridPayload;
 import HNS.common.Payload;
@@ -87,6 +89,19 @@ public class ServerThread extends Thread {
     }
 
     // send methods
+    public boolean sendHost(long clientId) {
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.HOST);
+        p.setClientId(clientId);
+        return send(p);
+    }
+
+    public boolean sendGameOptions(GameOptions options) {
+        GameOptionsPayload gop = new GameOptionsPayload();
+        gop.setOptions(options);
+        return send(gop);
+    }
+
     public boolean sendPoints(long clientId, int points) {
         PointsPayload pp = new PointsPayload();
         pp.setClientId(clientId);
@@ -149,6 +164,7 @@ public class ServerThread extends Thread {
         p.setPayloadType(PayloadType.RESET_READY);
         return send(p);
     }
+
     public boolean sendReadyStatus(long clientId) {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.READY);
@@ -310,6 +326,15 @@ public class ServerThread extends Thread {
                     ((GameRoom) currentRoom).setHidePosition(pp.getX(), pp.getY(), myClientId);
                 } catch (Exception e) {
                     logger.severe(String.format("There was a problem during setHidePosition %s", e.getMessage()));
+                    e.printStackTrace();
+                }
+                break;
+            case GAME_OPTIONS:
+                try {
+                    GameOptionsPayload gop = (GameOptionsPayload) p;
+                    ((GameRoom) currentRoom).setGameOptions(gop.getOptions());
+                } catch (Exception e) {
+                    logger.severe(String.format("There was a problem during setGameOptions %s", e.getMessage()));
                     e.printStackTrace();
                 }
                 break;
