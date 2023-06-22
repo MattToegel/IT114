@@ -1,4 +1,4 @@
-package HNS.server;
+package DCT.server;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Queue;
 import java.util.logging.Logger;
 
-import HNS.common.Constants;
+import DCT.common.Constants;
 
 public enum Server {
     INSTANCE;

@@ -1,4 +1,4 @@
-package HNS.common;
+package DCT.common;
 
 import java.io.Serializable;
 

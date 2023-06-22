@@ -1,4 +1,4 @@
-package HNS.common;
+package DCT.common;
 
 /**
  * Created so we don't need to modify the base payload

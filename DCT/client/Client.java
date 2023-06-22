@@ -1,4 +1,4 @@
-package HNS.client;
+package DCT.client;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -11,10 +11,10 @@ import java.util.Scanner;
 import java.util.Map.Entry;
 import java.util.logging.Logger;
 
-import HNS.common.Constants;
-import HNS.common.Payload;
-import HNS.common.PayloadType;
-import HNS.common.RoomResultPayload;
+import DCT.common.Constants;
+import DCT.common.Payload;
+import DCT.common.PayloadType;
+import DCT.common.RoomResultPayload;
 
 public enum Client {
     Instance;

@@ -1,11 +1,11 @@
-package HNS.server;
+package DCT.server;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Logger;
 
-import HNS.common.Constants;
+import DCT.common.Constants;
 
 public class Room implements AutoCloseable {
     protected static Server server;// used to refer to accessible server functions
