@@ -10,15 +10,15 @@ import DCT.common.Phase;
 import DCT.common.TimedEvent;
 
 public class GameRoom extends Room {
-Phase currentPhase = Phase.READY;
+    Phase currentPhase = Phase.READY;
     private static Logger logger = Logger.getLogger(GameRoom.class.getName());
     private TimedEvent readyTimer = null;
     private ConcurrentHashMap<Long, ServerPlayer> players = new ConcurrentHashMap<Long, ServerPlayer>();
+
     public GameRoom(String name) {
         super(name);
         // TODO Auto-generated constructor stub
     }
-
 
     @Override
     protected void addClient(ServerThread client) {
@@ -26,7 +26,7 @@ Phase currentPhase = Phase.READY;
         players.computeIfAbsent(client.getClientId(), id -> {
             ServerPlayer player = new ServerPlayer(client);
             super.addClient(client);
-            logger.info(String.format("Total clients %s", clients.size()));//change visibility to protected
+            logger.info(String.format("Total clients %s", clients.size()));// change visibility to protected
             return player;
         });
     }
@@ -120,7 +120,7 @@ Phase currentPhase = Phase.READY;
     protected void handleDisconnect(ServerPlayer player) {
         if (players.containsKey(player.getClient().getClientId())) {
             players.remove(player.getClient().getClientId());
-            super.handleDisconnect(null, player.getClient()); //change visibility to protected
+            super.handleDisconnect(null, player.getClient()); // change visibility to protected
             logger.info(String.format("Total clients %s", clients.size()));
             sendMessage(null, player.getClient().getClientName() + " disconnected");
             if (players.isEmpty()) {
