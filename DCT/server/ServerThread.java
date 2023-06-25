@@ -10,8 +10,8 @@ import java.util.logging.Logger;
 import DCT.common.Constants;
 import DCT.common.Payload;
 import DCT.common.PayloadType;
+import DCT.common.Phase;
 import DCT.common.RoomResultPayload;
-
 /**
  * A server-side representation of a single client
  */
@@ -78,6 +78,13 @@ public class ServerThread extends Thread {
     }
 
     // send methods
+   
+     public boolean sendPhaseSync(Phase phase) {
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.PHASE);
+        p.setMessage(phase.name());
+        return send(p);
+    }
 
     public boolean sendReadyStatus(long clientId) {
         Payload p = new Payload();
@@ -85,7 +92,7 @@ public class ServerThread extends Thread {
         p.setClientId(clientId);
         return send(p);
     }
-
+    
     public boolean sendRoomName(String name) {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.JOIN_ROOM);
@@ -215,8 +222,13 @@ public class ServerThread extends Thread {
             case JOIN_ROOM:
                 Room.joinRoom(p.getMessage().trim(), this);
                 break;
-            case READY:
-                // ((GameRoom) currentRoom).setReady(myClientId);
+             case READY:
+                try {
+                    ((GameRoom) currentRoom).setReady(this);
+                } catch (Exception e) {
+                    logger.severe(String.format("There was a problem during readyCheck %s", e.getMessage()));
+                    e.printStackTrace();
+                }
                 break;
             default:
                 break;
