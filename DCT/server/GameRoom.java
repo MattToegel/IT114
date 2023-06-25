@@ -44,13 +44,23 @@ public class GameRoom extends Room {
                 readyCheck(true);
             });
         }
+        // Hashmaps allow fast lookup by keys
+        if(players.containsKey(client.getClientId())){
+            ServerPlayer sp = players.get(client.getClientId());
+            sp.setReady(true);
+            logger.info(String.format("Marked player %s[%s] as ready", sp.getClient().getClientName(), sp
+                            .getClient().getClientId()));
+                    syncReadyStatus(sp.getClient().getClientId());
+        }
+        /* Example demonstrating stream api and filters (not ideal in this scenario since a hashmap has a more officient approach) 
+        * This concept may be beneficial in the future for other lookup data
         players.values().stream().filter(p -> p.getClient().getClientId() == client.getClientId()).findFirst()
                 .ifPresent(p -> {
                     p.setReady(true);
                     logger.info(String.format("Marked player %s[%s] as ready", p.getClient().getClientName(), p
                             .getClient().getClientId()));
                     syncReadyStatus(p.getClient().getClientId());
-                });
+                });*/
         readyCheck(false);
     }
 
