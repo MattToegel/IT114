@@ -1,13 +1,19 @@
 package DCT.server;
 
+import DCT.common.Utils;
+
 import java.util.Iterator;
 import java.util.concurrent.ConcurrentHashMap;
-
+import java.util.function.Consumer;
 import java.util.logging.Logger;
 
+import DCT.common.Character.ActionType;
+import DCT.common.Character.CharacterType;
+import DCT.server.CharacterFactory.ControllerType;
 import DCT.common.Constants;
 import DCT.common.Phase;
 import DCT.common.TimedEvent;
+import DCT.common.Character;
 
 public class GameRoom extends Room {
     Phase currentPhase = Phase.READY;
@@ -18,6 +24,79 @@ public class GameRoom extends Room {
     public GameRoom(String name) {
         super(name);
         // TODO Auto-generated constructor stub
+    }
+
+    /**
+     * Attempts to lookup and load a character
+     * 
+     * @param client
+     * @param character expected to contain search/lookup criteria, not an actual
+     *                  full character reference
+     */
+    protected void loadCharacter(ServerThread client, Character charData) {
+        // for now using character code to fetch
+        String characterCode = charData.getCode();
+        String[] parts = characterCode.split("-");
+        if (parts.length >= 2) {
+            String position = parts[0];
+            String code = parts[1];
+            Consumer<Character> callback = character -> {
+                try {
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("Character created: ").append(character.getName()).append("\n");
+                    sb.append("Character level: ").append(character.getLevel()).append("\n");
+                    sb.append("Character type: ").append(character.getType()).append("\n");
+                    sb.append("Character action type: ").append(character.getActionType()).append("\n");
+                    sb.append("Character stats: ").append("\n");
+                    sb.append("Attack: ").append(character.getAttack()).append("\n");
+                    sb.append("Vitality: ").append(character.getVitality()).append("\n");
+                    sb.append("Defense: ").append(character.getDefense()).append("\n");
+                    sb.append("Will: ").append(character.getWill()).append("\n");
+                    sb.append("Luck: ").append(character.getLuck()).append("\n");
+                    sb.append("Progression Rate: ").append(character.getProgressionRate()).append("\n");
+                    sb.append("Range: ").append(character.getRange()).append("\n");
+
+                    System.out.println(sb.toString());
+                    client.sendCharacter(client.getClientId(), character);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            };
+            CharacterFactory.loadCharacter(position, code, callback);
+        }
+    }
+
+    /**
+     * Attempts to create a random character of the given type (TANK, DAMAGE,
+     * SUPPORT)
+     * 
+     * @param client
+     * @param ct
+     */
+    protected void createCharacter(ServerThread client, CharacterType ct) {
+        Consumer<Character> callback = character -> {
+            try {
+                StringBuilder sb = new StringBuilder();
+                sb.append("Character created: ").append(character.getName()).append("\n");
+                sb.append("Character level: ").append(character.getLevel()).append("\n");
+                sb.append("Character type: ").append(character.getType()).append("\n");
+                sb.append("Character action type: ").append(character.getActionType()).append("\n");
+                sb.append("Character stats: ").append("\n");
+                sb.append("Attack: ").append(character.getAttack()).append("\n");
+                sb.append("Vitality: ").append(character.getVitality()).append("\n");
+                sb.append("Defense: ").append(character.getDefense()).append("\n");
+                sb.append("Will: ").append(character.getWill()).append("\n");
+                sb.append("Luck: ").append(character.getLuck()).append("\n");
+                sb.append("Progression Rate: ").append(character.getProgressionRate()).append("\n");
+                sb.append("Range: ").append(character.getRange()).append("\n");
+
+                System.out.println(sb.toString());
+                client.sendCharacter(client.getClientId(), character);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        };
+        CharacterFactory.createCharacter(ControllerType.PLAYER, ct, 1, Utils.randomEnum(ActionType.class), callback);
     }
 
     @Override
@@ -45,22 +124,27 @@ public class GameRoom extends Room {
             });
         }
         // Hashmaps allow fast lookup by keys
-        if(players.containsKey(client.getClientId())){
+        if (players.containsKey(client.getClientId())) {
             ServerPlayer sp = players.get(client.getClientId());
             sp.setReady(true);
             logger.info(String.format("Marked player %s[%s] as ready", sp.getClient().getClientName(), sp
-                            .getClient().getClientId()));
-                    syncReadyStatus(sp.getClient().getClientId());
+                    .getClient().getClientId()));
+            syncReadyStatus(sp.getClient().getClientId());
         }
-        /* Example demonstrating stream api and filters (not ideal in this scenario since a hashmap has a more officient approach) 
-        * This concept may be beneficial in the future for other lookup data
-        players.values().stream().filter(p -> p.getClient().getClientId() == client.getClientId()).findFirst()
-                .ifPresent(p -> {
-                    p.setReady(true);
-                    logger.info(String.format("Marked player %s[%s] as ready", p.getClient().getClientName(), p
-                            .getClient().getClientId()));
-                    syncReadyStatus(p.getClient().getClientId());
-                });*/
+        /*
+         * Example demonstrating stream api and filters (not ideal in this scenario
+         * since a hashmap has a more officient approach)
+         * This concept may be beneficial in the future for other lookup data
+         * players.values().stream().filter(p -> p.getClient().getClientId() ==
+         * client.getClientId()).findFirst()
+         * .ifPresent(p -> {
+         * p.setReady(true);
+         * logger.info(String.format("Marked player %s[%s] as ready",
+         * p.getClient().getClientName(), p
+         * .getClient().getClientId()));
+         * syncReadyStatus(p.getClient().getClientId());
+         * });
+         */
         readyCheck(false);
     }
 

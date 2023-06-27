@@ -5,17 +5,20 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.net.UnknownHostException;
-
+import java.util.Arrays;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Scanner;
 import java.util.Map.Entry;
 import java.util.logging.Logger;
 
+import DCT.common.CharacterPayload;
 import DCT.common.Constants;
 import DCT.common.Payload;
 import DCT.common.PayloadType;
 import DCT.common.RoomResultPayload;
+import DCT.common.Character.CharacterType;
+import DCT.common.Character;
 
 public enum Client {
     Instance;
@@ -167,10 +170,40 @@ public enum Client {
         else if(text.equalsIgnoreCase("/ready")){
             sendReadyStatus();
         }
+        else if(text.startsWith("/createcharacter")){
+            String characterType = text.split("/createcharacter")[1].trim().toUpperCase();
+            System.out.println("Checking Type: " + characterType);
+            try{
+                CharacterType cType =  CharacterType.valueOf(characterType);
+                sendCreateCharacter(cType);
+            }
+            catch(Exception e){
+                System.out.println("Please enter a valid character type: " + Arrays.asList(CharacterType.values()));
+            }
+            return true;
+            
+        }
+        else if(text.startsWith("/loadcharacter")){
+            String characterCode = text.split("/loadcharacter")[1].trim();
+            sendLoadCharacter(characterCode);
+        }
         return false;
     }
 
     // Send methods
+    protected void sendLoadCharacter(String characterCode) throws IOException{
+        CharacterPayload cp = new CharacterPayload();
+        Character c = new Character();
+        c.setCode(characterCode);
+        cp.setCharacter(c);
+        out.writeObject(cp);
+    }
+
+    protected void sendCreateCharacter(CharacterType characterType) throws IOException{
+        CharacterPayload cp = new CharacterPayload();
+        cp.setCharacterType(characterType);
+        out.writeObject(cp);
+    }
 
     protected void sendReadyStatus() throws IOException {
         Payload p = new Payload();
@@ -358,6 +391,26 @@ public enum Client {
                 break;
             case PHASE:
                 System.out.println(String.format("The current phase is %s", p.getMessage()));
+                break;
+            case CHARACTER:
+                CharacterPayload cp = (CharacterPayload)p;
+                System.out.println("Created Character");
+                Character character = cp.getCharacter();
+                 StringBuilder sb = new StringBuilder();
+                sb.append("Character created: ").append(character.getName()).append("\n");
+                sb.append("Character level: ").append(character.getLevel()).append("\n");
+                sb.append("Character type: ").append(character.getType()).append("\n");
+                sb.append("Character action type: ").append(character.getActionType()).append("\n");
+                sb.append("Character stats: ").append("\n");
+                sb.append("Attack: ").append(character.getAttack()).append("\n");
+                sb.append("Vitality: ").append(character.getVitality()).append("\n");
+                sb.append("Defense: ").append(character.getDefense()).append("\n");
+                sb.append("Will: ").append(character.getWill()).append("\n");
+                sb.append("Luck: ").append(character.getLuck()).append("\n");
+                sb.append("Progression Rate: ").append(character.getProgressionRate()).append("\n");
+                sb.append("Range: ").append(character.getRange()).append("\n");
+
+                System.out.println(sb.toString());
                 break;
             default:
                 logger.warning(String.format("Unhandled Payload type: %s", p.getPayloadType()));

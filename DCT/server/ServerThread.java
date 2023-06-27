@@ -7,11 +7,14 @@ import java.net.Socket;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import DCT.common.CharacterPayload;
 import DCT.common.Constants;
 import DCT.common.Payload;
 import DCT.common.PayloadType;
 import DCT.common.Phase;
 import DCT.common.RoomResultPayload;
+import DCT.common.Character;
+
 /**
  * A server-side representation of a single client
  */
@@ -78,7 +81,12 @@ public class ServerThread extends Thread {
     }
 
     // send methods
-   
+    public boolean sendCharacter(long clientId, Character character){
+        CharacterPayload cp = new CharacterPayload();
+        cp.setCharacter(character);
+        cp.setClientId(clientId);
+        return send(cp);
+    }
      public boolean sendPhaseSync(Phase phase) {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.PHASE);
@@ -92,7 +100,6 @@ public class ServerThread extends Thread {
         p.setClientId(clientId);
         return send(p);
     }
-    
     public boolean sendRoomName(String name) {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.JOIN_ROOM);
@@ -227,6 +234,22 @@ public class ServerThread extends Thread {
                     ((GameRoom) currentRoom).setReady(this);
                 } catch (Exception e) {
                     logger.severe(String.format("There was a problem during readyCheck %s", e.getMessage()));
+                    e.printStackTrace();
+                }
+                break;
+            case CHARACTER:
+                try {
+                    CharacterPayload cp = (CharacterPayload)p;
+                    //Here I'm making the assumption if the passed Character is null, it's likely a create request,
+                    // if the passed character is not null, then some of the properties will be used for loading
+                    if(cp.getCharacter() == null){
+                        ((GameRoom) currentRoom).createCharacter(this, cp.getCharacterType());
+                    }
+                    else{
+                        ((GameRoom)currentRoom).loadCharacter(this, cp.getCharacter());
+                    }
+                } catch (Exception e) {
+                    logger.severe(String.format("There was a problem during character handling %s", e.getMessage()));
                     e.printStackTrace();
                 }
                 break;
