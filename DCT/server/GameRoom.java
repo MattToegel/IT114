@@ -2,15 +2,20 @@ package DCT.server;
 
 import DCT.common.Utils;
 
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.logging.Logger;
 
 import DCT.common.Character.ActionType;
 import DCT.common.Character.CharacterType;
+import DCT.common.exceptions.CharacterAlreadyAssignedException;
 import DCT.server.CharacterFactory.ControllerType;
 import DCT.common.Constants;
+import DCT.common.Grid;
 import DCT.common.Phase;
 import DCT.common.TimedEvent;
 import DCT.common.Character;
@@ -20,6 +25,10 @@ public class GameRoom extends Room {
     private static Logger logger = Logger.getLogger(GameRoom.class.getName());
     private TimedEvent readyTimer = null;
     private ConcurrentHashMap<Long, ServerPlayer> players = new ConcurrentHashMap<Long, ServerPlayer>();
+    private Grid grid = new Grid();
+    private Character currentTurnCharacter = null;
+    Random rand = new Random();
+    private List<Character> turnOrder = new ArrayList<Character>();
 
     public GameRoom(String name) {
         super(name);
@@ -57,6 +66,7 @@ public class GameRoom extends Room {
                     sb.append("Range: ").append(character.getRange()).append("\n");
 
                     System.out.println(sb.toString());
+                    assignCharacter(client, character);
                     client.sendCharacter(client.getClientId(), character);
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -91,6 +101,7 @@ public class GameRoom extends Room {
                 sb.append("Range: ").append(character.getRange()).append("\n");
 
                 System.out.println(sb.toString());
+                assignCharacter(client, character);
                 client.sendCharacter(client.getClientId(), character);
             } catch (Exception e) {
                 e.printStackTrace();
@@ -181,11 +192,88 @@ public class GameRoom extends Room {
     private void start() {
         updatePhase(Phase.SELECTION);
         // TODO example
-        sendMessage(null, "Session started");
-        new TimedEvent(30, () -> resetSession())
-                .setTickCallback((time) -> {
-                    sendMessage(null, String.format("Example running session, time remaining: %s", time));
-                });
+        sendMessage(null,
+                "Session started: Create or Load your characters via /createcharacter or /loadcharacter <code>");
+        new TimedEvent(30, () -> generateDungeon());
+    }
+
+    private void generateDungeon() {
+        if (grid.hasCells()) {
+            grid.reset();
+        } else {
+            grid.build(5, 5);
+        }
+        // TODO sync grid subset
+
+        // setup characters
+        turnOrder = players.values().stream().filter(p -> p.isReady() && p.hasCharacter()).map(p -> p.getCharacter())
+                .toList();
+        // TODO sorting
+
+        nextTurn();
+    }
+
+    // start handle next turn
+    private void nextTurn() {
+        updatePhase(Phase.TURN);
+        if (currentTurnCharacter == null) {
+            currentTurnCharacter = turnOrder.get(0);
+        } else {
+            int currentIndex = turnOrder.indexOf(currentTurnCharacter);
+            currentIndex++;
+            if (currentIndex >= turnOrder.size()) {
+                currentIndex = 0;
+            }
+            currentTurnCharacter = turnOrder.get(currentIndex);
+        }
+        if (currentTurnCharacter != null) {
+            ServerPlayer sp = ((ServerPlayer) currentTurnCharacter.getController());
+            syncCurrentTurn(sp.getClient().getClientId());
+            sendMessage(null, String.format("It's %s's turn", sp.getClient().getClientName()));
+            cancelReadyTimer();
+            readyTimer = new TimedEvent(30, () -> {
+                sendMessage(null,
+                        String.format("%s took to long and has been skipped", sp.getClient().getClientName()));
+                nextTurn();
+            });
+        }
+    }
+
+    private synchronized void syncCurrentTurn(long clientId) {
+        Iterator<ServerPlayer> iter = players.values().stream().iterator();
+        while (iter.hasNext()) {
+            ServerPlayer client = iter.next();
+            boolean success = client.getClient().sendCurrentTurn(clientId);
+            if (!success) {
+                handleDisconnect(client);
+            }
+        }
+    }
+
+    // end handle next turn
+    private void cancelReadyTimer() {
+        if (readyTimer != null) {
+            readyTimer.cancel();
+            readyTimer = null;
+        }
+    }
+
+    public void handleMove(int x, int y, ServerThread client) {
+        ServerPlayer currentPlayer = (ServerPlayer) currentTurnCharacter.getController();
+        if (currentPlayer.getClient().getClientId() != client.getClientId()) {
+            client.sendMessage(Constants.DEFAULT_CLIENT_ID, "It's not your turn");
+            return;
+        }
+        boolean success = grid.addCharacterToCell(x, y, currentTurnCharacter);
+        if (success) {
+            cancelReadyTimer();
+            sendMessage(null, String.format("%s moved to cell %s,%s", currentTurnCharacter.getName(), x, y));
+            // TODO sync actual cell data
+
+            nextTurn();
+        } else {
+            sendMessage(null, String.format("%s failed to move to cell %s,%s", currentTurnCharacter.getName(), x, y));
+        }
     }
 
     private synchronized void resetSession() {
@@ -231,6 +319,27 @@ public class GameRoom extends Room {
             if (!success) {
                 handleDisconnect(client);
             }
+        }
+    }
+
+    // handle character
+    private void assignCharacter(ServerPlayer player, Character character) throws Exception {
+        if (player.hasCharacter()) {
+            throw new CharacterAlreadyAssignedException("Character already assigned");
+        }
+        player.assignCharacter(character);
+    }
+
+    private void assignCharacter(ServerThread client, Character character) {
+        try {
+            ServerPlayer sp = players.get(client.getClientId());
+            assignCharacter(sp, character);
+        } catch (CharacterAlreadyAssignedException ce) {
+            if (currentPhase != Phase.SELECTION) {
+                client.sendMessage(Constants.DEFAULT_CLIENT_ID, "You already have a character assigned");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 }

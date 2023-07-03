@@ -209,4 +209,29 @@ public class Character implements Serializable{
     public void setCode(String code) {
         this.code = code;
     }
+    // game stuff
+
+    //transient ignores field during serialization
+    private transient  Player controller = null;
+    
+    public Player getController() {
+        return controller;
+    }
+
+    public void setController(Player controller) {
+        this.controller = controller;
+    }
+    private Cell currentCell = null;
+
+    public void setCurrentCell(Cell c) {
+        currentCell = c;
+    }
+
+    public Cell getCurrentCell() {
+        return currentCell;
+    }
+
+    public boolean isInCell(){
+        return currentCell != null;
+    }
 }

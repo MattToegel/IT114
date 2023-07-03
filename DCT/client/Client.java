@@ -16,6 +16,7 @@ import DCT.common.CharacterPayload;
 import DCT.common.Constants;
 import DCT.common.Payload;
 import DCT.common.PayloadType;
+import DCT.common.PositionPayload;
 import DCT.common.RoomResultPayload;
 import DCT.common.Character.CharacterType;
 import DCT.common.Character;
@@ -166,32 +167,44 @@ public enum Client {
                 System.out.println(String.format("%s[%s]", user.getValue(), user.getKey()));
             }
             return true;
-        }
-        else if(text.equalsIgnoreCase("/ready")){
+        } else if (text.equalsIgnoreCase("/ready")) {
             sendReadyStatus();
-        }
-        else if(text.startsWith("/createcharacter")){
+        } else if (text.startsWith("/createcharacter")) {
             String characterType = text.split("/createcharacter")[1].trim().toUpperCase();
             System.out.println("Checking Type: " + characterType);
-            try{
-                CharacterType cType =  CharacterType.valueOf(characterType);
+            try {
+                CharacterType cType = CharacterType.valueOf(characterType);
                 sendCreateCharacter(cType);
-            }
-            catch(Exception e){
+            } catch (Exception e) {
                 System.out.println("Please enter a valid character type: " + Arrays.asList(CharacterType.values()));
             }
             return true;
-            
-        }
-        else if(text.startsWith("/loadcharacter")){
+
+        } else if (text.startsWith("/loadcharacter")) {
             String characterCode = text.split("/loadcharacter")[1].trim();
             sendLoadCharacter(characterCode);
+        } else if (text.startsWith("/move")) {
+            String coordStr = text.split("/move")[1].trim();
+            String[] coord = coordStr.split(",");
+            try {
+                int x = Integer.parseInt(coord[0].trim());
+                int y = Integer.parseInt(coord[1].trim());
+                sendMove(x, y);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
         return false;
     }
 
     // Send methods
-    protected void sendLoadCharacter(String characterCode) throws IOException{
+    protected void sendMove(int x, int y) throws IOException {
+        PositionPayload pp = new PositionPayload();
+        pp.setCoord(x, y);
+        out.writeObject(pp);
+    }
+
+    protected void sendLoadCharacter(String characterCode) throws IOException {
         CharacterPayload cp = new CharacterPayload();
         Character c = new Character();
         c.setCode(characterCode);
@@ -199,7 +212,7 @@ public enum Client {
         out.writeObject(cp);
     }
 
-    protected void sendCreateCharacter(CharacterType characterType) throws IOException{
+    protected void sendCreateCharacter(CharacterType characterType) throws IOException {
         CharacterPayload cp = new CharacterPayload();
         cp.setCharacterType(characterType);
         out.writeObject(cp);
@@ -393,10 +406,10 @@ public enum Client {
                 System.out.println(String.format("The current phase is %s", p.getMessage()));
                 break;
             case CHARACTER:
-                CharacterPayload cp = (CharacterPayload)p;
+                CharacterPayload cp = (CharacterPayload) p;
                 System.out.println("Created Character");
                 Character character = cp.getCharacter();
-                 StringBuilder sb = new StringBuilder();
+                StringBuilder sb = new StringBuilder();
                 sb.append("Character created: ").append(character.getName()).append("\n");
                 sb.append("Character level: ").append(character.getLevel()).append("\n");
                 sb.append("Character type: ").append(character.getType()).append("\n");
@@ -411,6 +424,9 @@ public enum Client {
                 sb.append("Range: ").append(character.getRange()).append("\n");
 
                 System.out.println(sb.toString());
+                break;
+            case TURN:
+                System.out.println(String.format("Current Player: %s", getClientNameById(p.getClientId())));
                 break;
             default:
                 logger.warning(String.format("Unhandled Payload type: %s", p.getPayloadType()));

@@ -16,4 +16,8 @@ public class ServerPlayer extends Player {
     public ServerPlayer(ServerThread client) {
         setClient(client);
     }
+
+    public boolean equals(ServerPlayer sp){
+        return client.getClientId() == sp.getClient().getClientId();
+    }
 }
