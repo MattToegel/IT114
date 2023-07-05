@@ -18,6 +18,7 @@ import DCT.common.Constants;
 import DCT.common.Grid;
 import DCT.common.Phase;
 import DCT.common.TimedEvent;
+import DCT.common.CellData;
 import DCT.common.Character;
 
 public class GameRoom extends Room {
@@ -198,13 +199,17 @@ public class GameRoom extends Room {
     }
 
     private void generateDungeon() {
+        int width = 5, height = 5;
         if (grid.hasCells()) {
             grid.reset();
         } else {
-            grid.build(5, 5);
+            grid.build(width, height);
         }
         // TODO sync grid subset
-
+        syncGridDimensions(width, height);
+        grid.print();
+        List<CellData> startCells = grid.getCellsARoundPoint(grid.getStartDoor().getX(), grid.getStartDoor().getY());
+        syncCells(startCells);
         // setup characters
         turnOrder = players.values().stream().filter(p -> p.isReady() && p.hasCharacter()).map(p -> p.getCharacter())
                 .toList();
@@ -250,6 +255,27 @@ public class GameRoom extends Room {
         }
     }
 
+    private void syncGridDimensions(int x, int y){
+        Iterator<ServerPlayer> iter = players.values().stream().iterator();
+        while (iter.hasNext()) {
+            ServerPlayer client = iter.next();
+            boolean success = client.getClient().sendGridDimensions(x,y);
+            if (!success) {
+                handleDisconnect(client);
+            }
+        }
+    }
+
+    private void syncCells(List<CellData> cells){
+        Iterator<ServerPlayer> iter = players.values().stream().iterator();
+        while (iter.hasNext()) {
+            ServerPlayer client = iter.next();
+            boolean success = client.getClient().sendCells(cells);
+            if (!success) {
+                handleDisconnect(client);
+            }
+        }
+    }
     // end handle next turn
     private void cancelReadyTimer() {
         if (readyTimer != null) {

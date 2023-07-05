@@ -4,9 +4,13 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import DCT.common.CellData;
+import DCT.common.CellPayload;
+import DCT.common.Character;
 import DCT.common.CharacterPayload;
 import DCT.common.Constants;
 import DCT.common.Payload;
@@ -14,7 +18,6 @@ import DCT.common.PayloadType;
 import DCT.common.Phase;
 import DCT.common.PositionPayload;
 import DCT.common.RoomResultPayload;
-import DCT.common.Character;
 
 /**
  * A server-side representation of a single client
@@ -82,6 +85,18 @@ public class ServerThread extends Thread {
     }
 
     // send methods
+    public boolean sendCells(List<CellData> cells){
+        CellPayload cp = new CellPayload();
+        cp.setCellData(cells);
+        return send(cp);
+    }
+
+    public boolean sendGridDimensions(int x, int y){
+        PositionPayload pp = new PositionPayload();
+        pp.setCoord(x, y);
+        pp.setPayloadType(PayloadType.GRID); //override default payload type
+        return send(pp);
+    }
     public boolean sendCurrentTurn(long clientId) {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.TURN);

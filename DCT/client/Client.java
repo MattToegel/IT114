@@ -14,11 +14,13 @@ import java.util.logging.Logger;
 
 import DCT.common.CharacterPayload;
 import DCT.common.Constants;
+import DCT.common.Grid;
 import DCT.common.Payload;
 import DCT.common.PayloadType;
 import DCT.common.PositionPayload;
 import DCT.common.RoomResultPayload;
 import DCT.common.Character.CharacterType;
+import DCT.common.CellPayload;
 import DCT.common.Character;
 
 public enum Client {
@@ -37,6 +39,8 @@ public enum Client {
     private static Logger logger = Logger.getLogger(Client.class.getName());
 
     private Hashtable<Long, String> userList = new Hashtable<Long, String>();
+
+    Grid clientGrid = new Grid();
 
     public boolean isConnected() {
         if (server == null) {
@@ -427,6 +431,24 @@ public enum Client {
                 break;
             case TURN:
                 System.out.println(String.format("Current Player: %s", getClientNameById(p.getClientId())));
+                break;
+            case GRID:
+                try {
+                    PositionPayload pp = (PositionPayload) p;
+                    clientGrid.buildBasic(pp.getX(), pp.getY());
+                    clientGrid.print();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                break;
+            case CELL:
+                try {
+                    CellPayload cellPayload = (CellPayload) p;
+                    clientGrid.update(cellPayload.getCellData());
+                    clientGrid.print();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
                 break;
             default:
                 logger.warning(String.format("Unhandled Payload type: %s", p.getPayloadType()));

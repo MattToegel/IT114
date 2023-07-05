@@ -36,6 +36,10 @@ public class Cell {
         return blocked;
     }
 
+    public void setBlocked(boolean blocked){
+        this.blocked = blocked;
+    }
+
     public void reset() {
         charactersInCell.clear();
         blocked = false;
@@ -55,6 +59,10 @@ public class Cell {
 
     public List<Character> getCharactersInCell() {
         return charactersInCell.values().stream().collect(Collectors.toList());
+    }
+
+    public List<Long> getClientIdsOfCharactersInCell(){
+        return charactersInCell.keySet().stream().toList();
     }
 
     @Override
