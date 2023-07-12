@@ -206,6 +206,7 @@ public enum Client {
     }
 
     private void listenForServerMessage() {
+        isRunning = true;
         fromServerThread = new Thread() {
             @Override
             public void run() {
