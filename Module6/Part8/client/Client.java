@@ -114,6 +114,7 @@ public enum Client {
     // end send methods
 
     private void listenForServerMessage() {
+        isRunning = true;
         fromServerThread = new Thread() {
             @Override
             public void run() {
