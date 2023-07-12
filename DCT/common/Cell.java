@@ -3,16 +3,16 @@ package DCT.common;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 import DCT.server.ServerPlayer;
 
-
-
 public class Cell {
-    ConcurrentHashMap<Long, Character> charactersInCell = new ConcurrentHashMap<Long, Character>();
+    private ConcurrentHashMap<Long, Character> charactersInCell = new ConcurrentHashMap<Long, Character>();
     private int x, y;
     private boolean blocked = false;
+    private static Logger logger = Logger.getLogger(Cell.class.getName());
 
     public Cell(int x, int y, boolean blocked) {
         this(x, y);
@@ -36,33 +36,52 @@ public class Cell {
         return blocked;
     }
 
-    public void setBlocked(boolean blocked){
+    public void setBlocked(boolean blocked) {
         this.blocked = blocked;
     }
 
     public void reset() {
+        logger.info(String.format("Cell[%s][%s] reset", x, y));
         charactersInCell.clear();
-        blocked = false;
+        blocked = true;
     }
 
     public void add(long clientId, Character character) {
-        charactersInCell.computeIfAbsent(clientId, id -> {
-            return character;
-        });
+        if (!charactersInCell.containsKey(clientId)) {
+            charactersInCell.put(clientId, character);
+            logger.info(String.format("add() Character for clientId [%s] added to cell: total %s", clientId,
+                    charactersInCell.size()));
+        } else {
+            logger.info(String.format("add() Character for clientId [%s] already in cell: total %s", clientId,
+                    charactersInCell.size()));
+        }
     }
 
     public void remove(long clientId) {
         if (charactersInCell.containsKey(clientId)) {
             charactersInCell.remove(clientId);
+            logger.info(String.format("remove() Character for clientId [%s] removed from cell: remaining %s", clientId,
+                    charactersInCell.size()));
+        } else {
+            logger.info(String.format("remove() Character for clientId [%s] not in cell: remaining %s", clientId,
+                    charactersInCell.size()));
         }
+    }
+
+    public void removeDifference(List<Long> clientIds) {
+        charactersInCell.keySet().retainAll(clientIds);
     }
 
     public List<Character> getCharactersInCell() {
         return charactersInCell.values().stream().collect(Collectors.toList());
     }
 
-    public List<Long> getClientIdsOfCharactersInCell(){
-        return charactersInCell.keySet().stream().toList();
+    public List<Long> getClientIdsOfCharactersInCell() {
+        return charactersInCell.keySet().stream().filter(v->v!=null).toList();
+    }
+
+    public int getNumberOfCharactersInCell() {
+        return charactersInCell.size();
     }
 
     @Override
@@ -84,5 +103,12 @@ public class Cell {
 
         sb.append(")");
         return sb.toString();
+    }
+
+    public boolean isSameCoordinate(Cell compare){
+        if(compare == null){
+            return false;
+        }
+        return this.x == compare.getX() && this.y == compare.getY();
     }
 }

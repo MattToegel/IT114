@@ -13,6 +13,7 @@ import java.util.logging.Logger;
 import DCT.common.Character.ActionType;
 import DCT.common.Character.CharacterType;
 import DCT.common.exceptions.CharacterAlreadyAssignedException;
+import DCT.common.exceptions.InvalidMoveException;
 import DCT.server.CharacterFactory.ControllerType;
 import DCT.common.Constants;
 import DCT.common.Grid;
@@ -68,7 +69,8 @@ public class GameRoom extends Room {
 
                     System.out.println(sb.toString());
                     assignCharacter(client, character);
-                    client.sendCharacter(client.getClientId(), character);
+                    // client.sendCharacter(client.getClientId(), character);
+                    syncCharacter(client.getClientId(), character);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -103,7 +105,8 @@ public class GameRoom extends Room {
 
                 System.out.println(sb.toString());
                 assignCharacter(client, character);
-                client.sendCharacter(client.getClientId(), character);
+                // client.sendCharacter(client.getClientId(), character);
+                syncCharacter(client.getClientId(), character);
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -202,9 +205,8 @@ public class GameRoom extends Room {
         int width = 5, height = 5;
         if (grid.hasCells()) {
             grid.reset();
-        } else {
-            grid.build(width, height);
         }
+        grid.build(width, height);
         // TODO sync grid subset
         syncGridDimensions(width, height);
         grid.print();
@@ -236,7 +238,8 @@ public class GameRoom extends Room {
             syncCurrentTurn(sp.getClient().getClientId());
             sendMessage(null, String.format("It's %s's turn", sp.getClient().getClientName()));
             cancelReadyTimer();
-            readyTimer = new TimedEvent(30, () -> {
+            // TODO set back to lower number after debugging
+            readyTimer = new TimedEvent(3000, () -> {
                 sendMessage(null,
                         String.format("%s took to long and has been skipped", sp.getClient().getClientName()));
                 nextTurn();
@@ -255,18 +258,18 @@ public class GameRoom extends Room {
         }
     }
 
-    private void syncGridDimensions(int x, int y){
+    private void syncGridDimensions(int x, int y) {
         Iterator<ServerPlayer> iter = players.values().stream().iterator();
         while (iter.hasNext()) {
             ServerPlayer client = iter.next();
-            boolean success = client.getClient().sendGridDimensions(x,y);
+            boolean success = client.getClient().sendGridDimensions(x, y);
             if (!success) {
                 handleDisconnect(client);
             }
         }
     }
 
-    private void syncCells(List<CellData> cells){
+    private void syncCells(List<CellData> cells) {
         Iterator<ServerPlayer> iter = players.values().stream().iterator();
         while (iter.hasNext()) {
             ServerPlayer client = iter.next();
@@ -276,6 +279,7 @@ public class GameRoom extends Room {
             }
         }
     }
+
     // end handle next turn
     private void cancelReadyTimer() {
         if (readyTimer != null) {
@@ -290,18 +294,71 @@ public class GameRoom extends Room {
             client.sendMessage(Constants.DEFAULT_CLIENT_ID, "It's not your turn");
             return;
         }
-        boolean success = grid.addCharacterToCell(x, y, currentTurnCharacter);
+        if (currentTurnCharacter.isInCell()) {
+            logger.info(currentTurnCharacter.getName() + " is in a cell before move");
+        }
+        boolean success = false;
+        try {
+            success = grid.addCharacterToCellValidate(x, y, currentTurnCharacter);
+        } catch (InvalidMoveException ime) {
+            sendMessage(null, String.join("\n", ime.getMessages()));
+        }
         if (success) {
             cancelReadyTimer();
             sendMessage(null, String.format("%s moved to cell %s,%s", currentTurnCharacter.getName(), x, y));
-            // TODO sync actual cell data
+            // Sync cells around target cell
+            List<CellData> startCells = grid.getCellsARoundPoint(x, y);
+            syncCells(startCells);
+            /*
+             * // Sync a single cell: TODO sync actual cell data
+             * CellData cd = grid.getCellData(x, y);
+             * if (cd != null) {
+             * List<CellData> cell = new ArrayList<CellData>();
+             * cell.add(cd);
+             * syncCells(cell);
+             * 
+             * } else {
+             * logger.severe(String.format("Cell[%s][%s] is null", x, y));
+             * }
+             */
+            grid.print();
+            if (grid.reachedEnd(currentTurnCharacter.getCurrentCell())) {
+                endDungeon();
+            } else {
+                nextTurn();
+            }
 
-            nextTurn();
         } else {
-            sendMessage(null, String.format("%s failed to move to cell %s,%s", currentTurnCharacter.getName(), x, y));
+            String error = String.format("%s failed to move to cell %s,%s", currentTurnCharacter.getName(), x, y);
+            logger.info(error);
+            sendMessage(null, error);
         }
     }
 
+    private void endDungeon(){
+        //TODO give experience / rewards
+
+        Iterator<Character> iter = turnOrder.iterator();
+        while(iter.hasNext()){
+            Character c = iter.next();
+            if(c.isInCell()){
+                grid.removeCharacterFromCell(c.getCurrentCell().getX(), c.getCurrentCell().getY(), c);
+            }
+        }
+        grid.reset();
+        syncGridReset();
+        resetSession();//TODO allow the session to continue a new dungeon or quit rather than just resetting
+    }
+    private synchronized void syncGridReset(){
+        Iterator<ServerPlayer> iter = players.values().stream().iterator();
+        while (iter.hasNext()) {
+            ServerPlayer client = iter.next();
+            boolean success = client.getClient().sendGridReset();
+            if (!success) {
+                handleDisconnect(client);
+            }
+        }
+    }
     private synchronized void resetSession() {
         players.values().stream().forEach(p -> p.setReady(false));
         updatePhase(Phase.READY);
@@ -367,5 +424,25 @@ public class GameRoom extends Room {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    private void syncCharacter(long clientId, Character character) {
+        Iterator<ServerPlayer> iter = players.values().stream().iterator();
+        while (iter.hasNext()) {
+            ServerPlayer client = iter.next();
+            boolean success = client.getClient().sendCharacter(clientId, character);
+            if (!success) {
+                handleDisconnect(client);
+            }
+        }
+    }
+    @Override
+    public void close(){
+        super.close();
+        players.clear();
+        players = null;
+        currentTurnCharacter = null;
+        //turnOrder.clear(); // this is actually an immutable array so can't clear it
+        turnOrder = null;
     }
 }

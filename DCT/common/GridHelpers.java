@@ -243,6 +243,13 @@ public class GridHelpers {
         return eligibleCells.get(index);
     }
 
+    public static List<Cell> getNeighborCells(Cell cell, Cell[][] cells) {
+        int rows = cells.length;
+        int columns = cells[0].length;
+        return getNeighbors(new Point(cell.getX(), cell.getY()), rows, columns).stream().map(p -> cells[p.x][p.y])
+                .toList();
+    }
+
     // Helper method to get the neighboring points of a given point within the grid
     private static List<Point> getNeighbors(Point current, int rows, int columns) {
         // Create a list to store the neighboring points
@@ -294,7 +301,12 @@ public class GridHelpers {
                 } else if (cell.isBlocked()) {
                     System.out.print("[x]"); // blocked path
                 } else {
-                    System.out.print("[ ]"); // walkable path
+                    if (cell.getNumberOfCharactersInCell() > 0) {
+                        System.out.print("[" + cell.getNumberOfCharactersInCell() + "]");
+                    } else {
+                        System.out.print("[ ]"); // walkable path
+                    }
+
                 }
             }
             System.out.println(); // Move to the next line after each row

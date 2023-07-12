@@ -34,11 +34,12 @@ public enum Client {
     boolean isRunning = false;
     private Thread inputThread;
     private Thread fromServerThread;
-    private String clientName = "";
+    // private String clientName = "";
+    private ClientPlayer myPlayer = new ClientPlayer();
     private long myClientId = Constants.DEFAULT_CLIENT_ID;
     private static Logger logger = Logger.getLogger(Client.class.getName());
 
-    private Hashtable<Long, String> userList = new Hashtable<Long, String>();
+    private Hashtable<Long, ClientPlayer> userList = new Hashtable<Long, ClientPlayer>();
 
     Grid clientGrid = new Grid();
 
@@ -112,8 +113,8 @@ public enum Client {
         if (text.startsWith("/name")) {
             String[] parts = text.split(" ");
             if (parts.length >= 2) {
-                clientName = parts[1].trim();
-                System.out.println("Name set to " + clientName);
+                myPlayer.setClientName(parts[1].trim());
+                System.out.println("Name set to " + myPlayer.getClientName());
             }
             return true;
         }
@@ -132,7 +133,7 @@ public enum Client {
     @Deprecated // removing in Milestone3
     private boolean processClientCommand(String text) throws IOException {
         if (isConnection(text)) {
-            if (clientName.isBlank()) {
+            if (myPlayer.getClientName().isBlank()) {
                 System.out.println("You must set your name before you can connect via: /name your_name");
                 return true;
             }
@@ -161,14 +162,14 @@ public enum Client {
             sendListRooms(query);
             return true;
         } else if (text.equalsIgnoreCase("/users")) {
-            Iterator<Entry<Long, String>> iter = userList.entrySet().iterator();
+            Iterator<Entry<Long, ClientPlayer>> iter = userList.entrySet().iterator();
             System.out.println("Listing Local User List:");
             if (userList.size() == 0) {
                 System.out.println("No local users in list");
             }
             while (iter.hasNext()) {
-                Entry<Long, String> user = iter.next();
-                System.out.println(String.format("%s[%s]", user.getValue(), user.getKey()));
+                Entry<Long, ClientPlayer> user = iter.next();
+                System.out.println(String.format("%s[%s]", user.getValue().getClientName(), user.getKey()));
             }
             return true;
         } else if (text.equalsIgnoreCase("/ready")) {
@@ -258,7 +259,7 @@ public enum Client {
     protected void sendConnect() throws IOException {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.CONNECT);
-        p.setClientName(clientName);
+        p.setClientName(myPlayer.getClientName());
         out.writeObject(p);
     }
 
@@ -266,7 +267,7 @@ public enum Client {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.MESSAGE);
         p.setMessage(message);
-        p.setClientName(clientName);
+        p.setClientName(myPlayer.getClientName());
         out.writeObject(p);
     }
 
@@ -339,7 +340,7 @@ public enum Client {
 
     protected String getClientNameById(long id) {
         if (userList.containsKey(id)) {
-            return userList.get(id);
+            return userList.get(id).getClientName();
         }
         if (id == Constants.DEFAULT_CLIENT_ID) {
             return "[Server]";
@@ -356,7 +357,10 @@ public enum Client {
         switch (p.getPayloadType()) {
             case CONNECT:
                 if (!userList.containsKey(p.getClientId())) {
-                    userList.put(p.getClientId(), p.getClientName());
+                    ClientPlayer cp = new ClientPlayer();
+                    cp.setClientName(p.getClientName());
+                    cp.setClientId(p.getClientId());
+                    userList.put(p.getClientId(), cp);
                 }
                 System.out.println(String.format("*%s %s*",
                         p.getClientName(),
@@ -375,7 +379,10 @@ public enum Client {
                 break;
             case SYNC_CLIENT:
                 if (!userList.containsKey(p.getClientId())) {
-                    userList.put(p.getClientId(), p.getClientName());
+                    ClientPlayer cp = new ClientPlayer();
+                    cp.setClientName(p.getClientName());
+                    cp.setClientId(p.getClientId());
+                    userList.put(p.getClientId(), cp);
                 }
             case MESSAGE:
                 System.out.println(String.format("%s: %s",
@@ -385,6 +392,8 @@ public enum Client {
             case CLIENT_ID:
                 if (myClientId == Constants.DEFAULT_CLIENT_ID) {
                     myClientId = p.getClientId();
+                    myPlayer.setClientId(myClientId);
+                    userList.put(myClientId, myPlayer);
                 } else {
                     logger.warning("Receiving client id despite already being set");
                 }
@@ -413,21 +422,28 @@ public enum Client {
                 CharacterPayload cp = (CharacterPayload) p;
                 System.out.println("Created Character");
                 Character character = cp.getCharacter();
-                StringBuilder sb = new StringBuilder();
-                sb.append("Character created: ").append(character.getName()).append("\n");
-                sb.append("Character level: ").append(character.getLevel()).append("\n");
-                sb.append("Character type: ").append(character.getType()).append("\n");
-                sb.append("Character action type: ").append(character.getActionType()).append("\n");
-                sb.append("Character stats: ").append("\n");
-                sb.append("Attack: ").append(character.getAttack()).append("\n");
-                sb.append("Vitality: ").append(character.getVitality()).append("\n");
-                sb.append("Defense: ").append(character.getDefense()).append("\n");
-                sb.append("Will: ").append(character.getWill()).append("\n");
-                sb.append("Luck: ").append(character.getLuck()).append("\n");
-                sb.append("Progression Rate: ").append(character.getProgressionRate()).append("\n");
-                sb.append("Range: ").append(character.getRange()).append("\n");
 
-                System.out.println(sb.toString());
+                if (userList.containsKey(cp.getClientId())) {
+                    logger.info("Assigning character to " + cp.getClientId());
+                    userList.get(cp.getClientId()).assignCharacter(character);
+                }
+                if (cp.getClientId() == myClientId) {
+                    // myPlayer.assignCharacter(character);
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("Character created: ").append(character.getName()).append("\n");
+                    sb.append("Character level: ").append(character.getLevel()).append("\n");
+                    sb.append("Character type: ").append(character.getType()).append("\n");
+                    sb.append("Character action type: ").append(character.getActionType()).append("\n");
+                    sb.append("Character stats: ").append("\n");
+                    sb.append("Attack: ").append(character.getAttack()).append("\n");
+                    sb.append("Vitality: ").append(character.getVitality()).append("\n");
+                    sb.append("Defense: ").append(character.getDefense()).append("\n");
+                    sb.append("Will: ").append(character.getWill()).append("\n");
+                    sb.append("Luck: ").append(character.getLuck()).append("\n");
+                    sb.append("Progression Rate: ").append(character.getProgressionRate()).append("\n");
+                    sb.append("Range: ").append(character.getRange()).append("\n");
+                    System.out.println(sb.toString());
+                }
                 break;
             case TURN:
                 System.out.println(String.format("Current Player: %s", getClientNameById(p.getClientId())));
@@ -444,10 +460,17 @@ public enum Client {
             case CELL:
                 try {
                     CellPayload cellPayload = (CellPayload) p;
-                    clientGrid.update(cellPayload.getCellData());
+                    clientGrid.update(cellPayload.getCellData(), userList);
                     clientGrid.print();
                 } catch (Exception e) {
                     e.printStackTrace();
+                }
+                break;
+            case GRID_RESET:
+                if(clientGrid != null){
+                    clientGrid.reset();
+                    System.out.println("Grid Reset");
+                    clientGrid.print();
                 }
                 break;
             default:

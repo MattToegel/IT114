@@ -85,6 +85,11 @@ public class ServerThread extends Thread {
     }
 
     // send methods
+    public boolean sendGridReset(){
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.GRID_RESET);
+        return send(p);
+    }
     public boolean sendCells(List<CellData> cells){
         CellPayload cp = new CellPayload();
         cp.setCellData(cells);
