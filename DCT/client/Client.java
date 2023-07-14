@@ -5,11 +5,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import java.util.Arrays;
 import java.util.Hashtable;
-import java.util.Iterator;
-import java.util.Scanner;
-import java.util.Map.Entry;
 import java.util.logging.Logger;
 
 import DCT.common.CharacterPayload;
@@ -24,7 +20,7 @@ import DCT.common.CellPayload;
 import DCT.common.Character;
 
 public enum Client {
-    Instance;
+    INSTANCE;
 
     Socket server = null;
     ObjectOutputStream out = null;
@@ -43,6 +39,8 @@ public enum Client {
 
     Grid clientGrid = new Grid();
 
+    private static IClientEvents events;
+
     public boolean isConnected() {
         if (server == null) {
             return false;
@@ -60,9 +58,15 @@ public enum Client {
      * 
      * @param address
      * @param port
+     * @param username
+     * @param callback (for triggering UI events)
      * @return true if connection was successful
      */
-    private boolean connect(String address, int port) {
+    public boolean connect(String address, int port, String username, IClientEvents callback) {
+        // TODO validate
+        // this.clientName = username;
+        myPlayer.setClientName(username);
+        Client.events = callback;
         try {
             server = new Socket(address, port);
             // channel to send to server
@@ -78,128 +82,6 @@ public enum Client {
             e.printStackTrace();
         }
         return isConnected();
-    }
-
-    /**
-     * <p>
-     * Check if the string contains the <i>connect</i> command
-     * followed by an ip address and port or localhost and port.
-     * </p>
-     * <p>
-     * Example format: 123.123.123:3000
-     * </p>
-     * <p>
-     * Example format: localhost:3000
-     * </p>
-     * https://www.w3schools.com/java/java_regex.asp
-     * 
-     * @param text
-     * @return
-     */
-    @Deprecated // remove in Milestone3
-    private boolean isConnection(String text) {
-        // https://www.w3schools.com/java/java_regex.asp
-        return text.matches(ipAddressPattern)
-                || text.matches(localhostPattern);
-    }
-
-    @Deprecated // remove in Milestone3
-    private boolean isQuit(String text) {
-        return text.equalsIgnoreCase("/quit");
-    }
-
-    @Deprecated // remove in Milestone3
-    private boolean isName(String text) {
-        if (text.startsWith("/name")) {
-            String[] parts = text.split(" ");
-            if (parts.length >= 2) {
-                myPlayer.setClientName(parts[1].trim());
-                System.out.println("Name set to " + myPlayer.getClientName());
-            }
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * Controller for handling various text commands from the client
-     * <p>
-     * Add more here as needed
-     * </p>
-     * 
-     * @param text
-     * @return true if a text was a command or triggered a command
-     */
-    @Deprecated // removing in Milestone3
-    private boolean processClientCommand(String text) throws IOException {
-        if (isConnection(text)) {
-            if (myPlayer.getClientName().isBlank()) {
-                System.out.println("You must set your name before you can connect via: /name your_name");
-                return true;
-            }
-            // replaces multiple spaces with single space
-            // splits on the space after connect (gives us host and port)
-            // splits on : to get host as index 0 and port as index 1
-            String[] parts = text.trim().replaceAll(" +", " ").split(" ")[1].split(":");
-            connect(parts[0].trim(), Integer.parseInt(parts[1].trim()));
-            return true;
-        } else if (isQuit(text)) {
-            sendDisconnect();
-            isRunning = false;
-            return true;
-        } else if (isName(text)) {
-            return true;
-        } else if (text.startsWith("/joinroom")) {
-            String roomName = text.replace("/joinroom", "").trim();
-            sendJoinRoom(roomName);
-            return true;
-        } else if (text.startsWith("/createroom")) {
-            String roomName = text.replace("/createroom", "").trim();
-            sendCreateRoom(roomName);
-            return true;
-        } else if (text.startsWith("/rooms")) {
-            String query = text.replace("/rooms", "").trim();
-            sendListRooms(query);
-            return true;
-        } else if (text.equalsIgnoreCase("/users")) {
-            Iterator<Entry<Long, ClientPlayer>> iter = userList.entrySet().iterator();
-            System.out.println("Listing Local User List:");
-            if (userList.size() == 0) {
-                System.out.println("No local users in list");
-            }
-            while (iter.hasNext()) {
-                Entry<Long, ClientPlayer> user = iter.next();
-                System.out.println(String.format("%s[%s]", user.getValue().getClientName(), user.getKey()));
-            }
-            return true;
-        } else if (text.equalsIgnoreCase("/ready")) {
-            sendReadyStatus();
-        } else if (text.startsWith("/createcharacter")) {
-            String characterType = text.split("/createcharacter")[1].trim().toUpperCase();
-            System.out.println("Checking Type: " + characterType);
-            try {
-                CharacterType cType = CharacterType.valueOf(characterType);
-                sendCreateCharacter(cType);
-            } catch (Exception e) {
-                System.out.println("Please enter a valid character type: " + Arrays.asList(CharacterType.values()));
-            }
-            return true;
-
-        } else if (text.startsWith("/loadcharacter")) {
-            String characterCode = text.split("/loadcharacter")[1].trim();
-            sendLoadCharacter(characterCode);
-        } else if (text.startsWith("/move")) {
-            String coordStr = text.split("/move")[1].trim();
-            String[] coord = coordStr.split(",");
-            try {
-                int x = Integer.parseInt(coord[0].trim());
-                int y = Integer.parseInt(coord[1].trim());
-                sendMove(x, y);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-        return false;
     }
 
     // Send methods
@@ -229,21 +111,21 @@ public enum Client {
         out.writeObject(p);
     }
 
-    protected void sendListRooms(String query) throws IOException {
+    public void sendListRooms(String query) throws IOException {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.GET_ROOMS);
         p.setMessage(query);
         out.writeObject(p);
     }
 
-    protected void sendJoinRoom(String roomName) throws IOException {
+    public void sendJoinRoom(String roomName) throws IOException {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.JOIN_ROOM);
         p.setMessage(roomName);
         out.writeObject(p);
     }
 
-    protected void sendCreateRoom(String roomName) throws IOException {
+    public void sendCreateRoom(String roomName) throws IOException {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.CREATE_ROOM);
         p.setMessage(roomName);
@@ -263,7 +145,7 @@ public enum Client {
         out.writeObject(p);
     }
 
-    protected void sendMessage(String message) throws IOException {
+    public void sendMessage(String message) throws IOException {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.MESSAGE);
         p.setMessage(message);
@@ -272,46 +154,9 @@ public enum Client {
     }
 
     // end send methods
-    @Deprecated // remove in Milestone3
-    private void listenForKeyboard() {
-        inputThread = new Thread() {
-            @Override
-            public void run() {
-                logger.info("Listening for input");
-                try (Scanner si = new Scanner(System.in);) {
-                    String line = "";
-                    isRunning = true;
-                    while (isRunning) {
-                        try {
-                            logger.info("Waiting for input");
-                            line = si.nextLine();
-                            if (!processClientCommand(line)) {
-                                if (isConnected()) {
-                                    if (line != null && line.trim().length() > 0) {
-                                        sendMessage(line);
-                                    }
-
-                                } else {
-                                    logger.info("Not connected to server");
-                                }
-                            }
-                        } catch (Exception e) {
-                            logger.warning("Connection dropped");
-                            break;
-                        }
-                    }
-                    logger.info("Exited loop");
-                } catch (Exception e) {
-                    e.printStackTrace();
-                } finally {
-                    close();
-                }
-            }
-        };
-        inputThread.start();
-    }
 
     private void listenForServerPayload() {
+        isRunning = true;
         fromServerThread = new Thread() {
             @Override
             public void run() {
@@ -365,6 +210,7 @@ public enum Client {
                 System.out.println(String.format("*%s %s*",
                         p.getClientName(),
                         p.getMessage()));
+                events.onClientConnect(p.getClientId(), p.getClientName(), p.getMessage());
                 break;
             case DISCONNECT:
                 if (userList.containsKey(p.getClientId())) {
@@ -376,6 +222,7 @@ public enum Client {
                 System.out.println(String.format("*%s %s*",
                         p.getClientName(),
                         p.getMessage()));
+                events.onClientDisconnect(p.getClientId(), p.getClientName(), p.getMessage());
                 break;
             case SYNC_CLIENT:
                 if (!userList.containsKey(p.getClientId())) {
@@ -384,10 +231,13 @@ public enum Client {
                     cp.setClientId(p.getClientId());
                     userList.put(p.getClientId(), cp);
                 }
+                events.onSyncClient(p.getClientId(), p.getClientName());
+                break;
             case MESSAGE:
                 System.out.println(String.format("%s: %s",
                         getClientNameById(p.getClientId()),
                         p.getMessage()));
+                events.onMessageReceive(p.getClientId(), p.getMessage());
                 break;
             case CLIENT_ID:
                 if (myClientId == Constants.DEFAULT_CLIENT_ID) {
@@ -397,6 +247,7 @@ public enum Client {
                 } else {
                     logger.warning("Receiving client id despite already being set");
                 }
+                events.onReceiveClientId(p.getClientId());
                 break;
             case GET_ROOMS:
                 RoomResultPayload rp = (RoomResultPayload) p;
@@ -408,9 +259,11 @@ public enum Client {
                         System.out.println(String.format("%s) %s", (i + 1), rp.getRooms()[i]));
                     }
                 }
+                events.onReceiveRoomList(rp.getRooms(), rp.getMessage());
                 break;
             case RESET_USER_LIST:
                 userList.clear();
+                events.onResetUserList();
                 break;
             case READY:
                 System.out.println(String.format("Player %s is ready", getClientNameById(p.getClientId())));
@@ -467,7 +320,7 @@ public enum Client {
                 }
                 break;
             case GRID_RESET:
-                if(clientGrid != null){
+                if (clientGrid != null) {
                     clientGrid.reset();
                     System.out.println("Grid Reset");
                     clientGrid.print();
@@ -478,11 +331,6 @@ public enum Client {
                 break;
 
         }
-    }
-
-    @Deprecated // removing in Milestone3
-    public void start() throws IOException {
-        listenForKeyboard();
     }
 
     private void close() {
@@ -526,15 +374,4 @@ public enum Client {
             System.out.println("Server was never opened so this exception is ok");
         }
     }
-
-    @Deprecated // removing in Milestone3
-    public static void main(String[] args) {
-        try {
-            // if start is private, it's valid here since this main is part of the class
-            Client.Instance.start();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
 }
