@@ -13,10 +13,20 @@ public class Cell {
     private int x, y;
     private boolean blocked = false;
     private static Logger logger = Logger.getLogger(Cell.class.getName());
+    protected CellType cellType = CellType.NONE;
 
     public Cell(int x, int y, boolean blocked) {
         this(x, y);
         this.blocked = blocked;
+        cellType = CellType.TILE;
+    }
+
+    public CellType getCellType() {
+        return cellType;
+    }
+
+    public void setCellType(CellType cellType) {
+        this.cellType = cellType;
     }
 
     public Cell(int x, int y) {
@@ -77,7 +87,7 @@ public class Cell {
     }
 
     public List<Long> getClientIdsOfCharactersInCell() {
-        return charactersInCell.keySet().stream().filter(v->v!=null).toList();
+        return charactersInCell.keySet().stream().filter(v -> v != null).toList();
     }
 
     public int getNumberOfCharactersInCell() {
@@ -105,8 +115,8 @@ public class Cell {
         return sb.toString();
     }
 
-    public boolean isSameCoordinate(Cell compare){
-        if(compare == null){
+    public boolean isSameCoordinate(Cell compare) {
+        if (compare == null) {
             return false;
         }
         return this.x == compare.getX() && this.y == compare.getY();

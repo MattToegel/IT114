@@ -4,8 +4,6 @@ import java.awt.CardLayout;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
-import java.awt.event.ComponentAdapter;
-import java.awt.event.ComponentEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.IOException;
@@ -18,7 +16,7 @@ import javax.swing.JMenuBar;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 
-import DCT.client.views.ChatPanel;
+import DCT.client.views.ChatGamePanel;
 import DCT.client.views.ConnectionPanel;
 import DCT.client.views.Menu;
 import DCT.client.views.RoomsPanel;
@@ -41,29 +39,14 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
     private ConnectionPanel csPanel;
     private UserInputPanel inputPanel;
     private RoomsPanel roomsPanel;
-    private ChatPanel chatPanel;
+    private ChatGamePanel chatGamePanel;
 
     public ClientUI(String title) {
         super(title);// call the parent's constructor
         originalTitle = title;
         container = getContentPane();
-        container.addComponentListener(new ComponentAdapter() {
-            @Override
-            public void componentResized(ComponentEvent e) {
-                // System.out.println("Resized to " + e.getComponent().getSize());
-                // rough concepts for handling resize
-                container.setPreferredSize(e.getComponent().getSize());
-                container.revalidate();
-                container.repaint();
-            }
 
-            @Override
-            public void componentMoved(ComponentEvent e) {
-                // System.out.println("Moved to " + e.getComponent().getLocation());
-            }
-        });
-
-        setMinimumSize(new Dimension(400, 400));
+        setMinimumSize(new Dimension(600, 400));
         // centers window
         setLocationRelativeTo(null);
         card = new CardLayout();
@@ -74,7 +57,7 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
         // separate views
         csPanel = new ConnectionPanel(this);
         inputPanel = new UserInputPanel(this);
-        chatPanel = new ChatPanel(this);
+        chatGamePanel = new ChatGamePanel(this);
 
         roomsPanel = new RoomsPanel(this);
 
@@ -176,13 +159,13 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
             if (!userList.containsKey(clientId)) {
                 logger.log(Level.INFO, String.format("Adding %s[%s]", clientName, clientId));
                 userList.put(clientId, clientName);
-                chatPanel.addUserListItem(clientId, String.format("%s (%s)", clientName, clientId));
+                chatGamePanel.getChatPanel().addUserListItem(clientId, String.format("%s (%s)", clientName, clientId));
             }
         } else {
             if (userList.containsKey(clientId)) {
                 logger.log(Level.INFO, String.format("Removing %s[%s]", clientName, clientId));
                 userList.remove(clientId);
-                chatPanel.removeUserListItem(clientId);
+                chatGamePanel.getChatPanel().removeUserListItem(clientId);
             }
             if (clientId == myId) {
                 logger.log(Level.INFO, "I disconnected");
@@ -196,7 +179,7 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
     public void onClientConnect(long clientId, String clientName, String message) {
         if (currentCard.ordinal() >= Card.CHAT.ordinal()) {
             processClientConnectionStatus(clientId, clientName, true);
-            chatPanel.addText(String.format("*%s %s*", clientName, message));
+            chatGamePanel.getChatPanel().addText(String.format("*%s %s*", clientName, message));
         }
     }
 
@@ -204,7 +187,7 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
     public void onClientDisconnect(long clientId, String clientName, String message) {
         if (currentCard.ordinal() >= Card.CHAT.ordinal()) {
             processClientConnectionStatus(clientId, clientName, false);
-            chatPanel.addText(String.format("*%s %s*", clientName, message));
+            chatGamePanel.getChatPanel().addText(String.format("*%s %s*", clientName, message));
         }
     }
 
@@ -212,7 +195,7 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
     public void onMessageReceive(long clientId, String message) {
         if (currentCard.ordinal() >= Card.CHAT.ordinal()) {
             String clientName = mapClientId(clientId);
-            chatPanel.addText(String.format("%s: %s", clientName, message));
+            chatGamePanel.getChatPanel().addText(String.format("%s: %s", clientName, message));
         }
     }
 
@@ -220,7 +203,8 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
     public void onReceiveClientId(long id) {
         if (myId == Constants.DEFAULT_CLIENT_ID) {
             myId = id;
-            show(Card.CHAT.name());
+            // show(Card.CHAT.name());
+            show(Card.CHAT_GAME_SCREEN.name());
         } else {
             logger.log(Level.WARNING, "Received client id after already being set, this shouldn't happen");
         }
@@ -229,7 +213,7 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
     @Override
     public void onResetUserList() {
         userList.clear();
-        chatPanel.clearUserList();
+        chatGamePanel.getChatPanel().clearUserList();
     }
 
     @Override
@@ -255,7 +239,7 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
     @Override
     public void onRoomJoin(String roomName) {
         if (currentCard.ordinal() >= Card.CHAT.ordinal()) {
-            chatPanel.addText("Joined room " + roomName);
+            chatGamePanel.getChatPanel().addText("Joined room " + roomName);
         }
     }
 }

@@ -5,19 +5,26 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.Hashtable;
+import java.util.List;
 import java.util.logging.Logger;
 
+import DCT.common.Cell;
+import DCT.common.CellData;
+import DCT.common.CellPayload;
+import DCT.common.CellType;
+import DCT.common.Character;
+import DCT.common.Character.CharacterType;
 import DCT.common.CharacterPayload;
 import DCT.common.Constants;
+import DCT.common.DoorCell;
 import DCT.common.Grid;
 import DCT.common.Payload;
 import DCT.common.PayloadType;
+import DCT.common.Phase;
 import DCT.common.PositionPayload;
 import DCT.common.RoomResultPayload;
-import DCT.common.Character.CharacterType;
-import DCT.common.CellPayload;
-import DCT.common.Character;
 
 public enum Client {
     INSTANCE;
@@ -39,7 +46,11 @@ public enum Client {
 
     Grid clientGrid = new Grid();
 
-    private static IClientEvents events;
+    private static List<IClientEvents> events = new ArrayList<IClientEvents>();
+
+    public void addCallback(IClientEvents e) {
+        events.add(e);
+    }
 
     public boolean isConnected() {
         if (server == null) {
@@ -66,7 +77,7 @@ public enum Client {
         // TODO validate
         // this.clientName = username;
         myPlayer.setClientName(username);
-        Client.events = callback;
+        addCallback(callback);
         try {
             server = new Socket(address, port);
             // channel to send to server
@@ -85,13 +96,13 @@ public enum Client {
     }
 
     // Send methods
-    protected void sendMove(int x, int y) throws IOException {
+    public void sendMove(int x, int y) throws IOException {
         PositionPayload pp = new PositionPayload();
         pp.setCoord(x, y);
         out.writeObject(pp);
     }
 
-    protected void sendLoadCharacter(String characterCode) throws IOException {
+    public void sendLoadCharacter(String characterCode) throws IOException {
         CharacterPayload cp = new CharacterPayload();
         Character c = new Character();
         c.setCode(characterCode);
@@ -99,13 +110,13 @@ public enum Client {
         out.writeObject(cp);
     }
 
-    protected void sendCreateCharacter(CharacterType characterType) throws IOException {
+    public void sendCreateCharacter(CharacterType characterType) throws IOException {
         CharacterPayload cp = new CharacterPayload();
         cp.setCharacterType(characterType);
         out.writeObject(cp);
     }
 
-    protected void sendReadyStatus() throws IOException {
+    public void sendReadyStatus() throws IOException {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.READY);
         out.writeObject(p);
@@ -183,7 +194,7 @@ public enum Client {
         fromServerThread.start();// start the thread
     }
 
-    protected String getClientNameById(long id) {
+    public String getClientNameById(long id) {
         if (userList.containsKey(id)) {
             return userList.get(id).getClientName();
         }
@@ -210,7 +221,10 @@ public enum Client {
                 System.out.println(String.format("*%s %s*",
                         p.getClientName(),
                         p.getMessage()));
-                events.onClientConnect(p.getClientId(), p.getClientName(), p.getMessage());
+                events.forEach(e -> {
+                    e.onClientConnect(p.getClientId(), p.getClientName(), p.getMessage());
+                });
+
                 break;
             case DISCONNECT:
                 if (userList.containsKey(p.getClientId())) {
@@ -222,7 +236,10 @@ public enum Client {
                 System.out.println(String.format("*%s %s*",
                         p.getClientName(),
                         p.getMessage()));
-                events.onClientDisconnect(p.getClientId(), p.getClientName(), p.getMessage());
+                events.forEach(e -> {
+                    e.onClientDisconnect(p.getClientId(), p.getClientName(), p.getMessage());
+                });
+
                 break;
             case SYNC_CLIENT:
                 if (!userList.containsKey(p.getClientId())) {
@@ -231,13 +248,19 @@ public enum Client {
                     cp.setClientId(p.getClientId());
                     userList.put(p.getClientId(), cp);
                 }
-                events.onSyncClient(p.getClientId(), p.getClientName());
+                events.forEach(e -> {
+                    e.onSyncClient(p.getClientId(), p.getClientName());
+                });
+
                 break;
             case MESSAGE:
                 System.out.println(String.format("%s: %s",
                         getClientNameById(p.getClientId()),
                         p.getMessage()));
-                events.onMessageReceive(p.getClientId(), p.getMessage());
+                events.forEach(e -> {
+                    e.onMessageReceive(p.getClientId(), p.getMessage());
+                });
+
                 break;
             case CLIENT_ID:
                 if (myClientId == Constants.DEFAULT_CLIENT_ID) {
@@ -247,7 +270,10 @@ public enum Client {
                 } else {
                     logger.warning("Receiving client id despite already being set");
                 }
-                events.onReceiveClientId(p.getClientId());
+                events.forEach(e -> {
+                    e.onReceiveClientId(p.getClientId());
+                });
+
                 break;
             case GET_ROOMS:
                 RoomResultPayload rp = (RoomResultPayload) p;
@@ -259,17 +285,33 @@ public enum Client {
                         System.out.println(String.format("%s) %s", (i + 1), rp.getRooms()[i]));
                     }
                 }
-                events.onReceiveRoomList(rp.getRooms(), rp.getMessage());
+                events.forEach(e -> {
+                    e.onReceiveRoomList(rp.getRooms(), rp.getMessage());
+                });
+
                 break;
             case RESET_USER_LIST:
                 userList.clear();
-                events.onResetUserList();
+                events.forEach(e -> {
+                    e.onResetUserList();
+                });
+
                 break;
             case READY:
                 System.out.println(String.format("Player %s is ready", getClientNameById(p.getClientId())));
+                events.forEach(e -> {
+                    if (e instanceof IGameEvents) {
+                        ((IGameEvents) e).onReceiveReady(p.getClientId());
+                    }
+                });
                 break;
             case PHASE:
                 System.out.println(String.format("The current phase is %s", p.getMessage()));
+                events.forEach(e -> {
+                    if (e instanceof IGameEvents) {
+                        ((IGameEvents) e).onReceivePhase(Enum.valueOf(Phase.class, p.getMessage()));
+                    }
+                });
                 break;
             case CHARACTER:
                 CharacterPayload cp = (CharacterPayload) p;
@@ -297,27 +339,66 @@ public enum Client {
                     sb.append("Range: ").append(character.getRange()).append("\n");
                     System.out.println(sb.toString());
                 }
+
+                events.forEach(e -> {
+                    if (e instanceof IGameEvents) {
+                        ((IGameEvents) e).onReceiveCharacter(p.getClientId(), character);
+                    }
+                });
+
                 break;
             case TURN:
                 System.out.println(String.format("Current Player: %s", getClientNameById(p.getClientId())));
+                /*
+                 * events.forEach(e -> {
+                 * if (e instanceof IGameEvents) {
+                 * ((IGameEvents) e).onReceiveTurn(p.getClientId());
+                 * }
+                 * });
+                 */
                 break;
             case GRID:
                 try {
                     PositionPayload pp = (PositionPayload) p;
                     clientGrid.buildBasic(pp.getX(), pp.getY());
                     clientGrid.print();
+                    events.forEach(e -> {
+                        if (e instanceof IGameEvents) {
+                            ((IGameEvents) e).onReceiveGrid(pp.getX(), pp.getY());
+                        }
+                    });
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
+
                 break;
             case CELL:
                 try {
                     CellPayload cellPayload = (CellPayload) p;
                     clientGrid.update(cellPayload.getCellData(), userList);
                     clientGrid.print();
+                    events.forEach(e -> {
+                        if (e instanceof IGameEvents) {
+                            List<CellData> cellData = cellPayload.getCellData();
+                            List<Cell> cells = new ArrayList<Cell>();
+                            for (CellData cd : cellData) {
+                                Cell c = clientGrid.getCell(cd.getX(), cd.getY());
+                                c.setCellType(cd.getCellType());
+                                c.setBlocked(cd.isBlocked());
+                                if (c instanceof DoorCell) {
+                                    ((DoorCell) c).setLocked(cd.isLocked());
+                                    ((DoorCell) c).setEnd(cd.getCellType() == CellType.END_DOOR ? true : false);
+                                    // TBD ((DoorCell)c).setOpen();
+                                }
+                                cells.add(c);
+                            }
+                            ((IGameEvents) e).onReceiveCell(cells);
+                        }
+                    });
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
+
                 break;
             case GRID_RESET:
                 if (clientGrid != null) {
@@ -325,6 +406,11 @@ public enum Client {
                     System.out.println("Grid Reset");
                     clientGrid.print();
                 }
+                events.forEach(e -> {
+                    if (e instanceof IGameEvents) {
+                        ((IGameEvents) e).onReceiveGrid(-1, -1);
+                    }
+                });
                 break;
             default:
                 logger.warning(String.format("Unhandled Payload type: %s", p.getPayloadType()));

@@ -120,9 +120,44 @@ public class GameRoom extends Room {
         players.computeIfAbsent(client.getClientId(), id -> {
             ServerPlayer player = new ServerPlayer(client);
             super.addClient(client);
+            syncGameState(client);
             logger.info(String.format("Total clients %s", clients.size()));// change visibility to protected
             return player;
         });
+    }
+
+    private void syncGameState(ServerThread incomingClient) {
+        // single data
+        // sync grid
+        if (grid.hasCells()) {
+            incomingClient.sendGridDimensions(grid.getRows(), grid.getColumns());
+        } else {
+            incomingClient.sendGridReset();
+        }
+        if (currentTurnCharacter != null) {
+            incomingClient
+                    .sendCurrentTurn(((ServerPlayer) currentTurnCharacter.getController()).getClient().getClientId());
+        }
+        incomingClient.sendPhaseSync(currentPhase);
+        Iterator<ServerPlayer> iter = players.values().stream().iterator();
+        while (iter.hasNext()) {
+            ServerPlayer client = iter.next();
+            if (client.getClient().getClientId() == incomingClient.getClientId()) {
+                continue;
+            }
+            Character c = client.getCharacter();
+            boolean success = false;
+            if (c != null) {
+                success = incomingClient.sendCharacter(client.getClient().getClientId(), c);
+            }
+            if (client.isReady()) {
+                success = incomingClient.sendReadyStatus(client.getClient().getClientId());
+            }
+
+            if (!success) {
+                break;
+            }
+        }
     }
 
     protected void setReady(ServerThread client) {
@@ -146,20 +181,6 @@ public class GameRoom extends Room {
                     .getClient().getClientId()));
             syncReadyStatus(sp.getClient().getClientId());
         }
-        /*
-         * Example demonstrating stream api and filters (not ideal in this scenario
-         * since a hashmap has a more officient approach)
-         * This concept may be beneficial in the future for other lookup data
-         * players.values().stream().filter(p -> p.getClient().getClientId() ==
-         * client.getClientId()).findFirst()
-         * .ifPresent(p -> {
-         * p.setReady(true);
-         * logger.info(String.format("Marked player %s[%s] as ready",
-         * p.getClient().getClientName(), p
-         * .getClient().getClientId()));
-         * syncReadyStatus(p.getClient().getClientId());
-         * });
-         */
         readyCheck(false);
     }
 
@@ -202,6 +223,7 @@ public class GameRoom extends Room {
     }
 
     private void generateDungeon() {
+        updatePhase(Phase.PREPARING);
         int width = 5, height = 5;
         if (grid.hasCells()) {
             grid.reset();
@@ -335,21 +357,23 @@ public class GameRoom extends Room {
         }
     }
 
-    private void endDungeon(){
-        //TODO give experience / rewards
+    private void endDungeon() {
+        // TODO give experience / rewards
 
         Iterator<Character> iter = turnOrder.iterator();
-        while(iter.hasNext()){
+        while (iter.hasNext()) {
             Character c = iter.next();
-            if(c.isInCell()){
+            if (c.isInCell()) {
                 grid.removeCharacterFromCell(c.getCurrentCell().getX(), c.getCurrentCell().getY(), c);
             }
         }
         grid.reset();
         syncGridReset();
-        resetSession();//TODO allow the session to continue a new dungeon or quit rather than just resetting
+        resetSession();// TODO allow the session to continue a new dungeon or quit rather than just
+                       // resetting
     }
-    private synchronized void syncGridReset(){
+
+    private synchronized void syncGridReset() {
         Iterator<ServerPlayer> iter = players.values().stream().iterator();
         while (iter.hasNext()) {
             ServerPlayer client = iter.next();
@@ -359,6 +383,7 @@ public class GameRoom extends Room {
             }
         }
     }
+
     private synchronized void resetSession() {
         players.values().stream().forEach(p -> p.setReady(false));
         updatePhase(Phase.READY);
@@ -436,13 +461,14 @@ public class GameRoom extends Room {
             }
         }
     }
+
     @Override
-    public void close(){
+    public void close() {
         super.close();
         players.clear();
         players = null;
         currentTurnCharacter = null;
-        //turnOrder.clear(); // this is actually an immutable array so can't clear it
+        // turnOrder.clear(); // this is actually an immutable array so can't clear it
         turnOrder = null;
     }
 }

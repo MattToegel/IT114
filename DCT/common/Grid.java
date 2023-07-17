@@ -14,6 +14,15 @@ public class Grid {
     private static Logger logger = Logger.getLogger(Grid.class.getName());
     private DoorCell start = null;
     private DoorCell end = null;
+    private int _rows, _columns;
+
+    public int getRows() {
+        return _rows;
+    }
+
+    public int getColumns() {
+        return _columns;
+    }
 
     public boolean hasCells() {
         return cells != null;
@@ -31,6 +40,8 @@ public class Grid {
         if (cells != null) {
             reset();
         }
+        _rows = rows;
+        _columns = columns;
         logger.info("Starting grid generation");
         cells = new Cell[rows][columns];
 
@@ -68,6 +79,8 @@ public class Grid {
             reset();
         }
         logger.info("Starting grid generation");
+        _rows = rows;
+        _columns = columns;
         cells = new Cell[rows][columns];
         for (int row = 0; row < rows; row++) {
             for (int column = 0; column < columns; column++) {
@@ -83,11 +96,11 @@ public class Grid {
             return;
         }
         for (int row = 0, rows = cells.length; row < rows; row++) {
-            if(cells[0] == null){
+            if (cells[0] == null) {
                 continue;
             }
             for (int column = 0, columns = cells[0].length; column < columns; column++) {
-                if(cells[row][column] == null){
+                if (cells[row][column] == null) {
                     continue;
                 }
                 cells[row][column].reset();
@@ -97,42 +110,46 @@ public class Grid {
 
     public List<String> validateMove(int x, int y, Character character) {
         List<String> validations = new ArrayList<String>();
-        List<Cell> n = null;//GridHelpers.getNeighborCells(start, cells);
-        /* TODO this is for later once character stats are utilized
-        if(character.getCurrentLife() <= 0){
-            validations.add(String.format("%s is unconcious and can't move.", character.getName()));
-        }
-        else*/ 
+        List<Cell> n = null;// GridHelpers.getNeighborCells(start, cells);
+        /*
+         * TODO this is for later once character stats are utilized
+         * if(character.getCurrentLife() <= 0){
+         * validations.add(String.format("%s is unconcious and can't move.",
+         * character.getName()));
+         * }
+         * else
+         */
         if (!character.isInCell()) {
             n = GridHelpers.getNeighborCells(start, cells);
             // Rule #1 must be adjacent to start door
-            //target cell must be in the adjacent list
-            Cell c = n.stream().filter(_c->_c.isSameCoordinate(cells[x][y]) && !(_c instanceof DoorCell) && !(_c instanceof WallCell)).findFirst().orElse(null);
-            /*DoorCell dc = n.stream().filter(c -> (c instanceof DoorCell && c.isSameCoordinate(start))).map(c -> (DoorCell) c)
-                    .findFirst()
-                    .orElse(null);*/
-            if(c == null){
+            // target cell must be in the adjacent list
+            Cell c = n.stream().filter(
+                    _c -> _c.isSameCoordinate(cells[x][y]) && !(_c instanceof DoorCell) && !(_c instanceof WallCell))
+                    .findFirst().orElse(null);
+            /*
+             * DoorCell dc = n.stream().filter(c -> (c instanceof DoorCell &&
+             * c.isSameCoordinate(start))).map(c -> (DoorCell) c)
+             * .findFirst()
+             * .orElse(null);
+             */
+            if (c == null) {
                 validations.add("First move must be adjacent to the starting door");
             }
-        }
-        else{
+        } else {
             n = GridHelpers.getNeighborCells(character.getCurrentCell(), cells);
-            Cell target = n.stream().filter(c->c.getX() == x && c.getY() == y).findFirst().orElse(null);
-            if(target == null){
+            Cell target = n.stream().filter(c -> c.getX() == x && c.getY() == y).findFirst().orElse(null);
+            if (target == null) {
                 validations.add("Can only move to an adjacent tile");
-            }
-            else{
-                if(target instanceof WallCell){
+            } else {
+                if (target instanceof WallCell) {
                     validations.add("Can't move to a Wall tile");
-                }
-                else if(target instanceof DoorCell){
-                    boolean locked = ((DoorCell)target).isLocked();
-                    if(locked){
+                } else if (target instanceof DoorCell) {
+                    boolean locked = ((DoorCell) target).isLocked();
+                    if (locked) {
                         validations.add("The door is locked");
-                    }//todo check not locked
-                }
-                else{
-                    if(target.isBlocked()){
+                    } // todo check not locked
+                } else {
+                    if (target.isBlocked()) {
                         validations.add("This tile is blocked, find another way");
                     }
                 }
@@ -154,11 +171,12 @@ public class Grid {
      */
     public Boolean addCharacterToCellValidate(int x, int y, Character character) throws InvalidMoveException {
         List<String> messages = validateMove(x, y, character);
-        if(messages != null && !messages.isEmpty()){
+        if (messages != null && !messages.isEmpty()) {
             throw new InvalidMoveException(messages);
         }
         return addCharacterToCell(x, y, character);
     }
+
     public Boolean addCharacterToCell(int x, int y, Character character) throws InvalidMoveException {
         try {
             Cell previous = character.getCurrentCell();
@@ -232,9 +250,10 @@ public class Grid {
         }
     }
 
-    public boolean reachedEnd(Cell c){
+    public boolean reachedEnd(Cell c) {
         return end.isSameCoordinate(c);
     }
+
     public int totalCharactersInGrid() {
         int total = 0;
         for (int row = 0, rows = cells.length; row < rows; row++) {
@@ -272,19 +291,18 @@ public class Grid {
             boolean blocked = cd.isBlocked();
             boolean locked = cd.isLocked();
             List<Long> pcs = cd.getPlayerCharactersInCell();
-            
+
             if (cd.getCellType() == CellType.START_DOOR || cd.getCellType() == CellType.END_DOOR) {
                 if (!(cells[x][y] instanceof DoorCell)) {
                     if (cells[x][y] != null) {
                         cells[x][y].reset();
                     }
                     cells[x][y] = new DoorCell(x, y);
-                    //set local start/end
-                    if(cd.getCellType() == CellType.START_DOOR){
-                        start = (DoorCell)cells[x][y];
-                    }
-                    else if(cd.getCellType() == CellType.END_DOOR){
-                        end = (DoorCell)cells[x][y];
+                    // set local start/end
+                    if (cd.getCellType() == CellType.START_DOOR) {
+                        start = (DoorCell) cells[x][y];
+                    } else if (cd.getCellType() == CellType.END_DOOR) {
+                        end = (DoorCell) cells[x][y];
                     }
                 }
 

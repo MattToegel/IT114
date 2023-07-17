@@ -8,6 +8,7 @@ public class DoorCell extends Cell {
 
     public DoorCell(int x, int y) {
         super(x, y, false);
+
     }
 
     public boolean isEnd() {
@@ -15,6 +16,7 @@ public class DoorCell extends Cell {
     }
 
     public void setEnd(boolean isEnd) {
+        cellType = isEnd ? CellType.END_DOOR : CellType.START_DOOR;
         this.isEnd = isEnd;
     }
 
