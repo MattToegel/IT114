@@ -10,8 +10,10 @@ import javax.swing.BorderFactory;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
 
 import DCT.client.Client;
+import DCT.client.IGameControls;
 import DCT.common.CellType;
 
 public class CellPanel extends JPanel {
@@ -19,23 +21,40 @@ public class CellPanel extends JPanel {
     private boolean selected = false;
     private int x, y;
     private JTextField jtf;
+    private IGameControls callback;
+    private CellType cellType;
 
-    public CellPanel() {
+    public CellType getCellType() {
+        return cellType;
+    }
+
+    public CellPanel(IGameControls callback) {
+        this.callback = callback;
         allCells.add(this); // Add this instance to the list of all cells
         setBackground(Color.WHITE);
         setBorder(BorderFactory.createLineBorder(Color.BLACK));
         addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
+                if (SwingUtilities.isRightMouseButton(e)) { // Check if it's a right-click event
+                    promptAction();
+                }
+
                 selected = !selected;
                 // setBackground(selected ? Color.GREEN : Color.WHITE);
                 updateAllBorders(); // Update the borders of all cells
                 setBorder(BorderFactory.createLineBorder(selected ? Color.CYAN : Color.BLACK));
-                promptAction();
+                if (callback != null) {
+                    callback.onClickCell(x, y);
+                }
             }
         });
         jtf = new JTextField("");
         jtf.setEditable(false);
+        jtf.setEnabled(false); // Disable the JTextField to make it not clickable
+        jtf.setOpaque(false); // Make the JTextField non-opaque
+        jtf.setBorder(null); // Remove the border
+        jtf.setHorizontalAlignment(JTextField.CENTER); // Center the text
         this.add(jtf);
     }
 
@@ -81,9 +100,18 @@ public class CellPanel extends JPanel {
         jtf.setText(c + "");
     }
 
+    public int getOccupiedCount() {
+        try {
+            return Integer.parseInt(jtf.getText());
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
     public void setType(CellType type, int x, int y, boolean isBlocked) {
         this.x = x;
         this.y = y;
+        this.cellType = type;
         switch (type) {
             case END_DOOR:
                 setBackground(Color.BLUE);
@@ -105,6 +133,9 @@ public class CellPanel extends JPanel {
     }
 
     public static void reset() {
+        allCells.forEach(c -> {
+            c.callback = null;
+        });
         allCells.clear();
     }
 }

@@ -1,5 +1,6 @@
 package DCT.client.views;
 
+import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.GridLayout;
 import java.awt.event.ComponentAdapter;
@@ -9,10 +10,12 @@ import java.util.List;
 
 import javax.swing.JButton;
 import javax.swing.JPanel;
+import javax.swing.JSplitPane;
 
 import DCT.client.Card;
 import DCT.client.Client;
 import DCT.client.ICardControls;
+import DCT.client.IGameControls;
 import DCT.client.IGameEvents;
 import DCT.common.Cell;
 import DCT.common.CellType;
@@ -20,10 +23,11 @@ import DCT.common.Character;
 import DCT.common.Phase;
 import DCT.common.Character.CharacterType;
 
-public class GamePanel extends JPanel implements IGameEvents {
+public class GamePanel extends JPanel implements IGameEvents, IGameControls {
     private CellPanel[][] cells;
     private JPanel gridPanel;
     private CardLayout cardLayout;
+    private DrawingPanel drawingPanel;
 
     public GamePanel(ICardControls controls) {
         super(new CardLayout());
@@ -44,8 +48,7 @@ public class GamePanel extends JPanel implements IGameEvents {
         });
         createReadyPanel();
         createOptionsPanel();
-        gridPanel = new JPanel();
-        add(gridPanel);
+        createGameView();
         setVisible(false);
         // don't need to add this to ClientUI as this isn't a primary panel(it's nested
         // in ChatGamePanel)
@@ -106,6 +109,26 @@ public class GamePanel extends JPanel implements IGameEvents {
         add(characterOptions);
     }
 
+    private void createGameView() {
+        gridPanel = new JPanel();
+        JPanel container = new JPanel(new BorderLayout());
+        drawingPanel = new DrawingPanel();
+        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, getFocusTraversalKeysEnabled(), gridPanel,
+                drawingPanel);
+        splitPane.setResizeWeight(.6);
+        splitPane.setOneTouchExpandable(false); // This disables the one-touch expandable buttons
+        splitPane.setEnabled(false); // This makes the divider non-movable
+        drawingPanel.addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentShown(ComponentEvent e) {
+                // Recalculate the divider location when the left panel becomes visible
+                splitPane.setDividerLocation(0.6);
+            }
+        });
+        container.add(splitPane, BorderLayout.CENTER);
+        add(container);
+    }
+
     private void resetView() {
         if (gridPanel == null) {
             return;
@@ -125,7 +148,7 @@ public class GamePanel extends JPanel implements IGameEvents {
         gridPanel.setLayout(new GridLayout(rows, columns));
         for (int i = 0; i < rows; i++) {
             for (int j = 0; j < columns; j++) {
-                cells[i][j] = new CellPanel();
+                cells[i][j] = new CellPanel(this);
                 cells[i][j].setType(CellType.NONE, i, j, false);
                 gridPanel.add(cells[i][j]);
             }
@@ -216,5 +239,13 @@ public class GamePanel extends JPanel implements IGameEvents {
         // refactor this later
         ChatGamePanel cgp = (ChatGamePanel) this.getParent().getParent();
         cgp.getChatPanel().addText(Client.INSTANCE.getClientNameById(clientId) + " summoned " + character.getName());
+    }
+
+    @Override
+    public void onClickCell(int x, int y) {
+        CellPanel cell = cells[x][y];
+        int c = cell.getOccupiedCount();
+        drawingPanel.setNumberOfCharacters(c);
+        drawingPanel.setCellType(cell.getCellType());
     }
 }
