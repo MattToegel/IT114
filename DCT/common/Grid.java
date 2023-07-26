@@ -1,13 +1,10 @@
 package DCT.common;
 
 import java.util.ArrayList;
-import java.util.Hashtable;
 import java.util.List;
 import java.util.logging.Logger;
 
-import DCT.client.ClientPlayer;
 import DCT.common.exceptions.InvalidMoveException;
-import DCT.server.ServerPlayer;
 
 public class Grid {
     private Cell[][] cells = null;
@@ -22,6 +19,10 @@ public class Grid {
 
     public int getColumns() {
         return _columns;
+    }
+
+    public Cell[][] getCells() {
+        return cells;
     }
 
     public boolean hasCells() {
@@ -183,13 +184,8 @@ public class Grid {
             if (previous != null) {
                 removeCharacterFromCell(previous.getX(), previous.getY(), character);
             }
-            Player p = character.getController();
-            long clientId = Constants.DEFAULT_CLIENT_ID;
-            if (p instanceof ServerPlayer) {
-                clientId = ((ServerPlayer) p).getClient().getClientId();
-            } else if (p instanceof ClientPlayer) {
-                clientId = ((ClientPlayer) p).getClientId();
-            }
+
+            long clientId = character.getClientId();
             cells[x][y].add(clientId, character);
             character.setCurrentCell(cells[x][y]);
             return true;
@@ -208,13 +204,7 @@ public class Grid {
      * @return success
      */
     public boolean removeCharacterFromCell(int x, int y, Character character) {
-        Player p = character.getController();
-        long clientId = Constants.DEFAULT_CLIENT_ID;
-        if (p instanceof ServerPlayer) {
-            clientId = ((ServerPlayer) p).getClient().getClientId();
-        } else if (p instanceof ClientPlayer) {
-            clientId = ((ClientPlayer) p).getClientId();
-        }
+        long clientId = character.getClientId();
         boolean status = removeCharacterFromCell(x, y, clientId);
         if (status) {
             character.setCurrentCell(null);
@@ -269,7 +259,7 @@ public class Grid {
     }
 
     public List<CellData> getCellsARoundPoint(int x, int y) {
-        List<Cell> subset = GridHelpers.getCellsWithinRangeList(x, y, cells);
+        List<Cell> subset = GridHelpers.getCellsWithinRangeList(x, y, 2, cells);
         return subset.stream().filter(c -> c != null).map(c -> {
             CellData cd = new CellData();
             cd.map(c);
@@ -284,13 +274,13 @@ public class Grid {
         return cd;
     }
 
-    public void update(List<CellData> data, Hashtable<Long, ClientPlayer> players) {
+    public void update(List<CellData> data) {
         data.stream().forEach(cd -> {
             int x = cd.getX();
             int y = cd.getY();
             boolean blocked = cd.isBlocked();
             boolean locked = cd.isLocked();
-            List<Long> pcs = cd.getPlayerCharactersInCell();
+            List<Character> charactersInCell = cd.getCharactersInCell();
 
             if (cd.getCellType() == CellType.START_DOOR || cd.getCellType() == CellType.END_DOOR) {
                 if (!(cells[x][y] instanceof DoorCell)) {
@@ -323,30 +313,38 @@ public class Grid {
                     cells[x][y] = new Cell(x, y);
                 }
             }
-            if (!pcs.isEmpty()) {
+            // TODO add characters to cell
+            if (charactersInCell != null && !charactersInCell.isEmpty()) {
                 Cell cell = cells[x][y];
                 // remove characters no longer in cell
-                if (cell != null && pcs != null && !pcs.isEmpty()) {
-                    cell.removeDifference(pcs);
+                if (cell != null) {
+                    cell.removeDifference(charactersInCell);
                     // add characters to cell
-                    for (Long clientId : pcs) {
-                        if (players.containsKey(clientId)) {
-                            Character c = players.get(clientId).getCharacter();
-                            if (c != null) {
-                                try {
-                                    addCharacterToCell(x, y, c);
-                                } catch (InvalidMoveException e) {
-                                    // This shouldn't happen on the client side
-                                    e.printStackTrace();
-                                }
-                            }
+                    for (Character character : charactersInCell) {
+                        try {
+                            addCharacterToCell(x, y, character);
+                        } catch (InvalidMoveException e) {
+                            // This shouldn't happen on the client side
+                            e.printStackTrace();
                         }
-                    } // TODO characters not getting removed from cells properly at least on client
-                      // side, confirm server side
+                        /*
+                         * if (players.containsKey(clientId)) {
+                         * Character c = players.get(clientId).getCharacter();
+                         * if (c != null) {
+                         * try {
+                         * addCharacterToCell(x, y, c);
+                         * } catch (InvalidMoveException e) {
+                         * // This shouldn't happen on the client side
+                         * e.printStackTrace();
+                         * }
+                         * }
+                         * }
+                         */
+                    }
                 }
             }
             cells[x][y].setBlocked(blocked);
-            // TODO add characters to cell
+
         });
 
     }
@@ -356,10 +354,10 @@ public class Grid {
         g.build(25, 25);
         GridHelpers.printGrid(g.cells);
 
-        Cell[][] n = GridHelpers.getCellsWithinRange2D(g.getStartDoor().getX(), g.getStartDoor().getY(), g.cells);
+        Cell[][] n = GridHelpers.getCellsWithinRange2D(g.getStartDoor().getX(), g.getStartDoor().getY(), 2, g.cells);
         GridHelpers.printGrid(n);
         System.out.println("");
-        n = GridHelpers.getCellsWithinRange2D(g.getEndDoor().getX(), g.getEndDoor().getY(), g.cells);
+        n = GridHelpers.getCellsWithinRange2D(g.getEndDoor().getX(), g.getEndDoor().getY(), 2, g.cells);
         GridHelpers.printGrid(n);
     }
 }

@@ -92,7 +92,7 @@ public class ChatPanel extends JPanel {
         userListPanel = new UserListPanel(controls);
 
         JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, wrapper, userListPanel);
-        splitPane.setResizeWeight(.7);
+        splitPane.setResizeWeight(.75);
         splitPane.setOneTouchExpandable(false); // This disables the one-touch expandable buttons
         splitPane.setEnabled(false); // This makes the divider non-movable
         this.add(splitPane, BorderLayout.CENTER);

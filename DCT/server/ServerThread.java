@@ -85,23 +85,25 @@ public class ServerThread extends Thread {
     }
 
     // send methods
-    public boolean sendGridReset(){
+    public boolean sendGridReset() {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.GRID_RESET);
         return send(p);
     }
-    public boolean sendCells(List<CellData> cells){
+
+    public boolean sendCells(List<CellData> cells) {
         CellPayload cp = new CellPayload();
         cp.setCellData(cells);
         return send(cp);
     }
 
-    public boolean sendGridDimensions(int x, int y){
+    public boolean sendGridDimensions(int x, int y) {
         PositionPayload pp = new PositionPayload();
         pp.setCoord(x, y);
-        pp.setPayloadType(PayloadType.GRID); //override default payload type
+        pp.setPayloadType(PayloadType.GRID); // override default payload type
         return send(pp);
     }
+
     public boolean sendCurrentTurn(long clientId) {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.TURN);
@@ -290,6 +292,32 @@ public class ServerThread extends Thread {
                     ((GameRoom) currentRoom).handleMove(pp.getX(), pp.getY(), this);
                 } catch (Exception e) {
                     logger.severe(String.format("There was a problem during position handling %s", e.getMessage()));
+                    e.printStackTrace();
+                }
+                break;
+            case ATTACK:
+                try {
+                    PositionPayload pp = (PositionPayload) p;
+                    ((GameRoom) currentRoom).handleAttack(pp.getX(), pp.getY(), this);
+                } catch (Exception e) {
+                    logger.severe(String.format("There was a problem during position handling %s", e.getMessage()));
+                    e.printStackTrace();
+                }
+                break;
+            case HEAL:
+                try {
+                    PositionPayload pp = (PositionPayload) p;
+                    ((GameRoom) currentRoom).handleHeal(pp.getX(), pp.getY(), this);
+                } catch (Exception e) {
+                    logger.severe(String.format("There was a problem during position handling %s", e.getMessage()));
+                    e.printStackTrace();
+                }
+                break;
+            case END_TURN:
+                try {
+                    ((GameRoom) currentRoom).handleEndturn(this);
+                } catch (Exception e) {
+                    logger.severe(String.format("There was a problem during end turn handling %s", e.getMessage()));
                     e.printStackTrace();
                 }
                 break;

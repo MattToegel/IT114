@@ -27,7 +27,7 @@ public class ChatGamePanel extends JPanel {
         chatPanel.setBackground(Color.GRAY);
 
         final JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, gamePanel, chatPanel);
-        splitPane.setResizeWeight(.6);
+        splitPane.setResizeWeight(.5);
 
         splitPane.setOneTouchExpandable(false); // This disables the one-touch expandable buttons
         splitPane.setEnabled(false); // This makes the divider non-movable
@@ -35,7 +35,7 @@ public class ChatGamePanel extends JPanel {
             @Override
             public void componentShown(ComponentEvent e) {
                 // Recalculate the divider location when the left panel becomes visible
-                splitPane.setDividerLocation(0.6);
+                splitPane.setDividerLocation(0.5);
             }
         });
         add(splitPane);

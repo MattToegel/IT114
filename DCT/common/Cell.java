@@ -2,11 +2,10 @@ package DCT.common;
 
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-
-import DCT.server.ServerPlayer;
 
 public class Cell {
     private ConcurrentHashMap<Long, Character> charactersInCell = new ConcurrentHashMap<Long, Character>();
@@ -19,6 +18,10 @@ public class Cell {
         this(x, y);
         this.blocked = blocked;
         cellType = CellType.TILE;
+    }
+
+    public Point getPoint() {
+        return new Point(x, y);
     }
 
     public CellType getCellType() {
@@ -78,8 +81,20 @@ public class Cell {
         }
     }
 
-    public void removeDifference(List<Long> clientIds) {
-        charactersInCell.keySet().retainAll(clientIds);
+    /*
+     * public void removeDifference(List<Long> clientIds) {
+     * charactersInCell.keySet().retainAll(clientIds);
+     * }
+     */
+    public void removeDifference(List<Character> characters) {
+        Iterator<Entry<Long, Character>> iter = charactersInCell.entrySet().iterator();
+        List<String> names = characters.stream().map(c -> c.getName()).toList();
+        while (iter.hasNext()) {
+            Entry<Long, Character> set = iter.next();
+            if (!names.contains(set.getValue().getName())) {
+                iter.remove();
+            }
+        }
     }
 
     public List<Character> getCharactersInCell() {
@@ -101,13 +116,9 @@ public class Cell {
         Iterator<Character> iter = charactersInCell.values().iterator();
         while (iter.hasNext()) {
             Character character = iter.next();
-            Player p = character.getController();
-            if (p instanceof ServerPlayer) {
-                ServerPlayer sp = (ServerPlayer) p;
-                sb.append(String.format("%s - %s", sp.getClient().getClientId(), sp.getClient().getClientName()));
-            } else {
-                sb.append(String.format("%s", "A player is here"));
-            }
+            long clientId = character.getClientId();
+            String clientName = character.getClientName();
+            sb.append(String.format("%s - %s", clientId, clientName));
             sb.append(System.lineSeparator()); // Start a new line after each row
         }
 

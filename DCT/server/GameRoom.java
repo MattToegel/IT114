@@ -17,8 +17,10 @@ import DCT.common.exceptions.InvalidMoveException;
 import DCT.server.CharacterFactory.ControllerType;
 import DCT.common.Constants;
 import DCT.common.Grid;
+import DCT.common.GridHelpers;
 import DCT.common.Phase;
 import DCT.common.TimedEvent;
+import DCT.common.Cell;
 import DCT.common.CellData;
 import DCT.common.Character;
 
@@ -31,6 +33,7 @@ public class GameRoom extends Room {
     private Character currentTurnCharacter = null;
     Random rand = new Random();
     private List<Character> turnOrder = new ArrayList<Character>();
+    private List<Character> enemies = new ArrayList<Character>();
 
     public GameRoom(String name) {
         super(name);
@@ -136,7 +139,7 @@ public class GameRoom extends Room {
         }
         if (currentTurnCharacter != null) {
             incomingClient
-                    .sendCurrentTurn(((ServerPlayer) currentTurnCharacter.getController()).getClient().getClientId());
+                    .sendCurrentTurn(currentTurnCharacter.getClientId());
         }
         incomingClient.sendPhaseSync(currentPhase);
         Iterator<ServerPlayer> iter = players.values().stream().iterator();
@@ -229,22 +232,36 @@ public class GameRoom extends Room {
             grid.reset();
         }
         grid.build(width, height);
+        // ignore 'self is never closed' warning, we just want the reference for the
+        // callback
+        GameRoom self = this;
+        GridHelpers.populateEnemies(grid, (enemies) -> {
+            self.enemies = enemies;
+            self.enemies.forEach(e -> e.fullHeal());// init enemies
+            begin();
+        });
+
+    }
+
+    private void begin() {
         // TODO sync grid subset
-        syncGridDimensions(width, height);
+        syncGridDimensions(grid.getRows(), grid.getColumns());
         grid.print();
         List<CellData> startCells = grid.getCellsARoundPoint(grid.getStartDoor().getX(), grid.getStartDoor().getY());
         syncCells(startCells);
         // setup characters
         turnOrder = players.values().stream().filter(p -> p.isReady() && p.hasCharacter()).map(p -> p.getCharacter())
                 .toList();
+        turnOrder.forEach(c -> c.fullHeal()); // init players
         // TODO sorting
 
-        nextTurn();
+        determineTurn();
     }
 
     // start handle next turn
-    private void nextTurn() {
+    private void determineTurn() {
         updatePhase(Phase.TURN);
+        boolean isAITurn = false;
         if (currentTurnCharacter == null) {
             currentTurnCharacter = turnOrder.get(0);
         } else {
@@ -252,21 +269,160 @@ public class GameRoom extends Room {
             currentIndex++;
             if (currentIndex >= turnOrder.size()) {
                 currentIndex = 0;
+                isAITurn = true;
             }
             currentTurnCharacter = turnOrder.get(currentIndex);
         }
+        if (currentTurnCharacter.isAlive()) {
+            if (!isAITurn) {
+                startTurn();
+            } else {
+                doAI();
+            }
+        } else {
+            sendMessage(null,
+                    String.format("%s is no longer alive, checking for next player", currentTurnCharacter.getName()));
+            long numAlive = turnOrder.stream().filter(c -> c.isAlive()).count();
+            if (numAlive > 0) {
+                determineTurn();
+            } else {
+                sendMessage(null, "All players have been defeated.");
+                endDungeon();
+            }
+        }
+    }
+
+    private void startTurn() {
         if (currentTurnCharacter != null) {
-            ServerPlayer sp = ((ServerPlayer) currentTurnCharacter.getController());
-            syncCurrentTurn(sp.getClient().getClientId());
-            sendMessage(null, String.format("It's %s's turn", sp.getClient().getClientName()));
+            long clientId = currentTurnCharacter.getClientId();
+            String clientName = currentTurnCharacter.getClientName();
+            currentTurnCharacter.startTurn();
+            syncCurrentTurn(clientId);
+            sendMessage(null, String.format("It's %s's turn", clientName));
             cancelReadyTimer();
             // TODO set back to lower number after debugging
             readyTimer = new TimedEvent(3000, () -> {
                 sendMessage(null,
-                        String.format("%s took to long and has been skipped", sp.getClient().getClientName()));
-                nextTurn();
+                        String.format("%s took to long and has been skipped", clientName));
+                determineTurn();
             });
         }
+    }
+
+    private boolean doAttackLogic(Character enemy) {
+        if (enemy.didAttack()) {
+            logger.info("enemy already attacked");
+            return false;
+        }
+        Character target = enemy.getTarget(); // store target as a new target may be found during the attack logic
+        long dmg = enemy.attackCurrentTarget();
+        if (dmg > 0) {
+            enemy.usedAttack();
+            sendMessage(null, String.format("%s attacked %s for %s damage", enemy.getName(),
+                    target.getName(), dmg));
+            if (target != null && !target.isAlive()) {
+                sendMessage(null, String.format("%s defeated %s", enemy.getName(),
+                        target.getName()));
+            }
+            return true;
+        } else {
+            logger.info("enemy failed to attack");
+        }
+        return false;
+    }
+
+    public boolean doMoveLogic(Character enemy) {
+        if (enemy.didMove()) {
+            logger.info("enemy already moved");
+            return false;
+        }
+        Cell closest = GridHelpers.getClosestCellToTarget(enemy, enemy.getTarget(),
+                grid.getCells());
+        if (closest != null) {
+            try {
+                boolean success = grid.addCharacterToCellValidate(closest.getX(), closest.getY(), enemy);
+                if (success) {
+                    enemy.usedMove();
+                    sendMessage(null,
+                            String.format("%s moved to %s, %s", enemy.getName(), closest.getX(), closest.getY()));
+                    List<CellData> nearby = grid.getCellsARoundPoint(closest.getX(), closest.getY());
+                    syncCells(nearby);
+                    return true;
+                }
+                logger.info("Enemy failed to move");
+
+            } catch (InvalidMoveException e1) {
+                e1.printStackTrace();
+            }
+        } else {
+            logger.info("Couldn't find closest cell");
+        }
+        return false;
+    }
+
+    private void findClosestTarget(Character enemy) {
+        // find closest target
+        int closestDist = Integer.MAX_VALUE;
+        Character closest = null;
+        for (Character target : turnOrder) {
+            if (!target.isAlive()) {
+                continue;
+            }
+            int dist = Character.getDistanceBetween(enemy, target);
+            if (dist <= closestDist) {
+                closestDist = dist;
+                closest = target;
+            }
+        }
+        if (closest != null) {
+            enemy.setTarget(closest);
+        }
+    }
+
+    private void doAI() {
+        sendMessage(null, "It's the enemy's turn.");
+        new Thread() {
+            @Override
+            public void run() {
+                List<Character> aliveEnemies = enemies.stream().filter(e -> e.isAlive()).toList();
+
+                for (Character enemy : aliveEnemies) {
+                    enemy.startTurn();
+                    try { // delay action to allow visual simulation on client side
+                        Thread.sleep(1500);
+                    } catch (InterruptedException e1) {
+                        e1.printStackTrace();
+                    }
+                    if (!enemy.hasTarget()) {
+                        findClosestTarget(enemy);
+                    }
+
+                    if (!enemy.hasTarget()) {
+                        logger.info("Enemy couldn't find target");
+                        continue;
+                    }
+                    if (enemy.currentTargetWithinRange()) {
+                        doAttackLogic(enemy);
+
+                    } else {
+                        doMoveLogic(enemy);
+                        if (enemy.currentTargetWithinRange()) {
+                            doAttackLogic(enemy);
+                        }
+                    }
+                    if (enemy.didMove()) {
+                        logger.info("Enemy moved");
+                    }
+                    if (enemy.didAttack()) {
+                        logger.info("Enemy attacked");
+                    }
+                    if (!enemy.didMove() && !enemy.didAttack()) {
+                        sendMessage(null, String.format("%s did nothing", enemy.getName()));
+                    }
+                }
+                startTurn();
+            }
+        }.start();
     }
 
     private synchronized void syncCurrentTurn(long clientId) {
@@ -310,18 +466,129 @@ public class GameRoom extends Room {
         }
     }
 
-    public void handleMove(int x, int y, ServerThread client) {
-        ServerPlayer currentPlayer = (ServerPlayer) currentTurnCharacter.getController();
-        if (currentPlayer.getClient().getClientId() != client.getClientId()) {
+    private boolean isActionValid(String type, ServerThread client) {
+        long clientId = currentTurnCharacter.getClientId();
+        if (clientId != client.getClientId()) {
             client.sendMessage(Constants.DEFAULT_CLIENT_ID, "It's not your turn");
+            return false;
+        }
+        // ignore move as this is validated via the grid
+        if (!currentTurnCharacter.isInCell() && !"move".equals(type)) {
+            client.sendMessage(Constants.DEFAULT_CLIENT_ID,
+                    String.format("Your character must be on the board to %s", type));
+            return false;
+        }
+        if (currentTurnCharacter.getType() != CharacterType.SUPPORT && "heal".equals(type)) {
+            client.sendMessage(Constants.DEFAULT_CLIENT_ID,
+                    "Only SUPPORT type characters can heal");
+            return false;
+        }
+        String incomingType = type;
+        if (currentTurnCharacter.didAttack() && "attack".equals(type)) {
+            type = "attacked";
+        } else if (currentTurnCharacter.didHeal() && "heal".equals(type)) {
+            type = "healed";
+        } else if (currentTurnCharacter.didMove() && "move".equals(type)) {
+            type = "moved";
+        }
+        if (!incomingType.equals(type)) {
+            client.sendMessage(Constants.DEFAULT_CLIENT_ID, String.format("Your character already %s this turn", type));
+            return false;
+        }
+        return true;
+    }
+
+    private boolean isValidRange(int x, int y, ServerThread client) {
+        Cell cell = currentTurnCharacter.getCurrentCell();
+        Cell targetCell = grid.getCell(x, y);
+        int dist = GridHelpers.getManhattanDistance(cell.getPoint(), targetCell.getPoint());
+        if (dist > currentTurnCharacter.getRange()) {
+            client.sendMessage(Constants.DEFAULT_CLIENT_ID, String.format(
+                    "The target is outside of your characters range of %s tiles", currentTurnCharacter.getRange()));
+            return false;
+        }
+        return true;
+    }
+
+    private List<Character> getCharactersOfTypeInCell(int x, int y, ControllerType controllerType) {
+        Cell targetCell = grid.getCell(x, y);
+        List<Character> characters = targetCell.getCharactersInCell().stream().filter(c -> {
+            if (controllerType == ControllerType.PLAYER) {
+                return c.getClientId() > 0;
+            } else if (controllerType == ControllerType.NPC) {
+                return c.getClientId() < 1;
+            }
+            return c != null;
+        }).toList();
+        return characters;
+    }
+
+    // user actions
+    public void handleEndturn(ServerThread client) {
+        if (!isActionValid("end turn", client)) {
             return;
         }
-        if (currentTurnCharacter.isInCell()) {
-            logger.info(currentTurnCharacter.getName() + " is in a cell before move");
+        determineTurn();
+    }
+
+    public void handleHeal(int x, int y, ServerThread client) {
+        if (!isActionValid("heal", client)) {
+            return;
+        }
+        if (!isValidRange(x, y, client)) {
+            return;
+        }
+        List<Character> players = getCharactersOfTypeInCell(x, y, ControllerType.PLAYER);
+        for (Character ally : players) {
+            long heal = ally.receiveHeal(currentTurnCharacter);
+            sendMessage(null,
+                    String.format("%s healed %s for %s health", currentTurnCharacter.getName(), ally.getName(), heal));
+            currentTurnCharacter.usedHeal();
+        }
+        if (currentTurnCharacter.actionsExhausted()) {
+            determineTurn();
+        }
+    }
+
+    public void handleAttack(final int x, final int y, ServerThread client) {
+        if (!isActionValid("attack", client)) {
+            return;
+        }
+        if (!isValidRange(x, y, client)) {
+            return;
+        }
+
+        List<Character> enemiesInCell = getCharactersOfTypeInCell(x, y, ControllerType.NPC);
+        for (Character enemy : enemiesInCell) {
+            long dmg = enemy.takeDamage(currentTurnCharacter);
+            if (dmg > 0) {
+                sendMessage(null,
+                        String.format("%s hit %s for %s damage", currentTurnCharacter.getName(), enemy.getName(), dmg));
+                currentTurnCharacter.usedAttack();
+            }
+
+            if (!enemy.isAlive()) {
+                sendMessage(null, String.format("%s has been defeated", enemy.getName()));
+                grid.removeCharacterFromCell(x, y, enemy.getClientId());
+                List<CellData> nearby = grid.getCellsARoundPoint(x, y);
+                syncCells(nearby);
+            }
+        }
+        if (currentTurnCharacter.actionsExhausted()) {
+            determineTurn();
+        }
+    }
+
+    public void handleMove(final int x, final int y, ServerThread client) {
+        if (!isActionValid("move", client)) {
+            return;
         }
         boolean success = false;
         try {
             success = grid.addCharacterToCellValidate(x, y, currentTurnCharacter);
+            if (success) {
+                currentTurnCharacter.usedMove();
+            }
         } catch (InvalidMoveException ime) {
             sendMessage(null, String.join("\n", ime.getMessages()));
         }
@@ -346,17 +613,19 @@ public class GameRoom extends Room {
             grid.print();
             if (grid.reachedEnd(currentTurnCharacter.getCurrentCell())) {
                 endDungeon();
-            } else {
-                nextTurn();
+                return;
             }
-
         } else {
             String error = String.format("%s failed to move to cell %s,%s", currentTurnCharacter.getName(), x, y);
             logger.info(error);
             sendMessage(null, error);
         }
+        if (currentTurnCharacter.actionsExhausted()) {
+            determineTurn();
+        }
     }
 
+    // end user actions
     private void endDungeon() {
         // TODO give experience / rewards
 
@@ -385,7 +654,11 @@ public class GameRoom extends Room {
     }
 
     private synchronized void resetSession() {
-        players.values().stream().forEach(p -> p.setReady(false));
+        turnOrder = null;
+        players.values().stream().forEach(p -> {
+            p.setReady(false);
+            p.assignCharacter(null);
+        });
         updatePhase(Phase.READY);
         sendMessage(null, "Session ended, please intiate ready check to begin a new one");
     }

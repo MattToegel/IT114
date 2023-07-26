@@ -60,7 +60,7 @@ public class CellPanel extends JPanel {
 
     private void promptAction() {
         // Show JOptionPane with options
-        Object[] options = { "Move", "Attack", "Heal" };
+        Object[] options = { "Move", "Attack", "Heal", "End Turn" };
         int result = JOptionPane.showOptionDialog(null, "Choose an action", "Action",
                 JOptionPane.DEFAULT_OPTION, JOptionPane.INFORMATION_MESSAGE,
                 null, options, options[0]);
@@ -73,9 +73,13 @@ public class CellPanel extends JPanel {
                     break;
                 case 1: // Attack
                     // Handle attack action
+                    Client.INSTANCE.sendAttack(x, y);
                     break;
                 case 2: // Heal
-                    // Handle heal action
+                    Client.INSTANCE.sendHeal(x, y);
+                    break;
+                case 3: // end turn
+                    Client.INSTANCE.sendEndTurn();
                     break;
                 default:
                     // Handle case where user closed the dialog without choosing an option

@@ -48,7 +48,9 @@ public class CharacterFactory {
             ActionType actionType, Consumer<Character> callback) {
         System.out.println("Creating Character");
         Character character = new Character();
-        character.setProgressionRate(random.nextInt(50) + 10); // Random progression rate between 10-50
+        if (controllerType == ControllerType.PLAYER) {
+            character.setProgressionRate(random.nextInt(50) + 10); // Random progression rate between 10-50
+        }
         character.setLuck((int) Math.sqrt(random.nextDouble() * 10)); // Random luck between 0-10, skewed towards lower
                                                                       // numbers
         character.setType(type);

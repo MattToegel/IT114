@@ -6,7 +6,14 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
+
+import DCT.common.Character.ActionType;
+import DCT.common.Character.CharacterType;
+import DCT.common.exceptions.InvalidMoveException;
+import DCT.server.CharacterFactory;
+import DCT.server.CharacterFactory.ControllerType;
 
 public class GridHelpers {
     // Helper method to find an adjacent neighbor in the main path
@@ -218,7 +225,7 @@ public class GridHelpers {
     }
 
     // Calculate the Manhattan distance between two points
-    private static int getManhattanDistance(Point p1, Point p2) {
+    public static int getManhattanDistance(Point p1, Point p2) {
         // Manhattan distance is the total number of steps required to move from one
         // point to another
         // in a grid, considering only vertical and horizontal movements.
@@ -313,17 +320,17 @@ public class GridHelpers {
         }
     }
 
-    public static List<Cell> getCellsWithinRangeList(int x, int y, Cell[][] cells) {
+    public static List<Cell> getCellsWithinRangeList(int x, int y, int range, Cell[][] cells) {
         // Get the dimensions of the grid
         int rows = cells.length;
         int columns = cells[0].length;
 
         // Create a list to store the cells within the specified range
-        List<Cell> cellsInRange = new ArrayList<>();
+        List<Cell> cellsInRange = new ArrayList<Cell>();
 
         // Iterate over the cells within the specified range
-        for (int i = Math.max(0, x - 2); i <= Math.min(rows - 1, x + 2); i++) {
-            for (int j = Math.max(0, y - 2); j <= Math.min(columns - 1, y + 2); j++) {
+        for (int i = Math.max(0, x - range); i <= Math.min(rows - 1, x + range); i++) {
+            for (int j = Math.max(0, y - range); j <= Math.min(columns - 1, y + range); j++) {
                 // Check if the cell is not null and add it to the list
                 if (cells[i][j] != null) {
                     cellsInRange.add(cells[i][j]);
@@ -335,7 +342,7 @@ public class GridHelpers {
         return cellsInRange;
     }
 
-    public static Cell[][] getCellsWithinRange2D(int x, int y, Cell[][] cells) {
+    public static Cell[][] getCellsWithinRange2D(int x, int y, int range, Cell[][] cells) {
         // Get the dimensions of the grid
         int rows = cells.length;
         int columns = cells[0].length;
@@ -344,8 +351,8 @@ public class GridHelpers {
         Cell[][] cellsInRange = new Cell[rows][columns];
 
         // Iterate over the cells within the specified range
-        for (int i = Math.max(0, x - 2); i <= Math.min(rows - 1, x + 2); i++) {
-            for (int j = Math.max(0, y - 2); j <= Math.min(columns - 1, y + 2); j++) {
+        for (int i = Math.max(0, x - range); i <= Math.min(rows - 1, x + range); i++) {
+            for (int j = Math.max(0, y - range); j <= Math.min(columns - 1, y + range); j++) {
                 // Check if the cell is not null and add it to the array
                 if (cells[i][j] != null) {
                     cellsInRange[i][j] = cells[i][j];
@@ -355,5 +362,68 @@ public class GridHelpers {
 
         // Return the 2D array of cells within the specified range
         return cellsInRange;
+    }
+
+    public static void populateEnemies(Grid grid, Consumer<List<Character>> callback) {
+        int count = 0;
+        List<Cell> tiles = new ArrayList<Cell>();
+        Cell[][] cells = grid.getCells();
+        for (int i = 0; i < cells.length; i++) {
+            for (int j = 0; j < cells[i].length; j++) {
+                Cell c = cells[i][j];
+                if (!(c instanceof DoorCell) && !(c instanceof WallCell)) {
+                    count++;
+                    tiles.add(cells[i][j]);
+                }
+            }
+        }
+        System.out.println("Tile cells: " + count);
+        int enemiesToMake = (int) (count * .2f);
+        if (enemiesToMake <= 0) {
+            enemiesToMake = 1;
+        }
+        List<Character> enemies = new ArrayList<Character>();
+        for (int i = 0; i < enemiesToMake; i++) {
+            Random r = new Random();
+            CharacterType randomCharacter = CharacterType.values()[r.nextInt(CharacterType.values().length)];
+            ActionType randomAction = ActionType.values()[r.nextInt(ActionType.values().length)];
+            final boolean isLast = i == enemiesToMake - 1;
+            final int fakeClientId = (i + 1) * -1;
+            CharacterFactory.createCharacter(ControllerType.NPC, randomCharacter, 1, randomAction, character -> {
+                Cell randomCell = tiles.get(r.nextInt(tiles.size()));
+                AIPlayer ap = new AIPlayer();
+                ap.setClientId(fakeClientId);
+                character.setController(ap);
+                character.setName("Enemy " + (fakeClientId * -1));
+                try {
+                    grid.addCharacterToCell(randomCell.getX(), randomCell.getY(), character);
+                } catch (InvalidMoveException e) {
+                    e.printStackTrace();
+                }
+                enemies.add(character);
+                if (isLast) {
+                    callback.accept(enemies);
+                }
+            });
+        }
+    }
+
+    public static Cell getClosestCellToTarget(Character source, Character target, Cell[][] cells) {
+        // get radius of source
+        List<Cell> walkable = getNeighborCells(source.getCurrentCell(), cells).stream()
+                .filter(c -> c != null && !(c instanceof DoorCell) && !(c instanceof WallCell) && !c.isBlocked())
+                .toList();
+        int closestDist = Integer.MAX_VALUE;
+        Cell closestCell = null;
+        Point targetPoint = target.getCurrentCell().getPoint();
+        for (Cell c : walkable) {
+            Point checkPoint = c.getPoint();
+            int dist = getManhattanDistance(targetPoint, checkPoint);
+            if (dist < closestDist) {
+                closestDist = dist;
+                closestCell = c;
+            }
+        }
+        return closestCell;
     }
 }

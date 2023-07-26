@@ -7,7 +7,7 @@ import java.util.List;
 public class CellData implements Serializable {
     private int x, y;
     private boolean blocked, locked;
-    private List<Long> playerCharactersInCell = new ArrayList<Long>();
+    private List<Character> charactersInCell = new ArrayList<Character>();
     private CellType cellType;
 
     public int getX() {
@@ -50,19 +50,21 @@ public class CellData implements Serializable {
         this.blocked = blocked;
     }
 
-    public List<Long> getPlayerCharactersInCell() {
-        return playerCharactersInCell;
-    }
-
-    public void setPlayerCharactersInCell(List<Long> playerCharactersInCell) {
-        this.playerCharactersInCell = playerCharactersInCell;
+    public List<Character> getCharactersInCell() {
+        return charactersInCell;
     }
 
     public void map(Cell cell) {
         if (cell != null) {
             this.x = cell.getX();
             this.y = cell.getY();
-            this.playerCharactersInCell = cell.getClientIdsOfCharactersInCell();
+            this.charactersInCell = cell.getCharactersInCell().stream().map(c -> {
+                // hide info from players
+                Character copy = (Character) c.clone();
+                copy.setLuck(0);
+                copy.setProgressionRate(0);
+                return c;
+            }).toList();
             this.blocked = cell.isBlocked();
             if (cell instanceof DoorCell) {
                 this.cellType = ((DoorCell) cell).isEnd() ? CellType.END_DOOR : CellType.START_DOOR;

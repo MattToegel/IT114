@@ -96,6 +96,26 @@ public enum Client {
     }
 
     // Send methods
+    public void sendEndTurn() throws IOException {
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.END_TURN);
+        out.writeObject(p);
+    }
+
+    public void sendHeal(int x, int y) throws IOException {
+        PositionPayload pp = new PositionPayload();
+        pp.setCoord(x, y);
+        pp.setPayloadType(PayloadType.HEAL);
+        out.writeObject(pp);
+    }
+
+    public void sendAttack(int x, int y) throws IOException {
+        PositionPayload pp = new PositionPayload();
+        pp.setCoord(x, y);
+        pp.setPayloadType(PayloadType.ATTACK);
+        out.writeObject(pp);
+    }
+
     public void sendMove(int x, int y) throws IOException {
         PositionPayload pp = new PositionPayload();
         pp.setCoord(x, y);
@@ -375,7 +395,7 @@ public enum Client {
             case CELL:
                 try {
                     CellPayload cellPayload = (CellPayload) p;
-                    clientGrid.update(cellPayload.getCellData(), userList);
+                    clientGrid.update(cellPayload.getCellData());
                     clientGrid.print();
                     events.forEach(e -> {
                         if (e instanceof IGameEvents) {
