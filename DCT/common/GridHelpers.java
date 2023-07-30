@@ -378,7 +378,7 @@ public class GridHelpers {
             }
         }
         System.out.println("Tile cells: " + count);
-        int enemiesToMake = (int) (count * .2f);
+        int enemiesToMake = (int) (count * .3f);
         if (enemiesToMake <= 0) {
             enemiesToMake = 1;
         }

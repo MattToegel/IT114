@@ -5,6 +5,8 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
@@ -16,6 +18,7 @@ import DCT.common.CellPayload;
 import DCT.common.CellType;
 import DCT.common.Character;
 import DCT.common.Character.CharacterType;
+import DCT.common.PoorMansDB.AsyncFileWriter;
 import DCT.common.CharacterPayload;
 import DCT.common.Constants;
 import DCT.common.DoorCell;
@@ -337,34 +340,40 @@ public enum Client {
                 CharacterPayload cp = (CharacterPayload) p;
                 System.out.println("Created Character");
                 Character character = cp.getCharacter();
-
-                if (userList.containsKey(cp.getClientId())) {
-                    logger.info("Assigning character to " + cp.getClientId());
-                    userList.get(cp.getClientId()).assignCharacter(character);
-                }
-                if (cp.getClientId() == myClientId) {
-                    // myPlayer.assignCharacter(character);
-                    StringBuilder sb = new StringBuilder();
-                    sb.append("Character created: ").append(character.getName()).append("\n");
-                    sb.append("Character level: ").append(character.getLevel()).append("\n");
-                    sb.append("Character type: ").append(character.getType()).append("\n");
-                    sb.append("Character action type: ").append(character.getActionType()).append("\n");
-                    sb.append("Character stats: ").append("\n");
-                    sb.append("Attack: ").append(character.getAttack()).append("\n");
-                    sb.append("Vitality: ").append(character.getVitality()).append("\n");
-                    sb.append("Defense: ").append(character.getDefense()).append("\n");
-                    sb.append("Will: ").append(character.getWill()).append("\n");
-                    sb.append("Luck: ").append(character.getLuck()).append("\n");
-                    sb.append("Progression Rate: ").append(character.getProgressionRate()).append("\n");
-                    sb.append("Range: ").append(character.getRange()).append("\n");
-                    System.out.println(sb.toString());
-                }
-
-                events.forEach(e -> {
-                    if (e instanceof IGameEvents) {
-                        ((IGameEvents) e).onReceiveCharacter(p.getClientId(), character);
+                if (character.getName().equals(null)) {
+                    events.forEach(e -> {
+                        e.onMessageReceive(Constants.DEFAULT_CLIENT_ID, character.getCode());
+                    });
+                } else {
+                    if (userList.containsKey(cp.getClientId())) {
+                        logger.info("Assigning character to " + cp.getClientId());
+                        userList.get(cp.getClientId()).assignCharacter(character);
                     }
-                });
+                    if (cp.getClientId() == myClientId) {
+                        // myPlayer.assignCharacter(character);
+
+                        logger.info(character.toString());
+                        events.forEach(e -> {
+                            e.onMessageReceive(Constants.DEFAULT_CLIENT_ID, character.toString());
+                        });
+                        Path filePath = Paths.get(System.getProperty("user.dir"), "Saves", "Characters",
+                                character.getName().replace("'", "_").replace(" ", "-") + ".data");
+                        if (character.getCode() == null || character.getCode().length() == 0) {
+                            logger.severe("Character received without code: " + character.toString());
+                        } else {
+                            AsyncFileWriter.writeFileContent(filePath.toString(), character, (success) -> {
+                                logger.info(
+                                        String.format("Wrote file %s successfully %s", filePath.toString(), success));
+                            });
+                        }
+                    }
+
+                    events.forEach(e -> {
+                        if (e instanceof IGameEvents) {
+                            ((IGameEvents) e).onReceiveCharacter(p.getClientId(), character);
+                        }
+                    });
+                }
 
                 break;
             case TURN:

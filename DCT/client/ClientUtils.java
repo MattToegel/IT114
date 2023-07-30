@@ -27,6 +27,8 @@ public abstract class ClientUtils {
         // calculate modifier to line wrapping so we can display the wrapped message
         int mult = (int) Math.round(size.width / (width * PADDING_PERCENT));
         // System.out.println(mult);
+        int newLines = countOccurrences(str, "\n");
+        mult += newLines;
         mult++;
         return size.height * mult;
     }
@@ -35,5 +37,12 @@ public abstract class ClientUtils {
         comp.setOpaque(false);
         comp.setBorder(BorderFactory.createEmptyBorder());
         comp.setBackground(new Color(0, 0, 0, 0));
+    }
+
+    public static int countOccurrences(String str, String subStr) {
+        // Split the string by the substring and get the length of the resulting array
+        // Subtract 1 because split() returns one more item than the number of
+        // occurrences
+        return str.split(subStr, -1).length - 1;
     }
 }

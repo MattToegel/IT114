@@ -13,10 +13,11 @@ import DCT.common.Character;
 import DCT.common.FantasyNameGenerator;
 import DCT.common.Character.ActionType;
 import DCT.common.Character.CharacterType;
-import DCT.server.PoorMansDB.AsyncFileAppender;
-import DCT.server.PoorMansDB.AsyncFileLoader;
-import DCT.server.PoorMansDB.LineIndexer;
-import DCT.server.PoorMansDB.UniqueFileNameGenerator;
+import DCT.common.PoorMansDB.AsyncFileAppender;
+import DCT.common.PoorMansDB.AsyncFileLoader;
+import DCT.common.PoorMansDB.AsyncFileWriter;
+import DCT.common.PoorMansDB.LineIndexer;
+import DCT.common.PoorMansDB.UniqueFileNameGenerator;
 
 public class CharacterFactory {
     public enum ControllerType {
@@ -88,7 +89,13 @@ public class CharacterFactory {
                         return FantasyNameGenerator.convertToRomanNumerals(count);
                     });
             futureName.thenAccept(filename -> {
-                handleNewCharacter(character, filename, callback);
+                handleNewCharacter(character, filename, (handledCharacter) -> {
+                    // save the character with generated code
+                    AsyncFileWriter.writeFileContent(filename, handledCharacter, (success) -> {
+                        callback.accept(handledCharacter);
+                    });
+
+                });
             }).exceptionally(ex -> {
                 logger.severe("Error generating unique file name: " + ex.getMessage());
                 if (callback != null) {
@@ -100,7 +107,19 @@ public class CharacterFactory {
 
     }
 
+    public static void saveCharacter(Character character, Consumer<Boolean> callback) {
+        Path filePath = Paths.get(System.getProperty("user.dir"), "Characters",
+                character.getName().replace("'", "_").replace(" ", "-") + ".data");
+        if (character.getCode() == null || character.getCode().length() == 0) {
+            logger.severe("Character missing code: " + character.toString());
+            callback.accept(false);
+            return;
+        }
+        AsyncFileWriter.writeFileContent(filePath.toString(), character, callback);
+    }
+
     public static void loadCharacter(String position, String code, Consumer<Character> callback) {
+        logger.info(String.format("Load Character checking line [%s] and code [%s]", position, code));
         try {
             indexer.getLine(Integer.parseInt(position), (line) -> {
                 if (line == null) {
@@ -112,7 +131,7 @@ public class CharacterFactory {
                     // Format is #-Name-code
                     String[] data = line.split("-");
                     if (data.length >= 3) {
-                        if (code.trim().equalsIgnoreCase(data[2])) {
+                        if (code.trim().equalsIgnoreCase(data[3])) {
                             logger.info("Code matched");
                             String characterFile = data[1] + ".data";
                             Path filePath = Paths.get(System.getProperty("user.dir"), "Characters", characterFile);
@@ -145,7 +164,8 @@ public class CharacterFactory {
 
     private static void handleNewCharacter(Character character, String filename, Consumer<Character> callback) {
         try {
-            String name = Paths.get(filename).getFileName().toString().replace(".data", "").replace("_", "'");
+            String name = Paths.get(filename).getFileName().toString().replace(".data", "").replace("_", "'")
+                    .replace("-", " ");
             character.setName(name);
             byte[] bytes = character.serialize();
             Files.write(Paths.get(filename), bytes);
@@ -264,6 +284,7 @@ public class CharacterFactory {
         } else {
             // If it's not the first level, update the stats
             level -= character.getLevel(); // Roll for the difference
+            logger.info("New level: " + level);
             character.setAttack(character.getAttack() + rollStat(level, character.getProgressionRate(), luckBonus));
             character.setVitality(character.getVitality() + rollStat(level, character.getProgressionRate(), luckBonus));
             character.setDefense(character.getDefense() + rollStat(level, character.getProgressionRate(), luckBonus));

@@ -1,4 +1,4 @@
-package DCT.server.PoorMansDB;
+package DCT.common.PoorMansDB;
 
 import java.io.*;
 import java.nio.file.*;
@@ -37,10 +37,10 @@ public class LineIndexer {
         final int lineNumber = incLineNumber; // Make effectively final
         // Run the operation asynchronously
         CompletableFuture.runAsync(() -> {
-            
+
             // Synchronize to prevent concurrent modifications of the file
             synchronized (this) {
-                
+
                 // Check if the line number is valid
                 if (lineNumber < 0 || lineNumber >= lineIndex.size()) {
                     throw new IllegalArgumentException("Invalid line number");

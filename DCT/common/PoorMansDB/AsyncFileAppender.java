@@ -1,4 +1,4 @@
-package DCT.server.PoorMansDB;
+package DCT.common.PoorMansDB;
 
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousFileChannel;

@@ -3,14 +3,22 @@ package DCT.client.views;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.GridLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 
+import javax.swing.DefaultListModel;
 import javax.swing.JButton;
+import javax.swing.JList;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
+import javax.swing.ListSelectionModel;
 
 import DCT.client.Card;
 import DCT.client.Client;
@@ -22,12 +30,18 @@ import DCT.common.CellType;
 import DCT.common.Character;
 import DCT.common.Phase;
 import DCT.common.Character.CharacterType;
+import DCT.common.PoorMansDB.AsyncFileLister;
+import DCT.common.PoorMansDB.AsyncFileLoader;
 
 public class GamePanel extends JPanel implements IGameEvents, IGameControls {
     private CellPanel[][] cells;
     private JPanel gridPanel;
     private CardLayout cardLayout;
     private DrawingPanel drawingPanel;
+    private JList<Path> fileList;
+    private JButton loadButton;
+    private DefaultListModel<Path> listModel;
+    Path filePath = Paths.get(System.getProperty("user.dir"), "Saves", "Characters");
 
     public GamePanel(ICardControls controls) {
         super(new CardLayout());
@@ -72,6 +86,7 @@ public class GamePanel extends JPanel implements IGameEvents, IGameControls {
     }
 
     private void createOptionsPanel() {
+        JPanel characterView = new JPanel();
         JPanel characterOptions = new JPanel();
         JButton tank = new JButton();
         tank.setText("Tank");
@@ -106,7 +121,69 @@ public class GamePanel extends JPanel implements IGameEvents, IGameControls {
         characterOptions.add(tank);
         characterOptions.add(damage);
         characterOptions.add(support);
-        add(characterOptions);
+        JPanel loaderPanel = createCharacterLoader();
+        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, characterOptions, loaderPanel);
+        splitPane.setResizeWeight(.2);
+        splitPane.setOneTouchExpandable(true);
+        splitPane.setEnabled(true);
+        characterView.add(splitPane);
+
+        add(characterView);
+    }
+
+    private JPanel createCharacterLoader() {
+        JPanel loaderPanel = new JPanel();
+        loaderPanel.setLayout(new BorderLayout());
+
+        // https://docs.oracle.com/javase/8/docs/api/javax/swing/DefaultListModel.html
+        listModel = new DefaultListModel<>();
+        fileList = new JList<>(listModel);
+        fileList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+
+        JScrollPane scrollPane = new JScrollPane(fileList);
+        loaderPanel.add(scrollPane, BorderLayout.CENTER);
+
+        loadButton = new JButton("Load Character");
+        loadButton.setEnabled(false);
+        loaderPanel.add(loadButton, BorderLayout.SOUTH);
+
+        fileList.addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                loadButton.setEnabled(fileList.getSelectedIndex() != -1);
+            }
+        });
+
+        loadButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                Path selectedFile = fileList.getSelectedValue();
+                if (selectedFile != null) {
+                    // Load the selected file
+                    // This is where you would call your file loading method
+                    System.out.println("Loading file: " + selectedFile);
+                    AsyncFileLoader.loadFileContent(selectedFile.toString(), Character.class, Character::new,
+                            (character) -> {
+
+                                String code = character.getCode();
+                                try {
+                                    Client.INSTANCE.sendLoadCharacter(code);
+                                } catch (IOException e1) {
+                                    // TODO Auto-generated catch block
+                                    e1.printStackTrace();
+                                }
+                            });
+                }
+            }
+
+        });
+
+        AsyncFileLister.listFilesInDirectory(filePath.toString(), ".data", (list) -> {
+            listModel.clear();
+            for (Path file : list) {
+                listModel.addElement(file);
+            }
+        });
+        return loaderPanel;
     }
 
     private void createGameView() {
@@ -195,6 +272,12 @@ public class GamePanel extends JPanel implements IGameEvents, IGameControls {
         // be inaccurate
         System.out.println("Received phase: " + phase.name());
         if (phase == Phase.READY) {
+            AsyncFileLister.listFilesInDirectory(filePath.toString(), ".data", (list) -> {
+                listModel.clear();
+                for (Path file : list) {
+                    listModel.addElement(file);
+                }
+            });
             if (!isVisible()) {
                 setVisible(true);
                 this.getParent().revalidate();

@@ -9,11 +9,17 @@ import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.Random;
+import java.util.logging.Logger;
 
 import DCT.client.ClientPlayer;
+import DCT.server.CharacterFactory;
 import DCT.server.ServerPlayer;
 
 public class Character implements Serializable, Cloneable {
+    public static final long serialVersionUID = 10L;
+    private final static float EXPERIENCE_CONSTANT = 0.3f;
+    private static Logger logger = Logger.getLogger(Character.class.getName());
+
     public enum CharacterType {
         TANK, DAMAGE, SUPPORT
     }
@@ -216,7 +222,7 @@ public class Character implements Serializable, Cloneable {
     // transient ignores field during serialization
     private transient Player controller = null;
     private transient Cell currentCell = null;
-    private Aggro aggroManager = new Aggro();
+    private transient Aggro aggroManager = new Aggro();
 
     private boolean didAttack;
     private boolean didMove;
@@ -384,6 +390,27 @@ public class Character implements Serializable, Cloneable {
         return currentCell != null;
     }
 
+    public boolean receiveExperience(long experience) {
+        int previousLevel = level;
+        this.experience += experience;
+        int newLevel = calculateLevel(this.experience, EXPERIENCE_CONSTANT);
+        logger.info(String.format("Previous level %s vs new level %s", previousLevel, newLevel));
+        if (previousLevel != newLevel) {
+            int gained = newLevel - previousLevel;
+            if (gained > 0) {
+                CharacterFactory.levelUp(this, gained);
+            }
+            fullHeal();
+            return true;
+        }
+        return false;
+    }
+
+    public static int calculateLevel(double experience, double constant) {
+        // TODO tweak formula
+        return (int) (constant * Math.sqrt(experience)) + 1;
+    }
+
     @Override
     public Character clone() {
         // Important: This is a slow and memory intensive way to clone an object since
@@ -409,5 +436,24 @@ public class Character implements Serializable, Cloneable {
             // exception.
             throw new RuntimeException("Failed to clone Character object", e);
         }
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Character created: ").append(this.getName()).append("\n");
+        sb.append("Character level: ").append(this.getLevel()).append("\n");
+        sb.append("Experience: ").append(this.getExperience()).append("\n");
+        sb.append("Character type: ").append(this.getType()).append("\n");
+        sb.append("Character action type: ").append(this.getActionType()).append("\n");
+        sb.append("Character stats: ").append("\n");
+        sb.append("Attack: ").append(this.getAttack()).append("\n");
+        sb.append("Vitality: ").append(this.getVitality()).append("\n");
+        sb.append("Defense: ").append(this.getDefense()).append("\n");
+        sb.append("Will: ").append(this.getWill()).append("\n");
+        sb.append("Luck: ").append(this.getLuck()).append("\n");
+        sb.append("Progression Rate: ").append(this.getProgressionRate()).append("\n");
+        sb.append("Range: ").append(this.getRange()).append("\n");
+        return sb.toString();
     }
 }

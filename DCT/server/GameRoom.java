@@ -34,6 +34,7 @@ public class GameRoom extends Room {
     Random rand = new Random();
     private List<Character> turnOrder = new ArrayList<Character>();
     private List<Character> enemies = new ArrayList<Character>();
+    final int BASE_EXPERIENCE = 5;
 
     public GameRoom(String name) {
         super(name);
@@ -50,6 +51,7 @@ public class GameRoom extends Room {
     protected void loadCharacter(ServerThread client, Character charData) {
         // for now using character code to fetch
         String characterCode = charData.getCode();
+        logger.info(String.format("Attempting to load character by code [%s]", characterCode));
         String[] parts = characterCode.split("-");
         if (parts.length >= 2) {
             String position = parts[0];
@@ -273,22 +275,27 @@ public class GameRoom extends Room {
             }
             currentTurnCharacter = turnOrder.get(currentIndex);
         }
-        if (currentTurnCharacter.isAlive()) {
-            if (!isAITurn) {
-                startTurn();
-            } else {
-                doAI();
+        if (isAITurn) {
+            doAI();
+        } else if (currentTurnCharacter.isAlive()) {
+            startTurn();
+        } else {
+            String.format("%s is no longer alive, checking for next player",
+                    currentTurnCharacter.getName());
+            checkAlivePlayers(true);
+        }
+
+    }
+
+    private void checkAlivePlayers(boolean isNextTurn) {
+        long numAlive = turnOrder.stream().filter(c -> c.isAlive() && c.getClientId() > 0).count();
+        if (numAlive > 0) {
+            if (isNextTurn) {
+                determineTurn();
             }
         } else {
-            sendMessage(null,
-                    String.format("%s is no longer alive, checking for next player", currentTurnCharacter.getName()));
-            long numAlive = turnOrder.stream().filter(c -> c.isAlive()).count();
-            if (numAlive > 0) {
-                determineTurn();
-            } else {
-                sendMessage(null, "All players have been defeated.");
-                endDungeon();
-            }
+            sendMessage(null, "All players have been defeated.");
+            endDungeon();
         }
     }
 
@@ -323,6 +330,10 @@ public class GameRoom extends Room {
             if (target != null && !target.isAlive()) {
                 sendMessage(null, String.format("%s defeated %s", enemy.getName(),
                         target.getName()));
+                List<CellData> nearby = grid.getCellsARoundPoint(target.getCurrentCell().getX(),
+                        target.getCurrentCell().getY());
+                syncCells(nearby);
+                checkAlivePlayers(false);
             }
             return true;
         } else {
@@ -387,6 +398,9 @@ public class GameRoom extends Room {
                 List<Character> aliveEnemies = enemies.stream().filter(e -> e.isAlive()).toList();
 
                 for (Character enemy : aliveEnemies) {
+                    if (!enemy.isAlive()) {
+                        continue;
+                    }
                     enemy.startTurn();
                     try { // delay action to allow visual simulation on client side
                         Thread.sleep(1500);
@@ -483,6 +497,11 @@ public class GameRoom extends Room {
                     "Only SUPPORT type characters can heal");
             return false;
         }
+        if (!currentTurnCharacter.isAlive() && !type.equals("end turn")) {
+            client.sendMessage(Constants.DEFAULT_CLIENT_ID,
+                    "Your character has been defeated and is not capable of taking actions");
+            return false;
+        }
         String incomingType = type;
         if (currentTurnCharacter.didAttack() && "attack".equals(type)) {
             type = "attacked";
@@ -570,12 +589,28 @@ public class GameRoom extends Room {
             if (!enemy.isAlive()) {
                 sendMessage(null, String.format("%s has been defeated", enemy.getName()));
                 grid.removeCharacterFromCell(x, y, enemy.getClientId());
+                enemies.remove(enemy);
+                long experience = enemy.getLevel() * BASE_EXPERIENCE;
+                giveExperience(experience);
+
                 List<CellData> nearby = grid.getCellsARoundPoint(x, y);
                 syncCells(nearby);
             }
         }
         if (currentTurnCharacter.actionsExhausted()) {
             determineTurn();
+        }
+    }
+
+    private synchronized void giveExperience(long experience) {
+        for (final Character character : turnOrder) {
+            sendMessage(null, String.format("%s gained %s experience", character.getName(), experience));
+            if (character.receiveExperience(experience)) {
+                sendMessage(null, String.format("%s has gained a level", character.getName()));
+            }
+            CharacterFactory.saveCharacter(character, (success) -> {
+                logger.info(String.format("Saving character %s was successful %s", character.getName(), success));
+            });
         }
     }
 

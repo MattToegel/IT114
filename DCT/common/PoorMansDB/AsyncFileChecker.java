@@ -1,12 +1,9 @@
-package DCT.server.PoorMansDB;
-
+package DCT.common.PoorMansDB;
 
 import java.io.IOException;
 import java.nio.file.*;
 import java.util.concurrent.*;
 import java.util.logging.Logger;
-
-
 
 public class AsyncFileChecker {
     private final Path directoryPath;
@@ -24,8 +21,7 @@ public class AsyncFileChecker {
             } catch (IOException e) {
                 logger.severe("Error creating directory: " + e.getMessage());
             }
-        }
-        else{
+        } else {
             logger.info("Directory exists");
         }
     }
