@@ -50,7 +50,9 @@ public class Grid {
             if(previous != null){
                 removeCharacterFromCell(x, y, character);
             }
-            cells[x][y].add(y, character);
+            //fixes vs code issue with y
+            ServerPlayer sp = (ServerPlayer)character.getController();
+            cells[x][y].add(sp.getClient().getClientId(), character);
             character.setCurrentCell(cells[x][y]);
             return true;
         } catch (Exception e) {
