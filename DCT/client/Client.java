@@ -373,6 +373,7 @@ public enum Client {
                 if (!userList.containsKey(p.getClientId())) {
                     userList.put(p.getClientId(), p.getClientName());
                 }
+                break;
             case MESSAGE:
                 System.out.println(String.format("%s: %s",
                         getClientNameById(p.getClientId()),
