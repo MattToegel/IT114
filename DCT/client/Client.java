@@ -384,6 +384,7 @@ public enum Client {
                     cp.setClientId(p.getClientId());
                     userList.put(p.getClientId(), cp);
                 }
+                break;
             case MESSAGE:
                 System.out.println(String.format("%s: %s",
                         getClientNameById(p.getClientId()),
