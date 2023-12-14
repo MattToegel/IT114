@@ -1,5 +1,6 @@
 package DCT.client;
 
+import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Component;
 import java.awt.Container;
@@ -8,15 +9,42 @@ import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Hashtable;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+
+import javax.swing.AbstractAction;
+import javax.swing.BoxLayout;
+import javax.swing.JButton;
+import javax.swing.JEditorPane;
+import javax.swing.JFileChooser;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
+import javax.swing.KeyStroke;
+import javax.swing.ScrollPaneConstants;
+
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.KeyEvent;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.Writer;
 
 import javax.swing.JFrame;
 import javax.swing.JMenuBar;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import java.io.File;
+import java.io.FileWriter;
 
 import DCT.client.views.ChatPanel;
 import DCT.client.views.ConnectionPanel;
@@ -32,8 +60,10 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
     private static Logger logger = Logger.getLogger(ClientUI.class.getName());
     private JPanel currentCardPanel = null;
     private Card currentCard = Card.CONNECT;
-
+    JPanel textArea;
     private Hashtable<Long, String> userList = new Hashtable<Long, String>();
+    ClientUI self;
+    JPanel userPanel;
 
     private long myId = Constants.DEFAULT_CLIENT_ID;
     private JMenuBar menu;
@@ -103,6 +133,42 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
         setVisible(true);
     }
 
+         void createPanelRoom() {
+		JPanel panel = new JPanel();
+		panel.setLayout(new BorderLayout());
+	
+		textArea = new JPanel();
+		textArea.setLayout(new BoxLayout(textArea, BoxLayout.Y_AXIS));
+		textArea.setAlignmentY(Component.BOTTOM_ALIGNMENT);
+		JScrollPane scroll = new JScrollPane(textArea);
+		panel.add(scroll, BorderLayout.CENTER);
+		panel.add(scroll, BorderLayout.CENTER);
+		JPanel input = new JPanel();
+
+
+	
+		
+		//export chat on button press
+		JButton export = new JButton("Export Chat");
+		export.addActionListener(new ActionListener() {
+	
+		    @Override
+		    public void actionPerformed(ActionEvent e) {
+			if (textArea.getComponents().length > 0) {
+			    exportCurrentChat();
+			}
+			
+		}});
+		
+		input.add(export);
+		panel.add(input, BorderLayout.SOUTH);
+		this.add(panel, "lobby");
+    }
+
+            
+
+
+
     private void findAndSetCurrentPanel() {
         for (Component c : container.getComponents()) {
             if (c.isVisible()) {
@@ -154,6 +220,7 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
     public static void main(String[] args) {
         new ClientUI("Client");
     }
+    
 
     private String mapClientId(long clientId) {
         String clientName = userList.get(clientId);
@@ -191,6 +258,7 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
             }
         }
     }
+    
 
     @Override
     public void onClientConnect(long clientId, String clientName, String message) {
@@ -251,6 +319,29 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
             }
         }
     }
+    void exportCurrentChat() { //jad237 1214
+	 	StringBuilder sb = new StringBuilder();
+	 	Component[] comps = textArea.getComponents();
+	 	for (Component c : comps) {
+	 	    JEditorPane j = (JEditorPane) c;
+	 	    if (j != null) {
+	 	    	// removes the HTML tags when writing to file
+	 	    	sb.append(j.getText().substring(44, j.getText().length() - 19) + System.lineSeparator());
+	 	    }
+	 	}
+	 	// todo save file
+	 	try {
+	 		FileWriter export = new FileWriter("chat.txt");
+	 		BufferedWriter bw = new BufferedWriter(export);
+			bw.write("" + sb.toString()); // convert StringBuilder to string
+			bw.close();
+			
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    }
+
 
     @Override
     public void onRoomJoin(String roomName) {
@@ -258,4 +349,5 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
             chatPanel.addText("Joined room " + roomName);
         }
     }
+
 }

@@ -24,8 +24,13 @@ public class Payload implements Serializable {
      */
     private String clientName;
 
+    private boolean flag;
+
     public String getClientName() {
         return clientName;
+    }
+    public void setFlag(boolean flag) {
+    	this.flag = flag;
     }
 
     public void setClientName(String clientName) {
