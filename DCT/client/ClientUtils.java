@@ -34,6 +34,6 @@ public abstract class ClientUtils {
     public static void clearBackground(JComponent comp) {
         comp.setOpaque(false);
         comp.setBorder(BorderFactory.createEmptyBorder());
-        comp.setBackground(new Color(0, 0, 0, 0));
+        comp.setBackground(new Color(140, 100, 100, 0));
     }
 }

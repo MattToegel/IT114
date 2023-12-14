@@ -10,18 +10,46 @@ import java.awt.event.ContainerListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.io.IOException;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
+import java.awt.CardLayout;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.Toolkit;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.KeyEvent;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.Writer;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JEditorPane;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import javax.swing.KeyStroke;
 import javax.swing.ScrollPaneConstants;
+import javax.swing.Timer;
 
 import DCT.client.Card;
 import DCT.client.Client;
@@ -30,8 +58,9 @@ import DCT.client.ICardControls;
 
 public class ChatPanel extends JPanel {
     private static Logger logger = Logger.getLogger(ChatPanel.class.getName());
-    private JPanel chatArea = null;
+    JPanel chatArea = null;
     private UserListPanel userListPanel;
+    JPanel textArea;
 
     public ChatPanel(ICardControls controls) {
         super(new BorderLayout(10, 10));
@@ -55,6 +84,12 @@ public class ChatPanel extends JPanel {
         JTextField textValue = new JTextField();
         input.add(textValue);
         JButton button = new JButton("Send");
+
+
+
+
+
+
         // lets us submit with the enter key instead of just the button click
         textValue.addKeyListener(new KeyListener() {
 
@@ -157,7 +192,7 @@ public class ChatPanel extends JPanel {
     public void addText(String text) {
         JPanel content = chatArea;
         // add message
-        JEditorPane textContainer = new JEditorPane("text/plain", text);
+        JEditorPane textContainer = new JEditorPane("text/html", text);
 
         // sizes the panel to attempt to take up the width of the container
         // and expand in height based on word wrapping
@@ -172,5 +207,37 @@ public class ChatPanel extends JPanel {
         // scroll down on new message
         JScrollBar vertical = ((JScrollPane) chatArea.getParent().getParent()).getVerticalScrollBar();
         vertical.setValue(vertical.getMaximum());
+    
     }
+    
+    
+    
+
+
+    void exportCurrentChat() {
+        StringBuilder sb = new StringBuilder();
+        Component[] comps = textArea.getComponents();
+        for (Component c : comps) {
+            JEditorPane j = (JEditorPane) c;
+            if (j != null) {
+                // removes the HTML tags when writing to file
+                sb.append(j.getText().substring(44, j.getText().length() - 19) + System.lineSeparator());
+            }
+        }
+        // todo save file
+        try {
+            FileWriter export = new FileWriter("chat.txt");
+            BufferedWriter bw = new BufferedWriter(export);
+           bw.write("" + sb.toString()); // convert StringBuilder to string
+           bw.close();
+
+           
+       } catch (IOException e) {
+           // TODO Auto-generated catch block
+           e.printStackTrace();
+       }
+   }
+
+
+    
 }

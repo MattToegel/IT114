@@ -1,15 +1,34 @@
 package DCT.server;
 
+import java.awt.Component;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Random;
 import java.util.logging.Logger;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 
+import javax.swing.JEditorPane;
+import javax.swing.JFileChooser;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+
+import java.util.logging.Level;
+
+import DCT.client.views.ChatPanel;
 import DCT.common.Constants;
 
 public class Room implements AutoCloseable {
     // protected static Server server;// used to refer to accessible server
     // functions
+    JPanel textArea;
     private String name;
     protected List<ServerThread> clients = new ArrayList<ServerThread>();
     private boolean isRunning = false;
@@ -20,6 +39,12 @@ public class Room implements AutoCloseable {
     private final static String DISCONNECT = "disconnect";
     private final static String LOGOUT = "logout";
     private final static String LOGOFF = "logoff";
+    private final static String FLIP = "flip";
+    private final static String ROLL = "roll";
+    private final static String MUTE = "mute";
+    private final static String UNMUTE = "unmute";
+    private final static String PM = "@";
+    private final static String EXPORT = "export";
     private static Logger logger = Logger.getLogger(Room.class.getName());
 
     public Room(String name) {
@@ -95,6 +120,22 @@ public class Room implements AutoCloseable {
         }
     }
 
+    Random flipRoll = new Random();
+    
+     
+    protected synchronized void flip(ServerThread client) {
+    	int result = flipRoll.nextInt(2);
+    	String message;
+    	if(result == 0)
+    		message = " flipped heads";
+    	else 
+    		message = " flipped tails";
+    	sendMessage(client, "<b><i><font color=gray>" + message + "</font></i></b>");
+    }
+    
+
+    
+
     /***
      * Helper function to process messages to trigger different functionality.
      * 
@@ -106,8 +147,9 @@ public class Room implements AutoCloseable {
                 // change
     private boolean processCommands(String message, ServerThread client) {
         boolean wasCommand = false;
+        String response;
         try {
-            if (message.startsWith(COMMAND_TRIGGER)) {
+            if (message.startsWith(COMMAND_TRIGGER))  {
                 String[] comm = message.split(COMMAND_TRIGGER);
                 String part1 = comm[1];
                 String[] comm2 = part1.split(" ");
@@ -131,13 +173,321 @@ public class Room implements AutoCloseable {
                     default:
                         wasCommand = false;
                         break;
+                    case EXPORT:
+                    // export chat
+                    
+                    wasCommand = true;
+                    break;
+                    //added "flip" and "roll" as potential cases
+		case FLIP:
+        flip(client);
+        wasCommand = true;
+        break;
+    case ROLL:
+    String[] diceParts = comm2[1].split("d"); //splits the d for die rolled times and sides on die
+    if (diceParts.length != 2) {
+        System.out.print("Invalid format. Use 'roll #d#'.");
+    }
+
+    int numDice = Integer.parseInt(diceParts[0]);
+    int numSides = Integer.parseInt(diceParts[1]);
+
+    if (numDice <= 0 || numSides <= 0) {
+        System.out.print("Invalid dice parameters. Both numbers must be positive.");
+    }
+
+    // Simulate the dice roll!
+    int total = 0;
+    StringBuilder result = new StringBuilder();
+    for (int i = 0; i < numDice; i++) {
+        int roll = new Random().nextInt(numSides) + 1;
+        total += roll;
+     result.append(roll);
+        if (i < numDice - 1) {
+         result.append(", ");
+     }
+    }
+    response = "You got:" + String.format("rolled %dd%d and got %s (Total: %d)", numDice, numSides, result.toString(), total);
+    sendMessage(client, "<b><i><font color=purple>" + response + "</font></i></b>");
+    wasCommand = true;
+    break;
+      //added "mute" and "unmute" and potential cases
+    case MUTE: 
+        String[] muted = comm2[1].split(", ");
+	    	List<String> muteList = new ArrayList<String>();
+	    	// can mute multiple clients separated by comma jad237 1214
+	    	for (String user : muted) {
+	    		if (!client.isMuted(user)) {
+		    		client.mute(user);
+		    		muteList.add(user);
+                
+
+		    	}
+
+	    	}
+	    	sendPrivateMessage(client, client.getClientName() + " muted you", muteList);
+	   
+	    	wasCommand = true;
+	    	break;
+    case UNMUTE:
+        String[] unmuted = comm2[1].split(", ");
+        List<String> unmuteList = new ArrayList<String>();
+        // can unmute multiple clients separated by comma
+        for (String user : unmuted) {
+            if (client.isMuted(user)) {
+                client.unmute(user);
+                unmuteList.add(user);
+            }
+        }
+        sendPrivateMessage(client, client.getClientName()+ " unmuted you", unmuteList);
+        
+        wasCommand = true;
+        break;
+    }
+    } 
+    // private message functionality jad237 1214
+    // message will be sent to user specified with an "@" 
+    else if (message.indexOf("@") > -1) {
+        String command = "";
+        String[] comm = message.split("@", 2);
+
+        String part1 = comm[1];
+        String[] comm2 = part1.split(" @");
+        List<String> users = new ArrayList<String>();
+            // get list of intended users 
+        for (String user : comm2) {
+            if(!user.equals(comm2[comm2.length-1])) {
+                users.add(user.toLowerCase());
+            }
+            else {	// get message
+                String[] pm = user.split(" ", 2);
+                String last = pm[0];
+                users.add(last.toLowerCase());
+                command = pm[1];
+            }
+        }
+        users.add(client.getClientName());
+        sendPrivateMessage(client, "<b> /pm </b> " + command, users);
+
+        wasCommand = true;
+    }
+    // change text functionality
+    else {
+        String command = message;
+        //BOLD
+        //makes sure there is at least one pair of "bold" symbols i.e *bold*
+        if (command.matches("(.*)\\*(.+)\\*(.*)")) {
+            int count = 0;
+            String changeText = "";
+        ArrayList<String> tags = new ArrayList<String>();
+        for (int i = 0; i < command.length(); i++) {
+            if (Character.toString(command.charAt(i)).equals("*")) {
+                count++;
+                if (count %2 != 0) {
+                    tags.add("<b>");
+                }
+                else {
+                    tags.add("</b>");
+                }
+                
+            }
+        }
+        String [] bold = command.split("\\*");
+        
+        //accounts for "***" as a potential text option
+        if (bold.length == 0) {
+            changeText += "<b>*</b>";
+                    if (command.length() > 3)
+                changeText += command.substring(3);
+            
+        }
+        for (int i = 0; i < bold.length; i++) {
+            
+            // accounts for odd number of "*"
+            //  and also two "*" in a row
+            if (tags.size() == 1 && tags.get(tags.size()-1).contains("<b>") || (bold[i].equals("") && (bold[i+1].equals("")))) {
+                changeText += bold[i] + "*";
+                tags.remove(0);
+            }
+            // convet "**" pairs to "<b></b>"
+            else if (tags.size() > 1 || (tags.size() == 1 && tags.get(tags.size()-1).contains("</b>")) ){
+                changeText += bold[i] + tags.get(0);
+                tags.remove(0);
+            }
+            else changeText += bold[i];
+            }
+        wasCommand = true;
+        
+        // makes it so that conditions stack; 
+        // can have more than one type of function applied on the same line
+        if (changeText != "") {
+            command = changeText;
+        }
+    }
+        // ITALICS
+        // same logic as bold
+        if (command.matches("(.*)_(.+)_(.*)")) {
+            int count = 0;
+            String changeText = "";
+            ArrayList<String> tags = new ArrayList<String>();
+            for (int i = 0; i < command.length(); i++) {
+                if (Character.toString(command.charAt(i)).equals("_")) {
+                    count++;
+                    if (count %2 != 0) {
+                        tags.add("<i>");
+                    }
+                    else {
+                        tags.add("</i>");
+                    }
                 }
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return wasCommand;
+            String [] italics = command.split("_");
+            if (italics.length == 0) {
+                changeText += "<i>_</i>";
+                        if (command.length() > 3)
+                    changeText += command.substring(3);
+                
+            }
+            for (int i = 0; i < italics.length; i++) {
+                if (tags.size() == 1 && tags.get(tags.size()-1).contains("<i>") || (italics[i].equals("") && (italics[i+1].equals("")))) {
+                    changeText += italics[i] + "_";
+                    tags.remove(0);
+                }
+                else if (tags.size() > 1 || (tags.size() == 1 && tags.get(tags.size()-1).contains("</i>")) ){ //if (i % 2 == 0) {
+                    changeText += italics[i] + tags.get(0);
+                    tags.remove(0);
+                }
+                else changeText += italics[i];
+                }
+            wasCommand = true;
+            if (changeText != "") {
+                command = changeText;
+            }
     }
+        // UNDERLINE
+        // same logic as bold
+        if (command.matches("(.*)~(.+)~(.*)")) {
+            int count = 0;
+            String changeText = "";
+            ArrayList<String> tags = new ArrayList<String>();
+            for (int i = 0; i < command.length(); i++) {
+                if (Character.toString(command.charAt(i)).equals("~")) {
+                    count++;
+                    if (count %2 != 0) {
+                        tags.add("<u>");
+                    }
+                    else {
+                        tags.add("</u>");
+                    }
+                    
+                }
+            }
+            String [] underline = command.split("~");
+            if (underline.length == 0) {
+                changeText += "<b>~</b>";
+                        if (command.length() > 3)
+                    changeText += command.substring(3);
+                
+            }			
+            for (int i = 0; i < underline.length; i++) {
+                if (tags.size() == 1 && tags.get(tags.size()-1).contains("<u>") || (underline[i].equals("") && (underline[i+1].equals("")))) {
+                    changeText += underline[i] + "~";
+                    tags.remove(0);
+                }
+                else if (tags.size() > 1 || (tags.size() == 1 && tags.get(tags.size()-1).contains("</i>")) ){ //if (i % 2 == 0) {
+                    changeText += underline[i] + tags.get(0);
+                    tags.remove(0);
+                }
+                else changeText += underline[i];
+                }
+            wasCommand = true;
+            if (changeText != "") {
+                command = changeText;
+            }
+    }
+
+     // COLOR
+     // change color by declaring a color between two pound signs
+        // e.x #red# this text would be red
+        // to change back to black/default type '##'
+        // color will stay black if declared color does not exist 
+            //e.x #null# this will stay black
+        if (command.matches("(.*)#(.+)#(.*)")) {
+            String changeText = "";
+            String colorString = "black";;
+            String [] color = command.split("#", -1);
+            System.out.println(Arrays.toString(color));
+            if (color.length == 0) {
+                changeText += command;	
+            }	
+                for (int i = 0; i < color.length; i++) {
+                    
+                    if (i % 2 != 0 && (!color[i].contains(" "))){
+                        // accounts for odd number of #
+                        if (i == color.length-1) {
+                            changeText += "#" + color[i];
+                        }
+                        else { 
+                            //if text is between two pound signs declare that as color variable
+                            colorString = color[i];
+                            if (colorString.equals("")) { colorString = "black"; }
+                        }
+                    }
+                    // will not work if whitespace between pound signs i.e. # #
+                    else if (i % 2 != 0 && (color[i].contains(" "))){
+                        changeText += "#" + color[i] + "#";
+                    }
+                    // append message
+                    else { 
+                        changeText += "<font color="+colorString+">" + color[i] + "</font>";
+                        colorString="black";
+                    }
+                }
+            wasCommand = true;
+            if (changeText != "") {
+                command = changeText;
+            }
+            
+        }
+   
+        if (wasCommand == true) {
+            sendMessage(client, command);
+    }
+
+    }
+}
+//catch (EOFException e) {
+       // ... this is fine
+//	}
+catch (Exception e) {
+    e.printStackTrace();
+}
+return wasCommand;
+}
+
+protected void sendPrivateMessage(ServerThread sender, String message, List<String> users) {
+        logger.log(Level.INFO, getName() + ": Sending message to " + users.size() + " clients");
+        if (processCommands(message, sender)) {
+            // it was a command, don't broadcast
+            return;
+        }
+        Iterator<ServerThread> iter = clients.iterator();
+        while (iter.hasNext()) {
+            ServerThread client = iter.next();
+                // send message if sender not muted
+            if(users.contains(client.getClientName().toLowerCase())) {
+                if (!client.isMuted(sender.getClientName())){
+                    boolean messageSent = client.send(sender.getClientName(), message);
+                    if (!messageSent) {
+                        iter.remove();
+                    }
+                }
+            }
+        }
+        }
+
+
+
 
     // Command helper methods
     protected static void getRooms(String query, ServerThread client) {

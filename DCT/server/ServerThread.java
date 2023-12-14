@@ -1,10 +1,17 @@
 package DCT.server;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Scanner;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -28,11 +35,91 @@ public class ServerThread extends Thread {
     private boolean isRunning = false;
     private ObjectOutputStream out;// exposed here for send()
     // private Server server;// ref to our server so we can call methods on it
-    // more easily
+    // more easily jad237 1214
     private Room currentRoom;
     private static Logger logger = Logger.getLogger(ServerThread.class.getName());
     private long myClientId;
+    List<String> mutedClients = new ArrayList<String>();
 
+    public void mute(String name) {
+     	name = name.trim().toLowerCase();
+     	if (!isMuted(name)) {
+     		mutedClients.add(name);
+     		saveMuteList();
+     		syncIsMuted(name, true);
+     	}
+     }
+     
+     //unmutes clients on call
+  	public void unmute(String name) {
+  		name = name.trim().toLowerCase();
+     	if (isMuted(name)) {
+     		System.out.println("ok");
+     		mutedClients.remove(name);
+     		System.out.println("yessir");
+     		saveMuteList();
+     		syncIsMuted(name, false);
+     	}
+  
+     }
+  	
+  	//checks to see if client is muted
+    public boolean isMuted(String name) {
+     	name = name.trim().toLowerCase();
+     	return mutedClients.contains(name);
+   	} 
+     
+    // overwrites client's mutedClients list to a file
+    void saveMuteList() {
+    	 String data = clientName + ": " + String.join(", ", mutedClients);
+    	 try {
+ 	 		FileWriter export = new FileWriter(clientName + ".txt");
+ 	 		BufferedWriter bw = new BufferedWriter(export);
+ 			bw.write("" + data); // convert StringBuilder to string
+ 			bw.close();
+ 		} catch (IOException e) {
+ 			// TODO Auto-generated catch block
+ 			e.printStackTrace();
+ 		}
+    }
+
+    // loads client's mutedClients list on reconnect jad237 1214
+   void loadMuteList() {
+	   	 File file = new File(clientName + ".txt");
+	   	 if (file.exists()) {
+		   	 try (Scanner reader = new Scanner(file)) {
+		   		String dataFromFile = "";
+		   		while (reader.hasNextLine()) {
+			   		 String text = reader.nextLine();
+			   		 dataFromFile += text;
+		   		}
+		   		dataFromFile = dataFromFile.substring(dataFromFile.indexOf(" ")+1);;
+		   		if (!dataFromFile.strip().equals("") && !dataFromFile.isEmpty()) {
+		   			List<String> getClients = Arrays.asList(dataFromFile.split(", "));
+		   	    	for (String client : getClients) {
+		   	    	    mute(client);
+		   	    	    System.out.println("sync");
+		   	    	}
+		   		}
+		   	 }
+		   	catch (FileNotFoundException e) {
+				e.printStackTrace();
+			} catch (Exception e2) {
+				e2.printStackTrace();
+			}
+	   	 }
+	   	 System.out.println(mutedClients.toString());
+    }
+	   	 
+   // sends client mute or unmute to clientside through payload jad237 1214
+   	protected boolean syncIsMuted(String clientName, boolean isMuted) {
+		Payload p = new Payload();
+		p.setPayloadType(PayloadType.MUTE);
+		p.setClientName(clientName);
+		p.setFlag(isMuted);
+		return sendPayload(p);
+    }
+  
     public void setClientId(long id) {
         myClientId = id;
     }
@@ -44,6 +131,36 @@ public class ServerThread extends Thread {
     public boolean isRunning() {
         return isRunning;
     }
+    protected boolean send(String message) {
+        // added a boolean so we can see if the send was successful
+        try {
+            out.writeObject(message);
+            return true;
+        }
+        catch (IOException e) {
+            logger.log(Level.INFO, "Error sending message to client (most likely disconnected)");
+            e.printStackTrace();
+            cleanup();
+            return false;
+        }
+       }
+   
+        /***
+         * Replacement for send(message) that takes the client name and message and
+         * converts it into a payload
+         * 
+         * @param clientName
+         * @param message
+         * @return
+         */
+       protected boolean send(String clientName, String message) {
+        Payload payload = new Payload();
+        payload.setPayloadType(PayloadType.MESSAGE);
+        payload.setClientName(clientName);
+        payload.setMessage(message);
+   
+        return sendPayload(payload);
+       }
 
     public ServerThread(Socket myClient, Room room) {
         logger.info("ServerThread created");
@@ -52,6 +169,18 @@ public class ServerThread extends Thread {
         this.currentRoom = room;
 
     }
+    private boolean sendPayload(Payload p) {
+        try {
+            out.writeObject(p);
+            return true;
+        }
+        catch (IOException e) {
+            logger.log(Level.INFO, "Error sending message to client (most likely disconnected)");
+            e.printStackTrace();
+            cleanup();
+            return false;
+        }
+       }
 
     protected void setClientName(String name) {
         if (name == null || name.isBlank()) {
