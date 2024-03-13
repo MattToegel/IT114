@@ -3,11 +3,16 @@ package Project.Client;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.lang.constant.Constable;
 import java.net.Socket;
 import java.net.UnknownHostException;
+
 import java.util.List;
 import java.util.Scanner;
+import java.util.concurrent.ConcurrentHashMap;
 
+import Project.Common.ConnectionPayload;
+import Project.Common.Constants;
 import Project.Common.Payload;
 import Project.Common.PayloadType;
 import Project.Common.RoomResultsPayload;
@@ -30,6 +35,11 @@ public enum Client {
     private static final String CREATE_ROOM = "/createroom";
     private static final String JOIN_ROOM = "/joinroom";
     private static final String LIST_ROOMS = "/listrooms";
+    private static final String LIST_USERS = "/users";
+
+    // client id, is the key, client name is the value
+    private ConcurrentHashMap<Long, String> clientsInRoom = new ConcurrentHashMap<Long, String>();
+    private long myClientId = Constants.DEFAULT_CLIENT_ID;
 
     public boolean isConnected() {
         if (server == null) {
@@ -140,6 +150,7 @@ public enum Client {
             } catch (IOException e) {
                 e.printStackTrace();
             }
+            return true;
         } else if (text.startsWith(JOIN_ROOM)) {
 
             try {
@@ -148,6 +159,7 @@ public enum Client {
             } catch (IOException e) {
                 e.printStackTrace();
             }
+            return true;
         } else if (text.startsWith(LIST_ROOMS)) {
 
             try {
@@ -156,6 +168,13 @@ public enum Client {
             } catch (IOException e) {
                 e.printStackTrace();
             }
+            return true;
+        } else if (text.equalsIgnoreCase(LIST_USERS)) {
+            System.out.println("Users in Room: ");
+            clientsInRoom.forEach(((t, u) -> {
+                System.out.println(String.format("%s - %s", t, u));
+            }));
+            return true;
         }
         return false;
     }
@@ -183,8 +202,8 @@ public enum Client {
     }
 
     private void sendConnect() throws IOException {
-        Payload p = new Payload();
-        p.setPayloadType(PayloadType.CONNECT);
+        ConnectionPayload p = new ConnectionPayload(true);
+
         p.setClientName(clientName);
         out.writeObject(p);
     }
@@ -193,7 +212,8 @@ public enum Client {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.MESSAGE);
         p.setMessage(message);
-        p.setClientName(clientName);
+        // no need to send an identifier, because the server knows who we are
+        // p.setClientName(clientName);
         out.writeObject(p);
     }
 
@@ -268,6 +288,27 @@ public enum Client {
         fromServerThread.start();// start the thread
     }
 
+    private void addClientReference(long id, String name) {
+        if (!clientsInRoom.containsKey(id)) {
+            clientsInRoom.put(id, name);
+        }
+    }
+
+    private void removeClientReference(long id) {
+        if (clientsInRoom.containsKey(id)) {
+            clientsInRoom.remove(id);
+        }
+    }
+
+    private String getClientNameFromId(long id) {
+        if (clientsInRoom.containsKey(id)) {
+            return clientsInRoom.get(id);
+        }
+        if (id == Constants.DEFAULT_CLIENT_ID) {
+            return "[Room]";
+        }
+        return "[name not found]";
+    }
     /**
      * Used to process payloads from the server-side and handle their data
      * 
@@ -276,16 +317,38 @@ public enum Client {
     private void processPayload(Payload p) {
         String message;
         switch (p.getPayloadType()) {
+            case CLIENT_ID:
+                if (myClientId == Constants.DEFAULT_CLIENT_ID) {
+                    myClientId = p.getClientId();
+                    addClientReference(myClientId, ((ConnectionPayload) p).getClientName());
+                    System.out.println(TextFX.colorize("My Client Id is " + myClientId, Color.GREEN));
+                } else {
+                    System.out.println(TextFX.colorize("Setting client id to default", Color.RED));
+                }
+                break;
             case CONNECT:// for now connect,disconnect are all the same
             case DISCONNECT:
+                ConnectionPayload cp = (ConnectionPayload) p;
                 message = TextFX.colorize(String.format("*%s %s*",
-                        p.getClientName(),
-                        p.getMessage()), Color.YELLOW);
+                        cp.getClientName(),
+                        cp.getMessage()), Color.YELLOW);
                 System.out.println(message);
+            case SYNC_CLIENT:
+                ConnectionPayload cp2 = (ConnectionPayload) p;
+                if (cp2.getPayloadType() == PayloadType.CONNECT || cp2.getPayloadType() == PayloadType.SYNC_CLIENT) {
+                    addClientReference(cp2.getClientId(), cp2.getClientName());
+                } else if (cp2.getPayloadType() == PayloadType.DISCONNECT) {
+                    removeClientReference(cp2.getClientId());
+                }
+
+                break;
+            case JOIN_ROOM:
+                clientsInRoom.clear();// we changed a room so likely need to clear the list
                 break;
             case MESSAGE:
+
                 message = TextFX.colorize(String.format("%s: %s",
-                        p.getClientName(),
+                        getClientNameFromId(p.getClientId()),
                         p.getMessage()), Color.BLUE);
                 System.out.println(message);
                 break;

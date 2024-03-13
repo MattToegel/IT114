@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import Project.Common.Constants;
+
 public class Room implements AutoCloseable {
     // protected static Server server;// used to refer to accessible server
     // functions
@@ -12,8 +14,8 @@ public class Room implements AutoCloseable {
     private boolean isRunning = false;
     // Commands
     private final static String COMMAND_TRIGGER = "/";
-    private final static String CREATE_ROOM = "createroom";
-    private final static String JOIN_ROOM = "joinroom";
+    // private final static String CREATE_ROOM = "createroom";
+    // private final static String JOIN_ROOM = "joinroom";
     private final static String DISCONNECT = "disconnect";
     private final static String LOGOUT = "logout";
     private final static String LOGOFF = "logoff";
@@ -36,29 +38,17 @@ public class Room implements AutoCloseable {
             return;
         }
         client.setCurrentRoom(this);
+        client.sendJoinRoom(getName());// clear first
         if (clients.indexOf(client) > -1) {
             info("Attempting to add a client that already exists");
         } else {
             clients.add(client);
-
-            new Thread() {
-                @Override
-                public void run() {
-                    // slight delay to let potentially new client to finish
-                    // binding input/output streams
-                    // comment out the Thread.sleep to see what happens
-                    try {
-                        Thread.sleep(100);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                    // sendMessage(client, "joined the room " + getName());
-                    client.sendMessage(client.getClientName(), String.format("Joined room %s", name));
-                    sendConnectionStatus(client, true);
-                }
-            }.start();
-
+            // connect status second
+            sendConnectionStatus(client, true);
+            syncClientList(client);
         }
+
+
     }
 
     protected synchronized void removeClient(ServerThread client) {
@@ -81,7 +71,7 @@ public class Room implements AutoCloseable {
      */
     private void checkClients() {
         // Cleanup if room is empty and not lobby
-        if (!name.equalsIgnoreCase("lobby") && clients.size() == 0) {
+        if (!name.equalsIgnoreCase(Constants.LOBBY) && clients.size() == 0) {
             close();
         }
     }
@@ -101,7 +91,7 @@ public class Room implements AutoCloseable {
                 String part1 = comm[1];
                 String[] comm2 = part1.split(" ");
                 String command = comm2[0];
-                String roomName;
+                // String roomName;
                 wasCommand = true;
                 switch (command) {
                     /*
@@ -132,18 +122,27 @@ public class Room implements AutoCloseable {
     }
 
     // Command helper methods
+    private synchronized void syncClientList(ServerThread joiner) {
+        Iterator<ServerThread> iter = clients.iterator();
+        while (iter.hasNext()) {
+            ServerThread st = iter.next();
+            if (st.getClientId() != joiner.getClientId()) {
+                joiner.sendClientMapping(st.getClientId(), st.getClientName());
+            }
+        }
+    }
     protected static void createRoom(String roomName, ServerThread client) {
         if (Server.INSTANCE.createNewRoom(roomName)) {
             // server.joinRoom(roomName, client);
             Room.joinRoom(roomName, client);
         } else {
-            client.sendMessage("Server", String.format("Room %s already exists", roomName));
+            client.sendMessage(Constants.DEFAULT_CLIENT_ID, String.format("Room %s already exists", roomName));
         }
     }
 
     protected static void joinRoom(String roomName, ServerThread client) {
         if (!Server.INSTANCE.joinRoom(roomName, client)) {
-            client.sendMessage("Server", String.format("Room %s doesn't exist", roomName));
+            client.sendMessage(Constants.DEFAULT_CLIENT_ID, String.format("Room %s doesn't exist", roomName));
         }
     }
 
@@ -176,7 +175,8 @@ public class Room implements AutoCloseable {
             return;
         }
 
-        String from = (sender == null ? "Room" : sender.getClientName());
+        /// String from = (sender == null ? "Room" : sender.getClientName());
+        long from = (sender == null) ? Constants.DEFAULT_CLIENT_ID : sender.getClientId();
         Iterator<ServerThread> iter = clients.iterator();
         while (iter.hasNext()) {
             ServerThread client = iter.next();
@@ -191,7 +191,8 @@ public class Room implements AutoCloseable {
         Iterator<ServerThread> iter = clients.iterator();
         while (iter.hasNext()) {
             ServerThread client = iter.next();
-            boolean messageSent = client.sendConnectionStatus(sender.getClientName(), isConnected);
+            boolean messageSent = client.sendConnectionStatus(sender.getClientId(), sender.getClientName(),
+                    isConnected);
             if (!messageSent) {
                 handleDisconnect(iter, client);
             }

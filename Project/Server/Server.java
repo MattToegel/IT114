@@ -5,38 +5,42 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.Queue;
+
+import Project.Common.Constants;
+import Project.Common.TextFX;
+import Project.Common.TextFX.Color;
+
 import java.util.List;
 
 public enum Server {
     INSTANCE;
 
     int port = 3001;
-    // connected clients
-    // private List<ServerThread> clients = new ArrayList<ServerThread>();
     private List<Room> rooms = new ArrayList<Room>();
     private Room lobby = null;// default room
-
+    private Queue<ServerThread> incomingClients = new LinkedList<ServerThread>();
+    private boolean isRunning = true;
+    private long nextClientId = 1;// <-- uniquely identifies clients (could use a UUID but we're keeping it basic)
     private void start(int port) {
         this.port = port;
         // server listening
         try (ServerSocket serverSocket = new ServerSocket(port);) {
             Socket incoming_client = null;
             System.out.println("Server is listening on port " + port);
-            // Reference server statically
-            // Updated to using a Single pattern for Server (and Client)
-            // Room.server = this;// all rooms will have the same reference
+            startQueueManager();
             // create a lobby on start
-            lobby = new Room("Lobby");
+            lobby = new Room(Constants.LOBBY);
             rooms.add(lobby);
             do {
                 System.out.println("waiting for next client");
                 if (incoming_client != null) {
                     System.out.println("Client connected");
-                    ServerThread sClient = new ServerThread(incoming_client);// , lobby);
-                    lobby.addClient(sClient);
-                    sClient.start();
+                    ServerThread sClient = new ServerThread(incoming_client);
 
-                    // joinRoom("lobby", sClient);
+                    sClient.start();
+                    incomingClients.add(sClient);
                     incoming_client = null;
 
                 }
@@ -49,6 +53,40 @@ public enum Server {
         }
     }
 
+    private void startQueueManager() {
+        System.out.println(TextFX.colorize("Starting queue manager", Color.PURPLE));
+        new Thread() {
+            @Override
+            public void run() {
+                while (isRunning) {
+                    try {
+                        Thread.sleep(10);
+                    } catch (Exception e) {
+                        System.err.println("Some thread problem");
+                        e.printStackTrace();
+                    }
+                    if (incomingClients.size() > 0) {
+                        ServerThread incomingClient = incomingClients.peek();
+                        if (incomingClient.isRunning() && incomingClient.getClientName() != null) {
+                            handleIncomingClient(incomingClient);
+                            incomingClients.poll();// <-- remove the handled client
+                        }
+                    }
+                }
+                System.out.println(TextFX.colorize("Terminating queue manager", Color.PURPLE));
+            }
+        }.start();
+    }
+
+    private void handleIncomingClient(ServerThread incomingClient) {
+        incomingClient.setClientId(nextClientId);
+        // incomingClient.sendClientId(nextClientId);
+        nextClientId++;
+        if (nextClientId < 0) {
+            nextClientId = 1; // <-- by some lucky chance it overflows, restart the count
+        }
+        joinRoom(Constants.LOBBY, incomingClient);
+    }
     /***
      * Helper function to check if room exists by case insensitive name
      * 
@@ -73,7 +111,7 @@ public enum Server {
      * @return true if reassign worked; false if new room doesn't exist
      */
     protected synchronized boolean joinRoom(String roomName, ServerThread client) {
-        Room newRoom = roomName.equalsIgnoreCase("lobby") ? lobby : getRoom(roomName);
+        Room newRoom = roomName.equalsIgnoreCase(Constants.LOBBY) ? lobby : getRoom(roomName);
         Room oldRoom = client.getCurrentRoom();
         if (newRoom != null) {
             if (oldRoom != null) {
@@ -84,7 +122,7 @@ public enum Server {
             newRoom.addClient(client);
             return true;
         } else {
-            client.sendMessage("Server",
+            client.sendMessage(Constants.DEFAULT_CLIENT_ID,
                     String.format("Room %s wasn't found, please try another", roomName));
         }
         return false;
