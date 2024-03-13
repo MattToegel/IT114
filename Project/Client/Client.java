@@ -1,13 +1,21 @@
-package Project;
+package Project.Client;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.List;
 import java.util.Scanner;
 
-public class Client {
+import Project.Common.Payload;
+import Project.Common.PayloadType;
+import Project.Common.RoomResultsPayload;
+import Project.Common.TextFX;
+import Project.Common.TextFX.Color;
+
+public enum Client {
+    INSTANCE;
 
     Socket server = null;
     ObjectOutputStream out = null;
@@ -19,9 +27,9 @@ public class Client {
     private Thread fromServerThread;
     private String clientName = "";
 
-    public Client() {
-        System.out.println("");
-    }
+    private static final String CREATE_ROOM = "/createroom";
+    private static final String JOIN_ROOM = "/joinroom";
+    private static final String LIST_ROOMS = "/listrooms";
 
     public boolean isConnected() {
         if (server == null) {
@@ -107,7 +115,7 @@ public class Client {
      * @param text
      * @return true if a text was a command or triggered a command
      */
-    private boolean processCommand(String text) {
+    private boolean processClientCommand(String text) {
         if (isConnection(text)) {
             if (clientName.isBlank()) {
                 System.out.println("You must set your name before you can connect via: /name your_name");
@@ -124,11 +132,56 @@ public class Client {
             return true;
         } else if (isName(text)) {
             return true;
+        } else if (text.startsWith(CREATE_ROOM)) {
+
+            try {
+                String roomName = text.replace(CREATE_ROOM, "").trim();
+                sendCreateRoom(roomName);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        } else if (text.startsWith(JOIN_ROOM)) {
+
+            try {
+                String roomName = text.replace(JOIN_ROOM, "").trim();
+                sendJoinRoom(roomName);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        } else if (text.startsWith(LIST_ROOMS)) {
+
+            try {
+                String searchQuery = text.replace(LIST_ROOMS, "").trim();
+                sendListRooms(searchQuery);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
         return false;
     }
 
     // Send methods
+    private void sendCreateRoom(String roomName) throws IOException {
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.CREATE_ROOM);
+        p.setMessage(roomName);
+        out.writeObject(p);
+    }
+
+    private void sendJoinRoom(String roomName) throws IOException {
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.JOIN_ROOM);
+        p.setMessage(roomName);
+        out.writeObject(p);
+    }
+
+    private void sendListRooms(String searchString) throws IOException {
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.LIST_ROOMS);
+        p.setMessage(searchString);
+        out.writeObject(p);
+    }
+
     private void sendConnect() throws IOException {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.CONNECT);
@@ -157,7 +210,7 @@ public class Client {
                         try {
                             System.out.println("Waiting for input");
                             line = si.nextLine();
-                            if (!processCommand(line)) {
+                            if (!processClientCommand(line)) {
                                 if (isConnected()) {
                                     if (line != null && line.trim().length() > 0) {
                                         sendMessage(line);
@@ -195,7 +248,7 @@ public class Client {
                             && (fromServer = (Payload) in.readObject()) != null) {
 
                         System.out.println("Debug Info: " + fromServer);
-                        processMessage(fromServer);
+                        processPayload(fromServer);
 
                     }
                     System.out.println("Loop exited");
@@ -215,18 +268,45 @@ public class Client {
         fromServerThread.start();// start the thread
     }
 
-    private void processMessage(Payload p) {
+    /**
+     * Used to process payloads from the server-side and handle their data
+     * 
+     * @param p
+     */
+    private void processPayload(Payload p) {
+        String message;
         switch (p.getPayloadType()) {
             case CONNECT:// for now connect,disconnect are all the same
             case DISCONNECT:
-                System.out.println(String.format("*%s %s*",
+                message = TextFX.colorize(String.format("*%s %s*",
                         p.getClientName(),
-                        p.getMessage()));
+                        p.getMessage()), Color.YELLOW);
+                System.out.println(message);
                 break;
             case MESSAGE:
-                System.out.println(String.format("%s: %s",
+                message = TextFX.colorize(String.format("%s: %s",
                         p.getClientName(),
-                        p.getMessage()));
+                        p.getMessage()), Color.BLUE);
+                System.out.println(message);
+                break;
+            case LIST_ROOMS:
+                try {
+                    RoomResultsPayload rp = (RoomResultsPayload) p;
+                    // if there's a message, print it
+                    if (rp.getMessage() != null && !rp.getMessage().isBlank()) {
+                        message = TextFX.colorize(rp.getMessage(), Color.RED);
+                        System.out.println(message);
+                    }
+                    // print room names found
+                    List<String> rooms = rp.getRooms();
+                    System.out.println(TextFX.colorize("Room Results", Color.CYAN));
+                    for (int i = 0; i < rooms.size(); i++) {
+                        String msg = String.format("%s %s", (i + 1), rooms.get(i));
+                        System.out.println(TextFX.colorize(msg, Color.CYAN));
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
                 break;
             default:
                 break;
@@ -279,7 +359,7 @@ public class Client {
     }
 
     public static void main(String[] args) {
-        Client client = new Client();
+        Client client = Client.INSTANCE; // new Client();
 
         try {
             // if start is private, it's valid here since this main is part of the class

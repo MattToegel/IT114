@@ -1,9 +1,14 @@
-package Project;
+package Project.Server;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.util.List;
+
+import Project.Common.Payload;
+import Project.Common.PayloadType;
+import Project.Common.RoomResultsPayload;
 
 /**
  * A server-side representation of a single client
@@ -21,11 +26,11 @@ public class ServerThread extends Thread {
         System.out.println(String.format("Thread[%s]: %s", getClientName(), message));
     }
 
-    public ServerThread(Socket myClient, Room room) {
+    public ServerThread(Socket myClient/* , Room room */) {
         info("Thread created");
         // get communication channels to single client
         this.client = myClient;
-        this.currentRoom = room;
+        // this.currentRoom = room;
 
     }
 
@@ -60,6 +65,17 @@ public class ServerThread extends Thread {
     }
 
     // send methods
+    private boolean sendListRooms(List<String> potentialRooms) {
+        RoomResultsPayload rp = new RoomResultsPayload();
+        rp.setRooms(potentialRooms);
+        if (potentialRooms == null) {
+            rp.setMessage("Invalid limit, please choose a value between 1-100");
+        } else if (potentialRooms.size() == 0) {
+            rp.setMessage("No rooms found matching your search criteria");
+        }
+        return send(rp);
+    }
+
     public boolean sendMessage(String from, String message) {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.MESSAGE);
@@ -108,7 +124,7 @@ public class ServerThread extends Thread {
             ) {
 
                 info("Received from client: " + fromClient);
-                processMessage(fromClient);
+                processPayload(fromClient);
 
             } // close while loop
         } catch (Exception e) {
@@ -122,7 +138,12 @@ public class ServerThread extends Thread {
         }
     }
 
-    void processMessage(Payload p) {
+    /**
+     * Used to process payloads from the client and handle their data
+     * 
+     * @param p
+     */
+    private void processPayload(Payload p) {
         switch (p.getPayloadType()) {
             case CONNECT:
                 setClientName(p.getClientName());
@@ -136,6 +157,18 @@ public class ServerThread extends Thread {
                     // TODO migrate to lobby
                     Room.joinRoom("lobby", this);
                 }
+                break;
+            case CREATE_ROOM:
+                Room.createRoom(p.getMessage(), this);
+
+                break;
+            case JOIN_ROOM:
+                Room.joinRoom(p.getMessage(), this);
+                break;
+            case LIST_ROOMS:
+                String searchString = p.getMessage() == null ? "" : p.getMessage();
+                List<String> potentialRooms = Room.listRooms(searchString);
+                this.sendListRooms(potentialRooms);
                 break;
             default:
                 break;
