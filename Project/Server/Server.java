@@ -183,7 +183,11 @@ public enum Server {
             System.out.println(String.format("Room %s already exists", roomName));
             return false;
         } else {
-            Room room = new Room(roomName);
+            // Chatroom probably doesn't need gameroom and can just have this line
+            // uncommented instead
+            // Room room = new Room(roomName);
+            // other projects, any new room is a GameRoom
+            GameRoom room = new GameRoom(roomName);
             rooms.add(room);
             System.out.println("Created new room: " + roomName);
             return true;

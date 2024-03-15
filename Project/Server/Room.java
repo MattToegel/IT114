@@ -11,6 +11,7 @@ public class Room implements AutoCloseable {
     // functions
     private String name;
     private List<ServerThread> clients = new ArrayList<ServerThread>();
+
     private boolean isRunning = false;
     // Commands
     private final static String COMMAND_TRIGGER = "/";
@@ -122,6 +123,7 @@ public class Room implements AutoCloseable {
     }
 
     // Command helper methods
+    // TODO create setReady()
     private synchronized void syncClientList(ServerThread joiner) {
         Iterator<ServerThread> iter = clients.iterator();
         while (iter.hasNext()) {

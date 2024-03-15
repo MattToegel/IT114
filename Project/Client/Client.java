@@ -14,6 +14,8 @@ import Project.Common.ConnectionPayload;
 import Project.Common.Constants;
 import Project.Common.Payload;
 import Project.Common.PayloadType;
+import Project.Common.Phase;
+import Project.Common.ReadyPayload;
 import Project.Common.RoomResultsPayload;
 import Project.Common.TextFX;
 import Project.Common.TextFX.Color;
@@ -35,10 +37,14 @@ public enum Client {
     private static final String JOIN_ROOM = "/joinroom";
     private static final String LIST_ROOMS = "/listrooms";
     private static final String LIST_USERS = "/users";
+    private static final String READY_CHECK = "/ready";
 
     // client id, is the key, client name is the value
-    private ConcurrentHashMap<Long, String> clientsInRoom = new ConcurrentHashMap<Long, String>();
+    // private ConcurrentHashMap<Long, String> clientsInRoom = new
+    // ConcurrentHashMap<Long, String>();
+    private ConcurrentHashMap<Long, ClientPlayer> clientsInRoom = new ConcurrentHashMap<Long, ClientPlayer>();
     private long myClientId = Constants.DEFAULT_CLIENT_ID;
+    private Phase currentPhase = Phase.READY;
 
     public boolean isConnected() {
         if (server == null) {
@@ -171,14 +177,26 @@ public enum Client {
         } else if (text.equalsIgnoreCase(LIST_USERS)) {
             System.out.println("Users in Room: ");
             clientsInRoom.forEach(((t, u) -> {
-                System.out.println(String.format("%s - %s", t, u));
+                System.out.println(String.format("%s - %s [%s]", t, u.getClientName(), u.isReady()));
             }));
+            return true;
+        }
+        else if (text.equalsIgnoreCase(READY_CHECK)) {
+            try {
+                sendReadyCheck();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
             return true;
         }
         return false;
     }
 
     // Send methods
+    private void sendReadyCheck() throws IOException {
+        ReadyPayload rp = new ReadyPayload();
+        out.writeObject(rp);
+    }
     private void sendCreateRoom(String roomName) throws IOException {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.CREATE_ROOM);
@@ -289,7 +307,10 @@ public enum Client {
 
     private void addClientReference(long id, String name) {
         if (!clientsInRoom.containsKey(id)) {
-            clientsInRoom.put(id, name);
+            ClientPlayer cp = new ClientPlayer();
+            cp.setClientId(id);
+            cp.setClientName(name);
+            clientsInRoom.put(id, cp);
         }
     }
 
@@ -301,7 +322,7 @@ public enum Client {
 
     private String getClientNameFromId(long id) {
         if (clientsInRoom.containsKey(id)) {
-            return clientsInRoom.get(id);
+            return clientsInRoom.get(id).getClientName();
         }
         if (id == Constants.DEFAULT_CLIENT_ID) {
             return "[Room]";
@@ -367,6 +388,25 @@ public enum Client {
                         System.out.println(TextFX.colorize(msg, Color.CYAN));
                     }
                 } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                break;
+            case READY:
+                try {
+                    ReadyPayload rp = (ReadyPayload) p;
+                    if (clientsInRoom.containsKey(rp.getClientId())) {
+                        clientsInRoom.get(rp.getClientId()).setReady(rp.isReady());
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                break;
+            case PHASE:
+                try {
+                    currentPhase = Enum.valueOf(Phase.class, p.getMessage());
+                } catch (IllegalArgumentException e) {
+                    e.printStackTrace();
+                } catch (NullPointerException e) {
                     e.printStackTrace();
                 }
                 break;
