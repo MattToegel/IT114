@@ -104,7 +104,9 @@ public class GameRoom extends Room {
             System.err.println("Invalid phase called during start()");
             return;
         }
+        // initialization of game state
         changePhase(Phase.IN_PROGRESS);
+        // the session handles user interactions
         sendMessage(null, "Session started, have fun");
         new TimedEvent(30, () -> {
             sendMessage(null, "Session is over, redo ready check");
