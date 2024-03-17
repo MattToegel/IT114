@@ -3,6 +3,7 @@ package Project.Server;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.logging.Logger;
 
 import Project.Common.Constants;
 
@@ -17,9 +18,10 @@ public class Room implements AutoCloseable {
     private final static String COMMAND_TRIGGER = "/";
     // private final static String CREATE_ROOM = "createroom";
     // private final static String JOIN_ROOM = "joinroom";
-    private final static String DISCONNECT = "disconnect";
-    private final static String LOGOUT = "logout";
-    private final static String LOGOFF = "logoff";
+    // private final static String DISCONNECT = "disconnect";
+    // private final static String LOGOUT = "logout";
+    // private final static String LOGOFF = "logoff";
+    private Logger logger = Logger.getLogger(Room.class.getName());
 
     public Room(String name) {
         this.name = name;
@@ -27,7 +29,7 @@ public class Room implements AutoCloseable {
     }
 
     private void info(String message) {
-        System.out.println(String.format("Room[%s]: %s", name, message));
+        logger.info(String.format("Room[%s]: %s", name, message));
     }
 
     public String getName() {
@@ -105,11 +107,13 @@ public class Room implements AutoCloseable {
                      * Room.joinRoom(roomName, client);
                      * break;
                      */
-                    case DISCONNECT:
-                    case LOGOUT:
-                    case LOGOFF:
-                        Room.disconnectClient(client, this);
-                        break;
+                    /*
+                     * case DISCONNECT:
+                     * case LOGOUT:
+                     * case LOGOFF:
+                     * Room.disconnectClient(client, this);
+                     * break;
+                     */
                     default:
                         wasCommand = false;
                         break;
@@ -148,8 +152,8 @@ public class Room implements AutoCloseable {
         }
     }
 
-    protected static List<String> listRooms(String searchString) {
-        return Server.INSTANCE.listRooms(searchString);
+    protected static List<String> listRooms(String searchString, int limit) {
+        return Server.INSTANCE.listRooms(searchString, limit);
     }
 
     protected static void disconnectClient(ServerThread client, Room room) {
