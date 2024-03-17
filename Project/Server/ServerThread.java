@@ -5,6 +5,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.util.List;
+import java.util.logging.Logger;
 
 import Project.Common.ConnectionPayload;
 import Project.Common.Constants;
@@ -26,9 +27,10 @@ public class ServerThread extends Thread {
     // private Server server;// ref to our server so we can call methods on it
     // more easily
     private Room currentRoom;
+    private Logger logger = Logger.getLogger(ServerThread.class.getName());
 
     private void info(String message) {
-        System.out.println(String.format("Thread[%s]: %s", getClientName(), message));
+        logger.info(String.format("Thread[%s]: %s", getClientName(), message));
     }
 
     public ServerThread(Socket myClient/* , Room room */) {
@@ -42,7 +44,7 @@ public class ServerThread extends Thread {
     protected void setClientId(long id) {
         clientId = id;
         if (id == Constants.DEFAULT_CLIENT_ID) {
-            System.out.println(TextFX.colorize("Client id reset", Color.WHITE));
+            logger.info(TextFX.colorize("Client id reset", Color.WHITE));
         }
         sendClientId(id);
     }
@@ -52,7 +54,7 @@ public class ServerThread extends Thread {
     }
     protected void setClientName(String name) {
         if (name == null || name.isBlank()) {
-            System.err.println("Invalid client name being set");
+            logger.severe("Invalid client name being set");
             return;
         }
         clientName = name;
@@ -202,7 +204,10 @@ public class ServerThread extends Thread {
                 }
 
                 break;
-            case DISCONNECT:// TBD
+            case DISCONNECT:
+                if (currentRoom != null) {
+                    Room.disconnectClient(this, currentRoom);
+                }
                 break;
             case MESSAGE:
                 if (currentRoom != null) {
@@ -214,14 +219,20 @@ public class ServerThread extends Thread {
                 break;
             case CREATE_ROOM:
                 Room.createRoom(p.getMessage(), this);
-
                 break;
             case JOIN_ROOM:
                 Room.joinRoom(p.getMessage(), this);
                 break;
             case LIST_ROOMS:
                 String searchString = p.getMessage() == null ? "" : p.getMessage();
-                List<String> potentialRooms = Room.listRooms(searchString);
+                int limit = 10;
+                try {
+                    RoomResultsPayload rp = ((RoomResultsPayload) p);
+                    limit = rp.getLimit();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                List<String> potentialRooms = Room.listRooms(searchString, limit);
                 this.sendListRooms(potentialRooms);
                 break;
             default:
