@@ -127,7 +127,6 @@ public class Room implements AutoCloseable {
     }
 
     // Command helper methods
-    // TODO create setReady()
     private synchronized void syncClientList(ServerThread joiner) {
         Iterator<ServerThread> iter = clients.iterator();
         while (iter.hasNext()) {

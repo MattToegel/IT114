@@ -84,6 +84,11 @@ public class GameRoom extends Room {
                     start();
                 } else {
                     sendMessage(null, "Minimum players not met during ready check, please try again");
+                    // added after recording as I forgot to reset the ready check
+                    players.values().forEach(p -> {
+                        p.setReady(false);
+                        syncReadyState(p);
+                    });
                 }
                 readyCheckTimer.cancel();
                 readyCheckTimer = null;
