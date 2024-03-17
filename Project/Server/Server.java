@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Queue;
+import java.util.logging.Logger;
 
 import Project.Common.Constants;
 import Project.Common.TextFX;
@@ -23,20 +24,22 @@ public enum Server {
     private Queue<ServerThread> incomingClients = new LinkedList<ServerThread>();
     private boolean isRunning = true;
     private long nextClientId = 1;// <-- uniquely identifies clients (could use a UUID but we're keeping it basic)
+    private Logger logger = Logger.getLogger(Server.class.getName());
+
     private void start(int port) {
         this.port = port;
         // server listening
         try (ServerSocket serverSocket = new ServerSocket(port);) {
             Socket incoming_client = null;
-            System.out.println("Server is listening on port " + port);
+            logger.info("Server is listening on port " + port);
             startQueueManager();
             // create a lobby on start
             lobby = new Room(Constants.LOBBY);
             rooms.add(lobby);
             do {
-                System.out.println("waiting for next client");
+                logger.info("waiting for next client");
                 if (incoming_client != null) {
-                    System.out.println("Client connected");
+                    logger.info("Client connected");
                     ServerThread sClient = new ServerThread(incoming_client);
 
                     sClient.start();
@@ -46,15 +49,15 @@ public enum Server {
                 }
             } while ((incoming_client = serverSocket.accept()) != null);
         } catch (IOException e) {
-            System.err.println("Error accepting connection");
+            logger.severe("Error accepting connection");
             e.printStackTrace();
         } finally {
-            System.out.println("closing server socket");
+            logger.info("closing server socket");
         }
     }
 
     private void startQueueManager() {
-        System.out.println(TextFX.colorize("Starting queue manager", Color.PURPLE));
+        logger.info(TextFX.colorize("Starting queue manager", Color.PURPLE));
         new Thread() {
             @Override
             public void run() {
@@ -62,7 +65,7 @@ public enum Server {
                     try {
                         Thread.sleep(10);
                     } catch (Exception e) {
-                        System.err.println("Some thread problem");
+                        logger.severe("Some thread problem");
                         e.printStackTrace();
                     }
                     if (incomingClients.size() > 0) {
@@ -73,7 +76,7 @@ public enum Server {
                         }
                     }
                 }
-                System.out.println(TextFX.colorize("Terminating queue manager", Color.PURPLE));
+                logger.info(TextFX.colorize("Terminating queue manager", Color.PURPLE));
             }
         }.start();
     }
@@ -115,10 +118,10 @@ public enum Server {
         Room oldRoom = client.getCurrentRoom();
         if (newRoom != null) {
             if (oldRoom != null) {
-                System.out.println(client.getName() + " leaving room " + oldRoom.getName());
+                logger.info(client.getName() + " leaving room " + oldRoom.getName());
                 oldRoom.removeClient(client);
             }
-            System.out.println(client.getName() + " joining room " + newRoom.getName());
+            logger.info(client.getName() + " joining room " + newRoom.getName());
             newRoom.addClient(client);
             return true;
         } else {
@@ -154,7 +157,7 @@ public enum Server {
         Iterator<Room> iter = rooms.iterator();
         while (iter.hasNext()) {
             Room currentRoom = iter.next();
-            System.out.println("Checking Room " + currentRoom.getName());
+            logger.fine("Checking Room " + currentRoom.getName());
             // if we don't have a particular search, simply add the room
             if (searchString == null || searchString.isBlank()) {
                 matchedRooms.add(currentRoom.getName());
@@ -180,22 +183,32 @@ public enum Server {
     protected synchronized boolean createNewRoom(String roomName) {
         if (getRoom(roomName) != null) {
             // TODO can't create room
-            System.out.println(String.format("Room %s already exists", roomName));
+            logger.warning(String.format("Room %s already exists", roomName));
             return false;
         } else {
-            Room room = new Room(roomName);
+            // Chatroom probably doesn't need gameroom and can just have this line
+            // uncommented instead
+            // Room room = new Room(roomName);
+            // other projects, any new room is a GameRoom
+            GameRoom room = new GameRoom(roomName);
             rooms.add(room);
-            System.out.println("Created new room: " + roomName);
+            logger.info("Created new room: " + roomName);
             return true;
         }
     }
 
     protected synchronized void removeRoom(Room r) {
         if (rooms.removeIf(room -> room == r)) {
-            System.out.println("Removed empty room " + r.getName());
+            logger.info("Removed empty room " + r.getName());
         }
     }
 
+    /**
+     * This would be used for sending messages across Rooms (most of your logic will
+     * be in the Room class rather than here)
+     * 
+     * @param message
+     */
     protected synchronized void broadcast(String message) {
         if (processCommand(message)) {
 
@@ -212,13 +225,13 @@ public enum Server {
     }
 
     private boolean processCommand(String message) {
-        System.out.println("Checking command: " + message);
+        logger.info("Checking command: " + message);
         // TODO
         return false;
     }
 
     public static void main(String[] args) {
-        System.out.println("Starting Server");
+        Server.INSTANCE.logger.info("Starting Server");
         Server server = Server.INSTANCE;// new Server();
         int port = 3000;
         try {
@@ -228,6 +241,6 @@ public enum Server {
             // will default to the defined value prior to the try/catch
         }
         server.start(port);
-        System.out.println("Server Stopped");
+        Server.INSTANCE.logger.info("Server Stopped");
     }
 }

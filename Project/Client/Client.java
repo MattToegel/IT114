@@ -9,11 +9,14 @@ import java.net.UnknownHostException;
 import java.util.List;
 import java.util.Scanner;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Logger;
 
 import Project.Common.ConnectionPayload;
 import Project.Common.Constants;
 import Project.Common.Payload;
 import Project.Common.PayloadType;
+import Project.Common.Phase;
+import Project.Common.ReadyPayload;
 import Project.Common.RoomResultsPayload;
 import Project.Common.TextFX;
 import Project.Common.TextFX.Color;
@@ -35,10 +38,17 @@ public enum Client {
     private static final String JOIN_ROOM = "/joinroom";
     private static final String LIST_ROOMS = "/listrooms";
     private static final String LIST_USERS = "/users";
+    private static final String DISCONNECT = "/disconnect";
+    private static final String READY_CHECK = "/ready";
 
     // client id, is the key, client name is the value
-    private ConcurrentHashMap<Long, String> clientsInRoom = new ConcurrentHashMap<Long, String>();
+    // private ConcurrentHashMap<Long, String> clientsInRoom = new
+    // ConcurrentHashMap<Long, String>();
+    private ConcurrentHashMap<Long, ClientPlayer> clientsInRoom = new ConcurrentHashMap<Long, ClientPlayer>();
     private long myClientId = Constants.DEFAULT_CLIENT_ID;
+    private Logger logger = Logger.getLogger(Client.class.getName());
+    private Phase currentPhase = Phase.READY;
+
 
     public boolean isConnected() {
         if (server == null) {
@@ -66,7 +76,7 @@ public enum Client {
             out = new ObjectOutputStream(server.getOutputStream());
             // channel to listen to server
             in = new ObjectInputStream(server.getInputStream());
-            System.out.println("Client connected");
+            logger.info("Client connected");
             listenForServerMessage();
             sendConnect();
         } catch (UnknownHostException e) {
@@ -108,7 +118,7 @@ public enum Client {
             String[] parts = text.split(" ");
             if (parts.length >= 2) {
                 clientName = parts[1].trim();
-                System.out.println("Name set to " + clientName);
+                logger.info("Name set to " + clientName);
             }
             return true;
         }
@@ -127,7 +137,7 @@ public enum Client {
     private boolean processClientCommand(String text) {
         if (isConnection(text)) {
             if (clientName.isBlank()) {
-                System.out.println("You must set your name before you can connect via: /name your_name");
+                logger.warning("You must set your name before you can connect via: /name your_name");
                 return true;
             }
             // replaces multiple spaces with single space
@@ -169,16 +179,42 @@ public enum Client {
             }
             return true;
         } else if (text.equalsIgnoreCase(LIST_USERS)) {
-            System.out.println("Users in Room: ");
+            logger.info("Users in Room: ");
             clientsInRoom.forEach(((t, u) -> {
-                System.out.println(String.format("%s - %s", t, u));
+                logger.info(String.format("%s - %s", t, u));
             }));
+            return true;
+        }
+        else if (text.equalsIgnoreCase(DISCONNECT)) {
+            try {
+                sendDisconnect();
+            }
+            catch(Exception e){
+              e.printStackTrace(); 
+            }
+            return true;
+        }
+        else if (text.equalsIgnoreCase(READY_CHECK)) {
+            try {
+                sendReadyCheck();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
             return true;
         }
         return false;
     }
 
     // Send methods
+    private void sendReadyCheck() throws IOException {
+        ReadyPayload rp = new ReadyPayload();
+        out.writeObject(rp);
+    }
+    private void sendDisconnect() throws IOException {
+        ConnectionPayload cp = new ConnectionPayload();
+        cp.setPayloadType(PayloadType.DISCONNECT);
+        out.writeObject(cp);
+    }
     private void sendCreateRoom(String roomName) throws IOException {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.CREATE_ROOM);
@@ -194,9 +230,11 @@ public enum Client {
     }
 
     private void sendListRooms(String searchString) throws IOException {
-        Payload p = new Payload();
-        p.setPayloadType(PayloadType.LIST_ROOMS);
+        // Updated after video to use RoomResultsPayload so we can (later) use a limit
+        // value
+        RoomResultsPayload p = new RoomResultsPayload();
         p.setMessage(searchString);
+        p.setLimit(10);
         out.writeObject(p);
     }
 
@@ -221,13 +259,13 @@ public enum Client {
         inputThread = new Thread() {
             @Override
             public void run() {
-                System.out.println("Listening for input");
+                logger.info("Listening for input");
                 try (Scanner si = new Scanner(System.in);) {
                     String line = "";
                     isRunning = true;
                     while (isRunning) {
                         try {
-                            System.out.println("Waiting for input");
+                            logger.info("Waiting for input");
                             line = si.nextLine();
                             if (!processClientCommand(line)) {
                                 if (isConnected()) {
@@ -236,15 +274,15 @@ public enum Client {
                                     }
 
                                 } else {
-                                    System.out.println("Not connected to server");
+                                    logger.warning("Not connected to server");
                                 }
                             }
                         } catch (Exception e) {
-                            System.out.println("Connection dropped");
+                            logger.severe("Connection dropped");
                             break;
                         }
                     }
-                    System.out.println("Exited loop");
+                    logger.info("Exited loop");
                 } catch (Exception e) {
                     e.printStackTrace();
                 } finally {
@@ -266,21 +304,21 @@ public enum Client {
                     while (!server.isClosed() && !server.isInputShutdown()
                             && (fromServer = (Payload) in.readObject()) != null) {
 
-                        System.out.println("Debug Info: " + fromServer);
+                        logger.info("Debug Info: " + fromServer);
                         processPayload(fromServer);
 
                     }
-                    System.out.println("Loop exited");
+                    logger.info("Loop exited");
                 } catch (Exception e) {
                     e.printStackTrace();
                     if (!server.isClosed()) {
-                        System.out.println("Server closed connection");
+                        logger.severe("Server closed connection");
                     } else {
-                        System.out.println("Connection closed");
+                        logger.severe("Connection closed");
                     }
                 } finally {
                     close();
-                    System.out.println("Stopped listening to server input");
+                    logger.info("Stopped listening to server input");
                 }
             }
         };
@@ -289,7 +327,10 @@ public enum Client {
 
     private void addClientReference(long id, String name) {
         if (!clientsInRoom.containsKey(id)) {
-            clientsInRoom.put(id, name);
+            ClientPlayer cp = new ClientPlayer();
+            cp.setClientId(id);
+            cp.setClientName(name);
+            clientsInRoom.put(id, cp);
         }
     }
 
@@ -301,7 +342,7 @@ public enum Client {
 
     private String getClientNameFromId(long id) {
         if (clientsInRoom.containsKey(id)) {
-            return clientsInRoom.get(id);
+            return clientsInRoom.get(id).getClientName();
         }
         if (id == Constants.DEFAULT_CLIENT_ID) {
             return "[Room]";
@@ -320,9 +361,9 @@ public enum Client {
                 if (myClientId == Constants.DEFAULT_CLIENT_ID) {
                     myClientId = p.getClientId();
                     addClientReference(myClientId, ((ConnectionPayload) p).getClientName());
-                    System.out.println(TextFX.colorize("My Client Id is " + myClientId, Color.GREEN));
+                    logger.info(TextFX.colorize("My Client Id is " + myClientId, Color.GREEN));
                 } else {
-                    System.out.println(TextFX.colorize("Setting client id to default", Color.RED));
+                    logger.info(TextFX.colorize("Setting client id to default", Color.RED));
                 }
                 break;
             case CONNECT:// for now connect,disconnect are all the same
@@ -331,7 +372,7 @@ public enum Client {
                 message = TextFX.colorize(String.format("*%s %s*",
                         cp.getClientName(),
                         cp.getMessage()), Color.YELLOW);
-                System.out.println(message);
+                logger.info(message);
             case SYNC_CLIENT:
                 ConnectionPayload cp2 = (ConnectionPayload) p;
                 if (cp2.getPayloadType() == PayloadType.CONNECT || cp2.getPayloadType() == PayloadType.SYNC_CLIENT) {
@@ -357,7 +398,7 @@ public enum Client {
                     // if there's a message, print it
                     if (rp.getMessage() != null && !rp.getMessage().isBlank()) {
                         message = TextFX.colorize(rp.getMessage(), Color.RED);
-                        System.out.println(message);
+                        logger.info(message);
                     }
                     // print room names found
                     List<String> rooms = rp.getRooms();
@@ -367,6 +408,25 @@ public enum Client {
                         System.out.println(TextFX.colorize(msg, Color.CYAN));
                     }
                 } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                break;
+            case READY:
+                try {
+                    ReadyPayload rp = (ReadyPayload) p;
+                    if (clientsInRoom.containsKey(rp.getClientId())) {
+                        clientsInRoom.get(rp.getClientId()).setReady(rp.isReady());
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                break;
+            case PHASE:
+                try {
+                    currentPhase = Enum.valueOf(Phase.class, p.getMessage());
+                } catch (IllegalArgumentException e) {
+                    e.printStackTrace();
+                } catch (NullPointerException e) {
                     e.printStackTrace();
                 }
                 break;
@@ -381,42 +441,44 @@ public enum Client {
     }
 
     private void close() {
+        myClientId = Constants.DEFAULT_CLIENT_ID;
+        clientsInRoom.clear();
         try {
             inputThread.interrupt();
         } catch (Exception e) {
-            System.out.println("Error interrupting input");
+            logger.severe("Error interrupting input");
             e.printStackTrace();
         }
         try {
             fromServerThread.interrupt();
         } catch (Exception e) {
-            System.out.println("Error interrupting listener");
+            logger.severe("Error interrupting listener");
             e.printStackTrace();
         }
         try {
-            System.out.println("Closing output stream");
+            logger.info("Closing output stream");
             out.close();
         } catch (NullPointerException ne) {
-            System.out.println("Server was never opened so this exception is ok");
+            logger.severe("Server was never opened so this exception is ok");
         } catch (Exception e) {
             e.printStackTrace();
         }
         try {
-            System.out.println("Closing input stream");
+            logger.info("Closing input stream");
             in.close();
         } catch (NullPointerException ne) {
-            System.out.println("Server was never opened so this exception is ok");
+            logger.severe("Server was never opened so this exception is ok");
         } catch (Exception e) {
             e.printStackTrace();
         }
         try {
-            System.out.println("Closing connection");
+            logger.info("Closing connection");
             server.close();
-            System.out.println("Closed socket");
+            logger.severe("Closed socket");
         } catch (IOException e) {
             e.printStackTrace();
         } catch (NullPointerException ne) {
-            System.out.println("Server was never opened so this exception is ok");
+            logger.warning("Server was never opened so this exception is ok");
         }
     }
 
