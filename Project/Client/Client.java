@@ -15,6 +15,8 @@ import Project.Common.ConnectionPayload;
 import Project.Common.Constants;
 import Project.Common.Payload;
 import Project.Common.PayloadType;
+import Project.Common.Phase;
+import Project.Common.ReadyPayload;
 import Project.Common.RoomResultsPayload;
 import Project.Common.TextFX;
 import Project.Common.TextFX.Color;
@@ -37,11 +39,16 @@ public enum Client {
     private static final String LIST_ROOMS = "/listrooms";
     private static final String LIST_USERS = "/users";
     private static final String DISCONNECT = "/disconnect";
+    private static final String READY_CHECK = "/ready";
 
     // client id, is the key, client name is the value
-    private ConcurrentHashMap<Long, String> clientsInRoom = new ConcurrentHashMap<Long, String>();
+    // private ConcurrentHashMap<Long, String> clientsInRoom = new
+    // ConcurrentHashMap<Long, String>();
+    private ConcurrentHashMap<Long, ClientPlayer> clientsInRoom = new ConcurrentHashMap<Long, ClientPlayer>();
     private long myClientId = Constants.DEFAULT_CLIENT_ID;
     private Logger logger = Logger.getLogger(Client.class.getName());
+    private Phase currentPhase = Phase.READY;
+
 
     public boolean isConnected() {
         if (server == null) {
@@ -181,6 +188,15 @@ public enum Client {
         else if (text.equalsIgnoreCase(DISCONNECT)) {
             try {
                 sendDisconnect();
+            }
+            catch(Exception e){
+              e.printStackTrace(); 
+            }
+            return true;
+        }
+        else if (text.equalsIgnoreCase(READY_CHECK)) {
+            try {
+                sendReadyCheck();
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -190,6 +206,10 @@ public enum Client {
     }
 
     // Send methods
+    private void sendReadyCheck() throws IOException {
+        ReadyPayload rp = new ReadyPayload();
+        out.writeObject(rp);
+    }
     private void sendDisconnect() throws IOException {
         ConnectionPayload cp = new ConnectionPayload();
         cp.setPayloadType(PayloadType.DISCONNECT);
@@ -307,7 +327,10 @@ public enum Client {
 
     private void addClientReference(long id, String name) {
         if (!clientsInRoom.containsKey(id)) {
-            clientsInRoom.put(id, name);
+            ClientPlayer cp = new ClientPlayer();
+            cp.setClientId(id);
+            cp.setClientName(name);
+            clientsInRoom.put(id, cp);
         }
     }
 
@@ -319,7 +342,7 @@ public enum Client {
 
     private String getClientNameFromId(long id) {
         if (clientsInRoom.containsKey(id)) {
-            return clientsInRoom.get(id);
+            return clientsInRoom.get(id).getClientName();
         }
         if (id == Constants.DEFAULT_CLIENT_ID) {
             return "[Room]";
@@ -385,6 +408,25 @@ public enum Client {
                         System.out.println(TextFX.colorize(msg, Color.CYAN));
                     }
                 } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                break;
+            case READY:
+                try {
+                    ReadyPayload rp = (ReadyPayload) p;
+                    if (clientsInRoom.containsKey(rp.getClientId())) {
+                        clientsInRoom.get(rp.getClientId()).setReady(rp.isReady());
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                break;
+            case PHASE:
+                try {
+                    currentPhase = Enum.valueOf(Phase.class, p.getMessage());
+                } catch (IllegalArgumentException e) {
+                    e.printStackTrace();
+                } catch (NullPointerException e) {
                     e.printStackTrace();
                 }
                 break;

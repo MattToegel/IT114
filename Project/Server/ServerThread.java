@@ -11,6 +11,7 @@ import Project.Common.ConnectionPayload;
 import Project.Common.Constants;
 import Project.Common.Payload;
 import Project.Common.PayloadType;
+import Project.Common.ReadyPayload;
 import Project.Common.RoomResultsPayload;
 import Project.Common.TextFX;
 import Project.Common.TextFX.Color;
@@ -83,6 +84,19 @@ public class ServerThread extends Thread {
     }
 
     // send methods
+    protected boolean sendReadyState(long clientId, boolean isReady) {
+        ReadyPayload rp = new ReadyPayload();
+        rp.setReady(isReady);
+        rp.setClientId(clientId);
+        return send(rp);
+    }
+
+    protected boolean sendPhase(String phase) {
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.PHASE);
+        p.setMessage(phase);
+        return send(p);
+    }
     protected boolean sendClientMapping(long id, String name) {
         ConnectionPayload cp = new ConnectionPayload();
         cp.setPayloadType(PayloadType.SYNC_CLIENT);
@@ -234,6 +248,16 @@ public class ServerThread extends Thread {
                 }
                 List<String> potentialRooms = Room.listRooms(searchString, limit);
                 this.sendListRooms(potentialRooms);
+                break;
+            case READY:
+                try {
+                    ((GameRoom) currentRoom).setReady(this);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    this.sendMessage(Constants.DEFAULT_CLIENT_ID,
+                            "You can only use the /ready commmand in a GameRoom and not the Lobby");
+                }
+
                 break;
             default:
                 break;
