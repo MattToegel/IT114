@@ -39,8 +39,6 @@ public enum Client {
     private static final String DISCONNECT = "/disconnect";
 
     // client id, is the key, client name is the value
-    // private ConcurrentHashMap<Long, String> clientsInRoom = new
-    // ConcurrentHashMap<Long, String>();
     private ConcurrentHashMap<Long, String> clientsInRoom = new ConcurrentHashMap<Long, String>();
     private long myClientId = Constants.DEFAULT_CLIENT_ID;
     private Logger logger = Logger.getLogger(Client.class.getName());
