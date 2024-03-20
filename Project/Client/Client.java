@@ -181,7 +181,7 @@ public enum Client {
         } else if (text.equalsIgnoreCase(LIST_USERS)) {
             logger.info("Users in Room: ");
             clientsInRoom.forEach(((t, u) -> {
-                logger.info(String.format("%s - %s", t, u));
+                logger.info(String.format("%s - %s [%s]", t, u.getClientName(), u.isReady()));
             }));
             return true;
         }
