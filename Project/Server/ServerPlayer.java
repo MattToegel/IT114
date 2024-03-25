@@ -41,4 +41,32 @@ public class ServerPlayer extends Player {
         }
         client.sendReadyState(clientId, isReady);
     }
+
+    public void sendPlayerTurnStatus(long clientId, boolean didTakeTurn) {
+        if (client == null) {
+            return;
+        }
+        client.sendPlayerTurnStatus(clientId, didTakeTurn);
+    }
+
+    public void sendResetLocalTurns() {
+        if (client == null) {
+            return;
+        }
+        client.sendResetLocalTurns();
+    }
+
+    public void sendResetLocalReadyState() {
+        if (client == null) {
+            return;
+        }
+        client.sendResetLocalReadyState();
+    }
+
+    public void sendCurrentPlayerTurn(long clientId) {
+        if (client == null) {
+            return;
+        }
+        client.sendCurrentPlayerTurn(clientId);
+    }
 }

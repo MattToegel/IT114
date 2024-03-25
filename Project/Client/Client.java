@@ -19,6 +19,7 @@ import Project.Common.Phase;
 import Project.Common.ReadyPayload;
 import Project.Common.RoomResultsPayload;
 import Project.Common.TextFX;
+import Project.Common.TurnStatusPayload;
 import Project.Common.TextFX.Color;
 
 public enum Client {
@@ -40,6 +41,7 @@ public enum Client {
     private static final String LIST_USERS = "/users";
     private static final String DISCONNECT = "/disconnect";
     private static final String READY_CHECK = "/ready";
+    private static final String SIMULATE_TURN = "/turn";
 
     // client id, is the key, client name is the value
     // private ConcurrentHashMap<Long, String> clientsInRoom = new
@@ -179,9 +181,16 @@ public enum Client {
             }
             return true;
         } else if (text.equalsIgnoreCase(LIST_USERS)) {
-            logger.info("Users in Room: ");
-            clientsInRoom.forEach(((t, u) -> {
-                logger.info(String.format("%s - %s [%s]", t, u.getClientName(), u.isReady()));
+            System.out.println(TextFX.colorize("Users in Room: ", Color.CYAN));
+            clientsInRoom.forEach(((clientId, u) -> {
+                System.out.println(TextFX.colorize((String.format("%s - %s [%s] %s %s",
+                        clientId,
+                        u.getClientName(),
+                        u.isReady(),
+                        u.didTakeTurn() ? "*" : "",
+                        u.isMyTurn() ? "<--" : "")),
+
+                        Color.CYAN));
             }));
             return true;
         }
@@ -202,10 +211,24 @@ public enum Client {
             }
             return true;
         }
+        else if (text.equalsIgnoreCase(SIMULATE_TURN)) {
+            try {
+                sendTakeTurn();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return true;
+        }
         return false;
     }
 
     // Send methods
+    private void sendTakeTurn() throws IOException {
+        // TurnStatusPayload (only if I need to actually send a boolean)
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.TURN);
+        out.writeObject(p);
+    }
     private void sendReadyCheck() throws IOException {
         ReadyPayload rp = new ReadyPayload();
         out.writeObject(rp);
@@ -430,6 +453,41 @@ public enum Client {
                     e.printStackTrace();
                 }
                 break;
+            case TURN:
+                try {
+                    TurnStatusPayload tsp = (TurnStatusPayload) p;
+                    if (clientsInRoom.containsKey(tsp.getClientId())) {
+                        clientsInRoom.get(tsp.getClientId()).setTakenTurn(tsp.didTakeTurn());
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                break;
+            case RESET_TURNS:
+                clientsInRoom.values().stream().forEach(c -> {
+                    c.setTakenTurn(false);
+                    c.setMyTurn(false);
+                });
+                break;
+            case RESET_READY:
+                clientsInRoom.values().stream().forEach(c -> c.setReady(false));
+                break;
+            case CURRENT_TURN:
+                /*
+                 * if (clientsInRoom.containsKey(p.getClientId())) {
+                 * clientsInRoom.get(p.getClientId()).setMyTurn(true);
+                 * }
+                 */
+                clientsInRoom.values().stream().forEach(c -> {
+                    boolean isMyTurn = c.getClientId() == p.getClientId();
+                    c.setMyTurn(isMyTurn);
+                    if (isMyTurn) {
+                        System.out.println(
+                                TextFX.colorize(String.format("It's %s's turn", c.getClientName()), Color.PURPLE));
+                    }
+                });
+                break;
+            // case END_SESSION: //clearing all local player data
             default:
                 break;
 

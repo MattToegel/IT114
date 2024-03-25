@@ -14,6 +14,7 @@ import Project.Common.PayloadType;
 import Project.Common.ReadyPayload;
 import Project.Common.RoomResultsPayload;
 import Project.Common.TextFX;
+import Project.Common.TurnStatusPayload;
 import Project.Common.TextFX.Color;
 
 /**
@@ -84,6 +85,31 @@ public class ServerThread extends Thread {
     }
 
     // send methods
+    protected boolean sendCurrentPlayerTurn(long clientId) {
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.CURRENT_TURN);
+        p.setClientId(clientId);
+        return send(p);
+    }
+
+    protected boolean sendResetLocalReadyState() {
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.RESET_READY);
+        return send(p);
+    }
+
+    protected boolean sendResetLocalTurns() {
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.RESET_TURNS);
+        return send(p);
+    }
+
+    protected boolean sendPlayerTurnStatus(long clientId, boolean didTakeTurn) {
+        TurnStatusPayload tsp = new TurnStatusPayload();
+        tsp.setClientId(clientId);
+        tsp.setDidTakeTurn(didTakeTurn);
+        return send(tsp);
+    }
     protected boolean sendReadyState(long clientId, boolean isReady) {
         ReadyPayload rp = new ReadyPayload();
         rp.setReady(isReady);
@@ -258,6 +284,15 @@ public class ServerThread extends Thread {
                             "You can only use the /ready commmand in a GameRoom and not the Lobby");
                 }
 
+                break;
+            case TURN:
+                try {
+                    ((GameRoom) currentRoom).doTurn(this);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    this.sendMessage(Constants.DEFAULT_CLIENT_ID,
+                            "You can only use the /turn commmand in a GameRoom and not the Lobby");
+                }
                 break;
             default:
                 break;
