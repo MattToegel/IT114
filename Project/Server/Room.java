@@ -208,7 +208,7 @@ public class Room implements AutoCloseable {
         iter.remove();
         info("Removed client " + client.getClientName());
         checkClients();
-        sendMessage(Constants.FROM_ROOM, client.getClientName() + " disconnected");
+        sendMessage(ServerConstants.FROM_ROOM, client.getClientName() + " disconnected");
     }
 
     public void close() {

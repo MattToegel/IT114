@@ -61,6 +61,8 @@ public class GameRoom extends Room {
         if (players.containsKey(client.getClientId())) {
             players.remove(client.getClientId());
             System.out.println(TextFX.colorize(client.getClientName() + " left GameRoom " + getName(), Color.WHITE));
+            // update active players in case an active player left
+            numActivePlayers = players.values().stream().filter(ServerPlayer::isReady).count();
         }
     }
 
@@ -110,7 +112,7 @@ public class GameRoom extends Room {
             // player can only update their turn "actions" once
             if (!sp.didTakeTurn()) {
                 sp.setTakenTurn(true);
-                sendMessage(Constants.FROM_ROOM, String.format("%s completed their turn", sp.getClientName()));
+                sendMessage(ServerConstants.FROM_ROOM, String.format("%s completed their turn", sp.getClientName()));
                 syncUserTookTurn(sp);
                 // implemention 2 (end turn immediately)
                 if (currentPlayer != null && currentPlayer.didTakeTurn()) {
@@ -140,7 +142,8 @@ public class GameRoom extends Room {
                 if (meetsMinimum || everyoneIsReady) {
                     start();
                 } else {
-                    sendMessage(Constants.FROM_ROOM, "Minimum players not met during ready check, please try again");
+                    sendMessage(ServerConstants.FROM_ROOM,
+                            "Minimum players not met during ready check, please try again");
                     // added after recording as I forgot to reset the ready check
                     players.values().forEach(p -> {
                         p.setReady(false);
@@ -205,7 +208,7 @@ public class GameRoom extends Room {
             // turnTimer = new TimedEvent(60, ()-> {handleEndOfTurn();});
             turnTimer = new TimedEvent(60, this::handleEndOfTurn);
             turnTimer.setTickCallback(this::checkEarlyEndTurn);
-            sendMessage(Constants.FROM_ROOM, "Pick your actions");
+            sendMessage(ServerConstants.FROM_ROOM, "Pick your actions");
         }
     }
 
@@ -240,7 +243,7 @@ public class GameRoom extends Room {
         // players.values().stream().filter(sp->sp.isReady() &&
         // sp.didTakeTurn()).toList();
         playersToProcess.forEach(p -> {
-            sendMessage(Constants.FROM_ROOM, String.format("%s did something for the game", p.getClientName()));
+            sendMessage(ServerConstants.FROM_ROOM, String.format("%s did something for the game", p.getClientName()));
         });
 
         // TODO end game logic
@@ -277,7 +280,7 @@ public class GameRoom extends Room {
         sendResetLocalReadyState();
         sendResetLocalTurns();
         changePhase(Phase.READY);
-        sendMessage(Constants.FROM_ROOM, "Session over!");
+        sendMessage(ServerConstants.FROM_ROOM, "Session over!");
         // TODO, eventually will be more optimal to just send that the session ended
 
     }
