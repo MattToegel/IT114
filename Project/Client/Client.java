@@ -13,9 +13,11 @@ import java.util.logging.Logger;
 
 import Project.Common.ConnectionPayload;
 import Project.Common.Constants;
+import Project.Common.Grid;
 import Project.Common.Payload;
 import Project.Common.PayloadType;
 import Project.Common.Phase;
+import Project.Common.PositionPayload;
 import Project.Common.ReadyPayload;
 import Project.Common.RoomResultsPayload;
 import Project.Common.TextFX;
@@ -42,6 +44,8 @@ public enum Client {
     private static final String DISCONNECT = "/disconnect";
     private static final String READY_CHECK = "/ready";
     private static final String SIMULATE_TURN = "/turn";
+    private static final String MOVE = "/move";
+    private static final String SHOW_GRID = "/grid";
 
     // client id, is the key, client name is the value
     // private ConcurrentHashMap<Long, String> clientsInRoom = new
@@ -50,8 +54,7 @@ public enum Client {
     private long myClientId = Constants.DEFAULT_CLIENT_ID;
     private Logger logger = Logger.getLogger(Client.class.getName());
     private Phase currentPhase = Phase.READY;
-
-
+    private Grid grid = new Grid();
     public boolean isConnected() {
         if (server == null) {
             return false;
@@ -193,17 +196,14 @@ public enum Client {
                         Color.CYAN));
             }));
             return true;
-        }
-        else if (text.equalsIgnoreCase(DISCONNECT)) {
+        } else if (text.equalsIgnoreCase(DISCONNECT)) {
             try {
                 sendDisconnect();
-            }
-            catch(Exception e){
-              e.printStackTrace(); 
+            } catch (Exception e) {
+                e.printStackTrace();
             }
             return true;
-        }
-        else if (text.equalsIgnoreCase(READY_CHECK)) {
+        } else if (text.equalsIgnoreCase(READY_CHECK)) {
             try {
                 sendReadyCheck();
             } catch (IOException e) {
@@ -211,11 +211,44 @@ public enum Client {
             }
             return true;
         }
-        else if (text.equalsIgnoreCase(SIMULATE_TURN)) {
-            try {
-                sendTakeTurn();
-            } catch (IOException e) {
-                e.printStackTrace();
+
+        /*
+         * not using fake turn anymore
+         * else if (text.equalsIgnoreCase(SIMULATE_TURN)) {
+         * try {
+         * sendTakeTurn();
+         * } catch (IOException e) {
+         * e.printStackTrace();
+         * }
+         * return true;
+         * }
+         */
+        else if (text.startsWith(MOVE)) {
+            String coordinates = text.replace(MOVE, "").trim();
+            if (coordinates.contains(",")) {
+                String[] vals = coordinates.split(",");
+                if (vals.length >= 2) {
+                    try {
+                        int x = Integer.parseInt(vals[0]);
+                        int y = Integer.parseInt(vals[1]);
+                        sendPosition(x, y);
+                    } catch (NumberFormatException e) {
+                        System.out.println(TextFX.colorize("Invalid value passed as coordinate", Color.RED));
+                    } catch (IOException e) {
+                        System.out.println(TextFX.colorize("Socket error", Color.RED));
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                } else {
+                    System.out.println(TextFX.colorize("Invalid list of coordinate values", Color.RED));
+                }
+            } else {
+                System.out.println(TextFX.colorize("Incorrectly used command, use format /move x,y", Color.RED));
+            }
+            return true;
+        } else if (text.equalsIgnoreCase(SHOW_GRID)) {
+            if (grid != null) {
+                grid.print();
             }
             return true;
         }
@@ -223,21 +256,30 @@ public enum Client {
     }
 
     // Send methods
+    private void sendPosition(int x, int y) throws IOException {
+        PositionPayload pp = new PositionPayload(x, y);
+        out.writeObject(pp);
+    }
+
+    @Deprecated
     private void sendTakeTurn() throws IOException {
         // TurnStatusPayload (only if I need to actually send a boolean)
         Payload p = new Payload();
         p.setPayloadType(PayloadType.TURN);
         out.writeObject(p);
     }
+
     private void sendReadyCheck() throws IOException {
         ReadyPayload rp = new ReadyPayload();
         out.writeObject(rp);
     }
+
     private void sendDisconnect() throws IOException {
         ConnectionPayload cp = new ConnectionPayload();
         cp.setPayloadType(PayloadType.DISCONNECT);
         out.writeObject(cp);
     }
+
     private void sendCreateRoom(String roomName) throws IOException {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.CREATE_ROOM);
@@ -372,6 +414,7 @@ public enum Client {
         }
         return "[name not found]";
     }
+
     /**
      * Used to process payloads from the server-side and handle their data
      * 
@@ -471,6 +514,7 @@ public enum Client {
                 break;
             case RESET_READY:
                 clientsInRoom.values().stream().forEach(c -> c.setReady(false));
+                grid.reset();
                 break;
             case CURRENT_TURN:
                 /*
@@ -486,6 +530,35 @@ public enum Client {
                                 TextFX.colorize(String.format("It's %s's turn", c.getClientName()), Color.PURPLE));
                     }
                 });
+                break;
+            case GRID:
+                try {
+                    System.out.println(TextFX.colorize("Building Grid", Color.YELLOW));
+                    PositionPayload pp = (PositionPayload) p;
+                    if (grid != null) {
+                        grid.reset();
+                    }
+                    grid.generate(pp.getX(), pp.getY());
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                break;
+            case POSITION:
+                try {
+                    PositionPayload pp = (PositionPayload) p;
+                    System.out.println(
+                            TextFX.colorize(
+                                    String.format("Player %s moving to %s,%s",
+                                            getClientNameFromId(
+                                                    pp.getClientId()),
+                                            pp.getX(), pp.getY()),
+                                    Color.YELLOW));
+                    grid.getCell(pp.getX(), pp.getY()).addPlayer(pp.getClientId(),
+                            getClientNameFromId(pp.getClientId()));
+                    grid.print();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
                 break;
             // case END_SESSION: //clearing all local player data
             default:

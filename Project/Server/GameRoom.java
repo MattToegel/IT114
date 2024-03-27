@@ -8,7 +8,9 @@ import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
+import Project.Common.Cell;
 import Project.Common.Constants;
+import Project.Common.Grid;
 import Project.Common.Phase;
 import Project.Common.TextFX;
 import Project.Common.TimedEvent;
@@ -25,6 +27,7 @@ public class GameRoom extends Room {
     private boolean canEndSession = false;
     private ServerPlayer currentPlayer = null;
     private List<Long> turnOrder = new ArrayList<Long>();
+    private Grid grid = new Grid();
 
     public GameRoom(String name) {
         super(name);
@@ -67,6 +70,71 @@ public class GameRoom extends Room {
     }
 
     // serverthread interactions
+    public synchronized void setPosition(ServerThread client, int x, int y) {
+        System.out.println(TextFX.colorize(
+                String.format("Player %s attempting move to %s,%s", client.getClientName(), x, y), Color.CYAN));
+        // ensure proper phase
+        if (currentPhase != Phase.TURN) {
+            client.sendMessage(Constants.DEFAULT_CLIENT_ID, "You can't do turns just yet");
+            return;
+        }
+        // ensure user is in room
+        if (!players.containsKey(client.getClientId())) {
+            System.out.println(TextFX.colorize("Player isn't in room", Color.RED));
+            return;
+        }
+        ServerPlayer sp = players.get(client.getClientId());
+        // ensure player is ready
+
+        if (!sp.isReady()) {
+            client.sendMessage(Constants.DEFAULT_CLIENT_ID,
+                    "Sorry, you weren't ready in time and can't participate");
+            return;
+        }
+        // implementation 2 (even though it's nested)
+        // check current player's turn
+        if (sp.getClientId() != currentPlayer.getClientId()) {
+            client.sendMessage(Constants.DEFAULT_CLIENT_ID,
+                    "It's not your turn yet");
+            return;
+        }
+        // player can only update their turn "actions" once
+        if (sp.didTakeTurn()) {
+            client.sendMessage(Constants.DEFAULT_CLIENT_ID, "You already completed your turn, please wait");
+            return;
+        }
+        // use this to ensure point is in grid (client isn't guaranteed to provide legit
+        // data)
+        if (!grid.isValidCoordinate(x, y)) {
+            client.sendMessage(Constants.DEFAULT_CLIENT_ID, "Invalid coordinate chosen");
+            return;
+        }
+        // if we got this far, player is eligible for "move"
+
+        // below if condition isn't valid, it'll add the player, then my current logic
+        // of setCell will remove the player and add again
+        // if (grid.addPlayer(sp.getClientId(), sp.getClientName(), x, y)) {
+        Cell newCell = grid.getCell(x, y);
+        if (newCell != null) {
+            sp.setCell(newCell, false);// <-- this is going to not remove from the cell to simulate my current fake end
+                                       // game
+            grid.print();
+        }
+        System.out.println(TextFX.colorize("Recorded position", Color.YELLOW));
+        // }
+
+        sp.setTakenTurn(true);
+
+        sendMessage(ServerConstants.FROM_ROOM, String.format("%s completed their turn", sp.getClientName()));
+        syncUserTookTurn(sp);
+        sendPlayerPosition(currentPlayer);
+        // implemention 2 (end turn immediately)
+        if (currentPlayer != null && currentPlayer.didTakeTurn()) {
+            handleEndOfTurn();
+
+        }
+
+    }
     public synchronized void setReady(ServerThread client) {
         if (currentPhase != Phase.READY) {
             client.sendMessage(Constants.DEFAULT_CLIENT_ID, "Can't initiate ready check at this time");
@@ -86,6 +154,7 @@ public class GameRoom extends Room {
         }
     }
 
+    @Deprecated
     public synchronized void doTurn(ServerThread client) {
         if (currentPhase != Phase.TURN) {
             client.sendMessage(Constants.DEFAULT_CLIENT_ID, "You can't do turns just yet");
@@ -169,6 +238,8 @@ public class GameRoom extends Room {
             System.err.println("Invalid phase called during start()");
             return;
         }
+        grid.generate(2, 2);
+        sendGridDimensions(grid.getRows(), grid.getColumns());
         canEndSession = false;
         changePhase(Phase.TURN);
         numActivePlayers = players.values().stream().filter(ServerPlayer::isReady).count();
@@ -206,8 +277,10 @@ public class GameRoom extends Room {
         }
         if (turnTimer == null) {
             // turnTimer = new TimedEvent(60, ()-> {handleEndOfTurn();});
+            System.out.println(TextFX.colorize("Started turn timer", Color.YELLOW));
             turnTimer = new TimedEvent(60, this::handleEndOfTurn);
-            turnTimer.setTickCallback(this::checkEarlyEndTurn);
+            // This will call end() via handleEndOfTurn() multiple times
+            // turnTimer.setTickCallback(this::checkEarlyEndTurn);
             sendMessage(ServerConstants.FROM_ROOM, "Pick your actions");
         }
     }
@@ -230,7 +303,8 @@ public class GameRoom extends Room {
         }
     }
 
-    private void handleEndOfTurn() {
+    @Deprecated // from Turn lesson
+    private void handleEndOfTurnOld() {
         if (turnTimer != null) {
             turnTimer.cancel();
             turnTimer = null;
@@ -260,12 +334,34 @@ public class GameRoom extends Room {
         }
     }
 
+    private void handleEndOfTurn() {
+        // don't forget to cancel your timer when applicable
+        if (turnTimer != null) {
+            turnTimer.cancel();
+            turnTimer = null;
+        }
+        // another fake end condition (since it's purely based on who goes first)
+        if (grid.isGridFull()) {
+            canEndSession = true;
+            end();
+        } else {
+            resetTurns();
+            nextTurn();
+            startTurnTimer();
+        }
+    }
+
     private void resetTurns() {
         players.values().stream().forEach(p -> p.setTakenTurn(false));
         sendResetLocalTurns();
     }
 
     private void end() {
+        // temporary way to not rerun end() multiple times
+        if (turnOrder.size() == 0) {
+            System.out.println(TextFX.colorize("END TRIGGER MULTIPLE TIMES", Color.RED));
+            return;
+        }
         System.out.println(TextFX.colorize("Doing game over", Color.YELLOW));
         turnOrder.clear();
         // mark everyone not ready
@@ -273,6 +369,7 @@ public class GameRoom extends Room {
             // TODO fix/optimize, avoid nested loops if/when possible
             p.setReady(false);
             p.setTakenTurn(false);
+            p.setCell(null);
             // reduce being wasteful
             // syncReadyState(p);
         });
@@ -286,6 +383,21 @@ public class GameRoom extends Room {
     }
 
     // start send/sync methods
+    private void sendGridDimensions(int x, int y) {
+        Iterator<ServerPlayer> iter = players.values().iterator();
+        while (iter.hasNext()) {
+            ServerPlayer sp = iter.next();
+            sp.sendGridDimensions(x, y);
+        }
+    }
+
+    private void sendPlayerPosition(ServerPlayer playerWhoMoved) {
+        Iterator<ServerPlayer> iter = players.values().iterator();
+        while (iter.hasNext()) {
+            ServerPlayer sp = iter.next();
+            sp.sendPlayerPosition(playerWhoMoved.getClientId(), playerWhoMoved.getCellX(), playerWhoMoved.getCellY());
+        }
+    }
     private void sendCurrentPlayerTurn() {
         Iterator<ServerPlayer> iter = players.values().iterator();
         while (iter.hasNext()) {

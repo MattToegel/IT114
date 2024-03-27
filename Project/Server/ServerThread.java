@@ -11,6 +11,7 @@ import Project.Common.ConnectionPayload;
 import Project.Common.Constants;
 import Project.Common.Payload;
 import Project.Common.PayloadType;
+import Project.Common.PositionPayload;
 import Project.Common.ReadyPayload;
 import Project.Common.RoomResultsPayload;
 import Project.Common.TextFX;
@@ -85,6 +86,17 @@ public class ServerThread extends Thread {
     }
 
     // send methods
+    public boolean sendGridDimensions(int x, int y) {
+        PositionPayload pp = new PositionPayload(x, y);
+        pp.setPayloadType(PayloadType.GRID);
+        return send(pp);
+    }
+
+    public boolean sendPlayerPosition(long clientId, int x, int y) {
+        PositionPayload pp = new PositionPayload(x, y);
+        pp.setClientId(clientId);
+        return send(pp);
+    }
     protected boolean sendCurrentPlayerTurn(long clientId) {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.CURRENT_TURN);
@@ -292,6 +304,16 @@ public class ServerThread extends Thread {
                     e.printStackTrace();
                     this.sendMessage(Constants.DEFAULT_CLIENT_ID,
                             "You can only use the /turn commmand in a GameRoom and not the Lobby");
+                }
+                break;
+            case POSITION:
+                try {
+                    PositionPayload pp = (PositionPayload) p;
+                    ((GameRoom) currentRoom).setPosition(this, pp.getX(), pp.getY());
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    this.sendMessage(Constants.DEFAULT_CLIENT_ID,
+                            "You can only use the /move commmand in a GameRoom and not the Lobby");
                 }
                 break;
             default:
