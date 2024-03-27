@@ -16,7 +16,7 @@ public class Grid {
     }
 
     public boolean isValidCoordinate(int x, int y) {
-        return x >= 0 && x < columns && y >= 0 && y <= rows;
+        return x >= 0 && x < columns && y >= 0 && y < rows;
     }
 
     public void generate(int rows, int columns) {
