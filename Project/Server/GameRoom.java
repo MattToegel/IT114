@@ -45,10 +45,15 @@ public class GameRoom extends Room {
 
             // sync phase
             sp.sendPhase(currentPhase);
+            // TODO implement a better check if grid is actually initialized fully
+            if (grid != null) {
+                sp.sendGridDimensions(grid.getRows(), grid.getColumns());
+            }
             // sync ready state
             players.values().forEach(p -> {
                 sp.sendReadyState(p.getClientId(), p.isReady());
                 sp.sendPlayerTurnStatus(p.getClientId(), p.didTakeTurn());
+                sp.sendPlayerPosition(p.getClientId(), p.getCellX(), p.getCellY());
             });
             if (currentPlayer != null) {
                 sp.sendCurrentPlayerTurn(currentPlayer.getClientId());
