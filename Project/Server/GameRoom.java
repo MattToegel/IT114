@@ -28,6 +28,7 @@ public class GameRoom extends Room {
     private ServerPlayer currentPlayer = null;
     private List<Long> turnOrder = new ArrayList<Long>();
     private Grid grid = new Grid();
+    private Random random = new Random();
 
     public GameRoom(String name) {
         super(name);
@@ -46,14 +47,16 @@ public class GameRoom extends Room {
             // sync phase
             sp.sendPhase(currentPhase);
             // TODO implement a better check if grid is actually initialized fully
-            if (grid != null) {
+            if (grid != null && grid.isPopulated()) {
                 sp.sendGridDimensions(grid.getRows(), grid.getColumns());
             }
             // sync ready state
             players.values().forEach(p -> {
                 sp.sendReadyState(p.getClientId(), p.isReady());
-                sp.sendPlayerTurnStatus(p.getClientId(), p.didTakeTurn());
-                sp.sendPlayerPosition(p.getClientId(), p.getCellX(), p.getCellY());
+                if (grid != null && grid.isPopulated()) {
+                    sp.sendPlayerTurnStatus(p.getClientId(), p.didTakeTurn());
+                    sp.sendPlayerPosition(p.getClientId(), p.getCellX(), p.getCellY());
+                }
             });
             if (currentPlayer != null) {
                 sp.sendCurrentPlayerTurn(currentPlayer.getClientId());
@@ -74,7 +77,136 @@ public class GameRoom extends Room {
         }
     }
 
+    // logic checks
+    private void checkCurrentPhase(ServerThread client, Phase check) throws Exception {
+        if (currentPhase != check) {
+            client.sendMessage(Constants.DEFAULT_CLIENT_ID,
+                    String.format("Current phase is %s, please try again later", currentPhase.name()));
+            throw new Exception("Invalid Phase");
+        }
+    }
+
+    private void checkPlayerInRoom(ServerThread client) throws Exception {
+        if (!players.containsKey(client.getClientId())) {
+            System.out.println(TextFX.colorize("Player isn't in room", Color.RED));
+            throw new Exception("Player isn't in room");
+        }
+    }
+
+    private void checkPlayerIsReady(ServerPlayer sp) throws Exception {
+        if (!sp.isReady()) {
+            sp.sendMessage(Constants.DEFAULT_CLIENT_ID,
+                    "Sorry, you weren't ready in time and can't participate");
+            throw new Exception("Player isn't ready");
+        }
+    }
+
+    private void checkCurrentTurn(ServerPlayer check) throws Exception {
+        if (check.getClientId() != currentPlayer.getClientId()) {
+            check.sendMessage(Constants.DEFAULT_CLIENT_ID,
+                    "It's not your turn yet");
+            throw new Exception("It's not this player's turn");
+        }
+    }
+
+    private void checkTakenTurn(ServerPlayer check) throws Exception {
+        if (check.didTakeTurn()) {
+            check.sendMessage(Constants.DEFAULT_CLIENT_ID, "You already completed your turn, please wait");
+            throw new Exception("Player already took their turn");
+        }
+    }
+    // end logic checks
+
+    private void processRoll(int roll) throws Exception {
+
+        for (int step = 0; step < roll; step++) {
+            Cell currentCell = currentPlayer.getCell();
+            System.out.println(TextFX.colorize("Doing step " + (step + 1), Color.CYAN));
+            System.out.println(TextFX.colorize(
+                    String.format("Current %s, %s", currentCell.getX(), currentCell.getY()), Color.YELLOW));
+            Cell next = grid.handleTurn(currentPlayer.getClientId(), currentCell, currentPlayer.getPath());
+            if (next != null) {
+                currentPlayer.setCell(next);
+                /*
+                 * System.out.println(
+                 * TextFX.colorize(String.format("Path size %s",
+                 * currentPlayer.getPath().size()), Color.GREEN));
+                 */
+                currentPlayer.addPath(next);
+                /*
+                 * System.out.println(
+                 * TextFX.colorize(String.format("Path size %s",
+                 * currentPlayer.getPath().size()), Color.GREEN));
+                 */
+                sendPlayerPosition(currentPlayer);
+            }
+            System.out.println(TextFX.colorize(
+                    String.format("Reached %s,%s", next.getX(), next.getY()), Color.YELLOW));
+            // check if at dragon
+            boolean isAtDragon = grid.isAtOrAdjacentToDragon(next);
+            if (isAtDragon) {
+                System.out.println("Reached Dragon");
+                int treasure = random.nextInt(4);
+                // TODO record points and sync
+                System.out.println(TextFX.colorize(
+                        String.format("Recevied %s treasure", treasure), Color.YELLOW));
+                List<Cell> starts = grid.getStartCells();
+                // move to random start
+                Cell randomStart = starts.get(new Random().nextInt(starts.size()));
+                currentCell = grid.movePlayer(-1, currentCell, randomStart.getX(), randomStart.getY());
+                if (currentCell != null) {
+                    currentPlayer.setCell(currentCell);
+                    currentPlayer.resetPath();
+                    /*
+                     * System.out.println(TextFX.colorize(String.format("Path size %s",
+                     * currentPlayer.getPath().size()),
+                     * Color.GREEN));
+                     */
+                    currentPlayer.addPath(next);
+                    /*
+                     * System.out.println(TextFX.colorize(String.format("Path size %s",
+                     * currentPlayer.getPath().size()),
+                     * Color.GREEN));
+                     */
+                    sendPlayerPosition(currentPlayer);
+                }
+                grid.print();
+                break;
+            }
+
+            grid.print();
+        }
+    }
+
     // serverthread interactions
+    public synchronized void doRoll(ServerThread client) {
+        final int roll = random.nextInt(6) + 1;// 1 - 6
+        System.out.println(TextFX.colorize(
+                String.format("Player %s is attempt to roll %s", client.getClientName(), roll), Color.CYAN));
+
+        try {
+            // ensure proper phase
+            checkCurrentPhase(client, Phase.TURN);
+            // ensure user is in room
+            checkPlayerInRoom(client);
+            // check player is ready
+            ServerPlayer sp = players.get(client.getClientId());
+            checkPlayerIsReady(sp);
+            // is it their turn
+            checkCurrentTurn(sp);
+            // did they take their turn already
+            checkTakenTurn(sp);
+
+            // player can do turn (use roll from above)
+            processRoll(roll);
+            handleEndOfTurn();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    @Deprecated
     public synchronized void setPosition(ServerThread client, int x, int y) {
         System.out.println(TextFX.colorize(
                 String.format("Player %s attempting move to %s,%s", client.getClientName(), x, y), Color.CYAN));
@@ -243,8 +375,19 @@ public class GameRoom extends Room {
             System.err.println("Invalid phase called during start()");
             return;
         }
-        grid.generate(2, 2);
+        // make 2d grid
+        grid.generate(9, 9);
         sendGridDimensions(grid.getRows(), grid.getColumns());
+        // build board
+        grid.populate(5);
+        // set users to random starts
+        List<Cell> starts = grid.getStartCells();
+        players.values().stream().forEach(p -> {
+            Cell start = starts.get(random.nextInt(starts.size()));
+            p.setCell(start);
+            sendPlayerPosition(p);
+        });
+
         canEndSession = false;
         changePhase(Phase.TURN);
         numActivePlayers = players.values().stream().filter(ServerPlayer::isReady).count();

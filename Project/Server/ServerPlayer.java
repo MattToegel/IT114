@@ -1,5 +1,9 @@
 package Project.Server;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
 import Project.Common.Cell;
 import Project.Common.Constants;
 import Project.Common.Phase;
@@ -10,6 +14,7 @@ import Project.Common.TextFX.Color;
 public class ServerPlayer extends Player {
     private ServerThread client;
     private Cell currentCell;
+    private List<Cell> path = new ArrayList<Cell>();
 
     public ServerPlayer(ServerThread t) {
         client = t;
@@ -17,6 +22,20 @@ public class ServerPlayer extends Player {
     }
 
     // getters/setters
+    public void resetPath() {
+        path.clear();
+    }
+
+    public void addPath(Cell c) {
+        if (!path.contains(c)) {
+            path.add(c);
+        }
+
+    }
+
+    public List<Cell> getPath() {
+        return path.stream().collect(Collectors.toList());
+    }
     public long getClientId() {
         if (client == null) {
             return Constants.DEFAULT_CLIENT_ID;
@@ -37,7 +56,8 @@ public class ServerPlayer extends Player {
      * @param cell
      */
     protected void setCell(Cell cell) {
-        setCell(cell, true);
+        this.currentCell = cell;
+        // setCell(cell, true);
     }
 
     /**
@@ -46,6 +66,7 @@ public class ServerPlayer extends Player {
      * @param cell
      * @param removeFromCurrent
      */
+    @Deprecated
     protected void setCell(Cell cell, boolean removeFromCurrent) {
         if (cell == null) {
             this.currentCell = null;
@@ -71,6 +92,10 @@ public class ServerPlayer extends Player {
             return -1;
         }
         return this.currentCell.getY();
+    }
+
+    public Cell getCell() {
+        return currentCell;
     }
 
     // send wrappers
@@ -128,5 +153,12 @@ public class ServerPlayer extends Player {
             return;
         }
         client.sendCurrentPlayerTurn(clientId);
+    }
+
+    public void sendMessage(long clientId, String message) {
+        if (client == null) {
+            return;
+        }
+        client.sendMessage(clientId, message);
     }
 }

@@ -17,7 +17,11 @@ public class Grid {
     // cached tiles
     private Cell dragonCell;
     private List<Cell> startCells = new ArrayList<Cell>();
+    private Random random = new Random();
 
+    public boolean isPopulated() {
+        return dragonCell != null && !startCells.isEmpty();
+    }
     public List<Cell> getStartCells() {
         return startCells;
     }
@@ -219,7 +223,6 @@ public class Grid {
             System.out.println("One of the cooridnates isn't valid");
             return;
         }
-        Random random = new Random();
         Cell currentCell = grid[x1][y1];
         currentCell.setValue(Cell.WALKABLE);
 
@@ -282,6 +285,9 @@ public class Grid {
                 .collect(Collectors.toList());
     }
 
+    public boolean isAtOrAdjacentToDragon(Cell current) {
+        return Cell.DRAGON.equals(current.getValue()) || isAdjacentToDragon(current);
+    }
     public boolean isAdjacentToDragon(Cell current) {
         /*
          * (first version)
@@ -317,11 +323,23 @@ public class Grid {
 
     public List<Cell> getValidMoves(Cell current, List<Cell> path) throws Exception {
         List<Cell> c = getWalkableNeighbors(current);
-        List<Cell> possible = c.stream().filter(nc -> !path.contains(nc)).toList();
-
+        /*
+         * System.out.println(String.format("Checking path for %s,%s", current.getX(),
+         * current.getY()));
+         * path.forEach(p -> {
+         * System.out.println(String.format("Path: %s,%s", p.getX(), p.getY()));
+         * });
+         */
+        List<Cell> possible = c.stream().filter(nc -> !path.contains(nc)).collect(Collectors.toList());
+        /*
+         * System.out.println("Checking possible");
+         * possible.forEach(p -> {
+         * System.out.println(String.format("Possible: %s,%s", p.getX(), p.getY()));
+         * });
+         */
         if (possible.isEmpty()) {
             System.out.println(TextFX.colorize("Reached a dead end", Color.YELLOW));
-            possible = c;
+            possible = c.stream().collect(Collectors.toList());
         }
         if (possible.isEmpty()) {
             throw new Exception("Invalid movement");
@@ -343,7 +361,8 @@ public class Grid {
     }
 
     // server-side
-    public void populate() {
+    public void populate(long seed) {
+        random = new Random(seed);
         startCells.clear();
         int xMin = 0;
         int yMin = 0;
@@ -395,6 +414,32 @@ public class Grid {
         print();
     }
 
+    public Cell handleTurn(long clientId, Cell current, List<Cell> path) throws Exception {
+
+        List<Cell> validCells = getValidMoves(current, path);
+        System.out.println(TextFX.colorize(validCells.size() + " valid cells", Color.YELLOW));
+        if (validCells.isEmpty()) {
+            System.out.println("No options");
+            throw new Exception("No valid options");
+        } else if (validCells.size() == 1) {
+            Cell next = validCells.get(0);
+            next = movePlayer(clientId, current, next.getX(), next.getY());
+            if (next != null) {
+                current = next;
+                // path.add(current);
+            }
+        } else {
+            // TODO offload choice to player
+            // random direction
+            Cell next = validCells.get(random.nextInt(validCells.size()));
+            next = movePlayer(clientId, current, next.getX(), next.getY());
+            if (next != null) {
+                current = next;
+                // path.add(current);
+            }
+        }
+        return current;
+    }
     public static void main(String[] args) {
         /*
          * Grid grid = new Grid();
@@ -403,7 +448,7 @@ public class Grid {
          */
         Grid grid = new Grid();
         grid.generate(9, 9);
-        grid.populate();
+        grid.populate(5);
 
         Cell current = grid.getCell(0, 0);
         current.addPlayer(-1, "");
@@ -459,11 +504,11 @@ public class Grid {
                             if (current.getValue().equals(Cell.DRAGON) || grid.isAdjacentToDragon(current)) {
                                 System.out.println("Reached Dragon");
                                 System.out.println(TextFX.colorize(
-                                        String.format("Recevied %s treasure", new Random().nextInt(4)), Color.YELLOW));
+                                        String.format("Recevied %s treasure", grid.random.nextInt(4)), Color.YELLOW));
 
                                 // pick new random start
                                 List<Cell> starts = grid.getStartCells();
-                                Cell next = starts.get(new Random().nextInt(starts.size()));
+                                Cell next = starts.get(grid.random.nextInt(starts.size()));
                                 next = grid.movePlayer(-1, current, next.getX(), next.getY());
                                 if (next != null) {
                                     // TODO associate with player (setCell)

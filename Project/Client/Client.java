@@ -11,6 +11,7 @@ import java.util.Scanner;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
+import Project.Common.Cell;
 import Project.Common.ConnectionPayload;
 import Project.Common.Constants;
 import Project.Common.Grid;
@@ -46,6 +47,7 @@ public enum Client {
     private static final String SIMULATE_TURN = "/turn";
     private static final String MOVE = "/move";
     private static final String SHOW_GRID = "/grid";
+    private static final String ROLL = "/roll";
 
     // client id, is the key, client name is the value
     // private ConcurrentHashMap<Long, String> clientsInRoom = new
@@ -223,30 +225,43 @@ public enum Client {
          * return true;
          * }
          */
-        else if (text.startsWith(MOVE)) {
-            String coordinates = text.replace(MOVE, "").trim();
-            if (coordinates.contains(",")) {
-                String[] vals = coordinates.split(",");
-                if (vals.length >= 2) {
-                    try {
-                        int x = Integer.parseInt(vals[0]);
-                        int y = Integer.parseInt(vals[1]);
-                        sendPosition(x, y);
-                    } catch (NumberFormatException e) {
-                        System.out.println(TextFX.colorize("Invalid value passed as coordinate", Color.RED));
-                    } catch (IOException e) {
-                        System.out.println(TextFX.colorize("Socket error", Color.RED));
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                } else {
-                    System.out.println(TextFX.colorize("Invalid list of coordinate values", Color.RED));
-                }
-            } else {
-                System.out.println(TextFX.colorize("Incorrectly used command, use format /move x,y", Color.RED));
+        /*
+         * else if (text.startsWith(MOVE)) {
+         * String coordinates = text.replace(MOVE, "").trim();
+         * if (coordinates.contains(",")) {
+         * String[] vals = coordinates.split(",");
+         * if (vals.length >= 2) {
+         * try {
+         * int x = Integer.parseInt(vals[0]);
+         * int y = Integer.parseInt(vals[1]);
+         * sendPosition(x, y);
+         * } catch (NumberFormatException e) {
+         * System.out.println(TextFX.colorize("Invalid value passed as coordinate",
+         * Color.RED));
+         * } catch (IOException e) {
+         * System.out.println(TextFX.colorize("Socket error", Color.RED));
+         * } catch (Exception e) {
+         * e.printStackTrace();
+         * }
+         * } else {
+         * System.out.println(TextFX.colorize("Invalid list of coordinate values",
+         * Color.RED));
+         * }
+         * } else {
+         * System.out.println(TextFX.
+         * colorize("Incorrectly used command, use format /move x,y", Color.RED));
+         * }
+         * return true;
+         * }
+         */
+        else if (text.equalsIgnoreCase(ROLL)) {
+            try {
+                sendRoll();
+            } catch (IOException e) {
+                e.printStackTrace();
             }
-            return true;
-        } else if (text.equalsIgnoreCase(SHOW_GRID)) {
+        }
+        else if (text.equalsIgnoreCase(SHOW_GRID)) {
             if (grid != null) {
                 grid.print();
             }
@@ -256,6 +271,13 @@ public enum Client {
     }
 
     // Send methods
+    private void sendRoll() throws IOException {
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.ROLL);
+        out.writeObject(p);
+    }
+
+    @Deprecated
     private void sendPosition(int x, int y) throws IOException {
         PositionPayload pp = new PositionPayload(x, y);
         out.writeObject(pp);
@@ -539,6 +561,7 @@ public enum Client {
                         grid.reset();
                     }
                     grid.generate(pp.getX(), pp.getY());
+                    grid.populate(5);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -553,8 +576,17 @@ public enum Client {
                                                     pp.getClientId()),
                                             pp.getX(), pp.getY()),
                                     Color.YELLOW));
-                    grid.getCell(pp.getX(), pp.getY()).addPlayer(pp.getClientId(),
-                            getClientNameFromId(pp.getClientId()));
+                    ClientPlayer clientPlayer = clientsInRoom.get(pp.getClientId());
+                    Cell next = null;
+                    if (clientPlayer.getCell() == null) {
+                        next = grid.movePlayer(pp.getClientId(), null, pp.getX(), pp.getY());
+                    } else {
+                        next = grid.movePlayer(pp.getClientId(), clientPlayer.getCell(), pp.getX(), pp.getY());
+                    }
+                    if (next != null) {
+                        clientPlayer.setCell(next);
+                    }
+
                     grid.print();
                 } catch (Exception e) {
                     e.printStackTrace();

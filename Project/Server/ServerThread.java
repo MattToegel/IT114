@@ -316,6 +316,15 @@ public class ServerThread extends Thread {
                             "You can only use the /move commmand in a GameRoom and not the Lobby");
                 }
                 break;
+            case ROLL:
+                try {
+                    ((GameRoom) currentRoom).doRoll(this);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    this.sendMessage(Constants.DEFAULT_CLIENT_ID,
+                            "You can only use the /roll commmand in a GameRoom and not the Lobby");
+                }
+                break;
             default:
                 break;
 

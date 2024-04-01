@@ -1,11 +1,20 @@
 package Project.Client;
 
+import Project.Common.Cell;
 import Project.Common.Player;
 
 public class ClientPlayer extends Player {
     private long clientId;
     private String clientName;
+    private Cell currentCell;
 
+    public void setCell(Cell c) {
+        currentCell = c;
+    }
+
+    public Cell getCell() {
+        return currentCell;
+    }
     public long getClientId() {
         return clientId;
     }
