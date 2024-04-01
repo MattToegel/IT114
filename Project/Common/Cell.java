@@ -1,5 +1,7 @@
 package Project.Common;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
@@ -14,6 +16,35 @@ public class Cell {
     private int x, y;
     // sample
     private String value;
+    private List<Cell> adjacent = new ArrayList<Cell>();
+
+    public static final String WALKABLE = "[ ]";
+    public static final String UNWALABLE = "[x]";
+    public static final String DRAGON = "[D]";
+    public static final String START = "[S]";
+
+    public void addAdjacent(Cell c) {
+        if (c.equals(this)) {
+            System.out.println(TextFX.colorize("A cell can't be adjacent to itself", Color.RED));
+            return;
+        }
+        if (!adjacent.contains(c)) {
+            adjacent.add(c);
+        }
+    }
+
+    public boolean isConnected(Cell src) {
+        return adjacent.contains(src);
+    }
+
+    public void printNeighbors() {
+        System.out.println(String.format("Data for cell [%s,%s]", getX(), getY()));
+        adjacent.forEach(c -> {
+            String sa = String.format("(%s,%s)", c.getX(), c.getY());
+            System.out.println(sa);
+        });
+
+    }
 
     /**
      * Add a player (or player entity) to this cell
@@ -26,7 +57,7 @@ public class Cell {
     public boolean addPlayer(long clientId, String name) {
         if (!playersInCell.contains(clientId)) {
             playersInCell.put(clientId, name);
-            updateCellValue();
+            // updateCellValue();
             System.out.println(
                     TextFX.colorize(String.format("Player %s[%s] added to cell", name, clientId), Color.PURPLE));
             return true;
@@ -46,12 +77,13 @@ public class Cell {
     public boolean removePlayer(long clientId) {
         if (playersInCell.containsKey(clientId)) {
             playersInCell.remove(clientId);
-            updateCellValue();
+            // updateCellValue();
             return true;
         }
         return false;
     }
 
+    @Deprecated
     private void updateCellValue() {
         int count = playersInCell.size();
         this.value = String.format("[%s]", count == 0 ? " " : count);
@@ -60,7 +92,7 @@ public class Cell {
     public Cell(int x, int y) {
         this.x = x;
         this.y = y;
-        this.value = "[ ]";
+        this.value = Cell.UNWALABLE;
     }
 
     public int getX() {
@@ -93,5 +125,10 @@ public class Cell {
 
     public boolean isOccupied() {
         return playersInCell.size() > 0;
+    }
+
+    @Override
+    public String toString() {
+        return isOccupied() ? String.format("[%s]", playersInCell.size()) : getValue();
     }
 }
