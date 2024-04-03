@@ -4,7 +4,11 @@ then
 elif [ "$2" = "client" ];
 then
 	java $1.Client.Client
-    # In Milestone3 changes Client to ClientUI
+    # Milestone 2 runner
+elif [ "$2" = "ui" ];
+then
+	java $1.Client.ClientUI
+    # Milestone 3 runner
 else
 	echo "Must specify client or server"
 fi
