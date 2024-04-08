@@ -225,6 +225,7 @@ public class Grid {
         }
         Cell currentCell = grid[x1][y1];
         currentCell.setValue(Cell.WALKABLE);
+        currentCell.setCellType(CellType.WALKABLE);
 
         // walk algorithm
         while (currentCell.getX() != x2 || currentCell.getY() != y2) {
@@ -392,21 +393,26 @@ public class Grid {
         // dragon
         dragonCell = getCell(centerX, centerY);
         dragonCell.setValue(Cell.DRAGON);
+        dragonCell.setCellType(CellType.DRAGON);
 
         Cell tr = getCell(xMin, yMax);
         tr.setValue(Cell.START);
+        tr.setCellType(CellType.START);
         startCells.add(tr);
 
         Cell br = getCell(xMax, yMax);
         br.setValue(Cell.START);
+        br.setCellType(CellType.START);
         startCells.add(br);
 
         Cell tl = getCell(xMin, yMin);
         tl.setValue(Cell.START);
+        tl.setCellType(CellType.START);
         startCells.add(tl);
 
         Cell bl = getCell(xMax, yMin);
         bl.setValue(Cell.START);
+        bl.setCellType(CellType.START);
         startCells.add(bl);
 
         // connect everyone

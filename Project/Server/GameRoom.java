@@ -375,6 +375,7 @@ public class GameRoom extends Room {
             System.err.println("Invalid phase called during start()");
             return;
         }
+        changePhase(Phase.TURN);
         // make 2d grid
         grid.generate(9, 9);
         sendGridDimensions(grid.getRows(), grid.getColumns());
@@ -389,7 +390,7 @@ public class GameRoom extends Room {
         });
 
         canEndSession = false;
-        changePhase(Phase.TURN);
+
         numActivePlayers = players.values().stream().filter(ServerPlayer::isReady).count();
         setupTurns();
         startTurnTimer();
@@ -433,54 +434,6 @@ public class GameRoom extends Room {
         }
     }
 
-    private void checkEarlyEndTurn(int timeRemaining) {
-        // implementation 1
-        /*
-         * long numEnded =
-         * players.values().stream().filter(ServerPlayer::didTakeTurn).count();
-         * if (numEnded >= numActivePlayers) {
-         * // end turn early
-         * handleEndOfTurn();
-         * }
-         */
-
-        // implementation 2
-        if (currentPlayer != null && currentPlayer.didTakeTurn()) {
-            handleEndOfTurn();
-
-        }
-    }
-
-    @Deprecated // from Turn lesson
-    private void handleEndOfTurnOld() {
-        if (turnTimer != null) {
-            turnTimer.cancel();
-            turnTimer = null;
-        }
-        System.out.println(TextFX.colorize("Handling end of turn", Color.YELLOW));
-        // option 1 - if they can only do a turn when ready
-        List<ServerPlayer> playersToProcess = players.values().stream().filter(ServerPlayer::didTakeTurn).toList();
-        // option 2 - double check they are ready and took a turn
-        // List<ServerPlayer> playersToProcess =
-        // players.values().stream().filter(sp->sp.isReady() &&
-        // sp.didTakeTurn()).toList();
-        playersToProcess.forEach(p -> {
-            sendMessage(ServerConstants.FROM_ROOM, String.format("%s did something for the game", p.getClientName()));
-        });
-
-        // TODO end game logic
-        if (new Random().nextInt(101) <= 30) {
-            canEndSession = true;
-            // simulate end game
-            end();
-        } else {
-            resetTurns();
-            // implementation 2
-            nextTurn();
-            // end implementation 2
-            startTurnTimer();
-        }
-    }
 
     private void handleEndOfTurn() {
         // don't forget to cancel your timer when applicable

@@ -17,6 +17,7 @@ public class Cell {
     // sample
     private String value;
     private List<Cell> adjacent = new ArrayList<Cell>();
+    private CellType type = CellType.NONE;
 
     public static final String WALKABLE = "[ ]";
     public static final String UNWALABLE = "[x]";
@@ -83,16 +84,11 @@ public class Cell {
         return false;
     }
 
-    @Deprecated
-    private void updateCellValue() {
-        int count = playersInCell.size();
-        this.value = String.format("[%s]", count == 0 ? " " : count);
-    }
-
     public Cell(int x, int y) {
         this.x = x;
         this.y = y;
         this.value = Cell.UNWALABLE;
+        this.type = CellType.UNWALKABLE;
     }
 
     public int getX() {
@@ -119,6 +115,13 @@ public class Cell {
         this.value = value;
     }
 
+    public void setCellType(CellType type) {
+        this.type = type;
+    }
+
+    public CellType getCellType() {
+        return type;
+    }
     public void reset() {
         playersInCell.clear();
     }

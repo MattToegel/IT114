@@ -297,25 +297,7 @@ public class ServerThread extends Thread {
                 }
 
                 break;
-            case TURN:
-                try {
-                    ((GameRoom) currentRoom).doTurn(this);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    this.sendMessage(Constants.DEFAULT_CLIENT_ID,
-                            "You can only use the /turn commmand in a GameRoom and not the Lobby");
-                }
-                break;
-            case POSITION:
-                try {
-                    PositionPayload pp = (PositionPayload) p;
-                    ((GameRoom) currentRoom).setPosition(this, pp.getX(), pp.getY());
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    this.sendMessage(Constants.DEFAULT_CLIENT_ID,
-                            "You can only use the /move commmand in a GameRoom and not the Lobby");
-                }
-                break;
+
             case ROLL:
                 try {
                     ((GameRoom) currentRoom).doRoll(this);

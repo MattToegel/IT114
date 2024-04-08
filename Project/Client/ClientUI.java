@@ -18,7 +18,8 @@ import javax.swing.JMenuBar;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 
-import Project.Client.Views.ChatPanel;
+import Project.Client.Views.ChatGamePanel;
+
 import Project.Client.Views.ConnectionPanel;
 import Project.Client.Views.Menu;
 import Project.Client.Views.RoomsPanel;
@@ -40,7 +41,7 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
     // Panels
     private ConnectionPanel csPanel;
     private UserDetailsPanel userDetailsPanel;
-    private ChatPanel chatPanel;
+    private ChatGamePanel chatGamePanel;
     private RoomsPanel roomsPanel;
 
     public ClientUI(String title) {
@@ -74,7 +75,7 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
         // separate views
         csPanel = new ConnectionPanel(this);
         userDetailsPanel = new UserDetailsPanel(this);
-        chatPanel = new ChatPanel(this);
+        chatGamePanel = new ChatGamePanel(this);
 
         roomsPanel = new RoomsPanel(this);
 
@@ -159,8 +160,8 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
     public void onClientConnect(long clientId, String clientName, String message) {
         if (currentCard.ordinal() >= CardView.CHAT.ordinal()) {
 
-            chatPanel.addUserListItem(clientId, String.format("%s (%s)", clientName, clientId));
-            chatPanel.addText(String.format("*%s %s*", clientName, message));
+            chatGamePanel.getChatPanel().addUserListItem(clientId, String.format("%s (%s)", clientName, clientId));
+            chatGamePanel.getChatPanel().addText(String.format("*%s %s*", clientName, message));
 
         }
     }
@@ -169,8 +170,8 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
     public void onClientDisconnect(long clientId, String clientName, String message) {
         if (currentCard.ordinal() >= CardView.CHAT.ordinal()) {
 
-            chatPanel.removeUserListItem(clientId);
-            chatPanel.addText(String.format("*%s %s*", clientName, message));
+            chatGamePanel.getChatPanel().removeUserListItem(clientId);
+            chatGamePanel.getChatPanel().addText(String.format("*%s %s*", clientName, message));
             if (clientId == myId) {
                 logger.log(Level.INFO, "I disconnected");
                 myId = Constants.DEFAULT_CLIENT_ID;
@@ -183,7 +184,7 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
     public void onMessageReceive(long clientId, String message) {
         if (currentCard.ordinal() >= CardView.CHAT.ordinal()) {
             String clientName = Client.INSTANCE.getClientNameFromId(clientId);
-            chatPanel.addText(String.format("%s: %s", clientName, message));
+            chatGamePanel.getChatPanel().addText(String.format("%s: %s", clientName, message));
         }
     }
 
@@ -191,7 +192,7 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
     public void onReceiveClientId(long id) {
         if (myId == Constants.DEFAULT_CLIENT_ID) {
             myId = id;
-            show(CardView.CHAT.name());
+            show(CardView.CHAT_GAME_SCREEN.name());
         } else {
             logger.log(Level.WARNING, "Received client id after already being set, this shouldn't happen");
         }
@@ -199,13 +200,13 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
 
     @Override
     public void onResetUserList() {
-        chatPanel.clearUserList();
+        chatGamePanel.getChatPanel().clearUserList();
     }
 
     @Override
     public void onSyncClient(long clientId, String clientName) {
         if (currentCard.ordinal() >= CardView.CHAT.ordinal()) {
-            chatPanel.addUserListItem(clientId, String.format("%s (%s)", clientName, clientId));
+            chatGamePanel.getChatPanel().addUserListItem(clientId, String.format("%s (%s)", clientName, clientId));
         }
     }
 
@@ -225,7 +226,7 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
     @Override
     public void onRoomJoin(String roomName) {
         if (currentCard.ordinal() >= CardView.CHAT.ordinal()) {
-            chatPanel.addText("Joined room " + roomName);
+            chatGamePanel.getChatPanel().addText("Joined room " + roomName);
         }
     }
 }
