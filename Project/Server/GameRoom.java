@@ -380,7 +380,7 @@ public class GameRoom extends Room {
         grid.generate(9, 9);
         sendGridDimensions(grid.getRows(), grid.getColumns());
         // build board
-        grid.populate(5);
+        grid.populate(6);
         // set users to random starts
         List<Cell> starts = grid.getStartCells();
         players.values().stream().forEach(p -> {

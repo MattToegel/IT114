@@ -11,6 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 import Project.Common.Cell;
+import Project.Common.CellData;
 import Project.Common.ConnectionPayload;
 import Project.Common.Constants;
 import Project.Common.Grid;
@@ -386,10 +387,26 @@ public enum Client {
                         grid.reset();
                     }
                     grid.generate(pp.getX(), pp.getY());
-                    grid.populate(5);
+                    grid.populate(6);
                     events.forEach(e -> {
                         if (e instanceof IGameEvents) {
                             ((IGameEvents) e).onReceiveGrid(pp.getX(), pp.getY());
+                        }
+                    });
+                    List<CellData> cdl = new ArrayList<CellData>();
+                    for (int x = 0; x < grid.getRows(); x++) {
+                        for (int y = 0; y < grid.getColumns(); y++) {
+                            CellData cd = new CellData();
+                            Cell c = grid.getCell(x, y);
+                            cd.setX(x);
+                            cd.setY(y);
+                            cd.setCellType(c.getCellType());
+                            cdl.add(cd);
+                        }
+                    }
+                    events.forEach(e -> {
+                        if (e instanceof IGameEvents) {
+                            ((IGameEvents) e).onReceiveCell(cdl);
                         }
                     });
                 } catch (Exception e) {

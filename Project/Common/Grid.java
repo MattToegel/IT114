@@ -250,6 +250,7 @@ public class Grid {
             if (!potentialMoves.isEmpty()) {
                 Cell nextCell = potentialMoves.get(random.nextInt(potentialMoves.size()));
                 nextCell.setValue(Cell.WALKABLE);
+                nextCell.setCellType(CellType.WALKABLE);
                 currentCell = nextCell;
             } else {
                 System.out.println("Stuck or needs to backtrack");

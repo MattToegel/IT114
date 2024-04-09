@@ -15,6 +15,7 @@ import Project.Client.IGameEvents;
 
 import Project.Common.CellData;
 import Project.Common.CellType;
+import Project.Common.Constants;
 import Project.Common.Phase;
 
 public class GamePanel extends JPanel implements IGameEvents {
@@ -108,6 +109,9 @@ public class GamePanel extends JPanel implements IGameEvents {
 
     @Override
     public void onRoomJoin(String roomName) {
+        if (Constants.LOBBY.equals(roomName)) {
+            setVisible(false);// TODO along the way to hide game view when you leave
+        }
     }
 
     @Override
