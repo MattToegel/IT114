@@ -199,6 +199,7 @@ public class GameRoom extends Room {
 
             // player can do turn (use roll from above)
             processRoll(roll);
+            sendRoll(sp.getClientId(), roll);
             handleEndOfTurn();
         } catch (Exception e) {
             e.printStackTrace();
@@ -484,6 +485,13 @@ public class GameRoom extends Room {
     }
 
     // start send/sync methods
+    private void sendRoll(long clientId, int roll) {
+        Iterator<ServerPlayer> iter = players.values().iterator();
+        while (iter.hasNext()) {
+            ServerPlayer sp = iter.next();
+            sp.sendRoll(clientId, roll);
+        }
+    }
     private void sendGridDimensions(int x, int y) {
         Iterator<ServerPlayer> iter = players.values().iterator();
         while (iter.hasNext()) {

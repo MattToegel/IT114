@@ -130,6 +130,9 @@ public class Cell {
         return playersInCell.size() > 0;
     }
 
+    public int getNumberInCell() {
+        return playersInCell.size();
+    }
     @Override
     public String toString() {
         return isOccupied() ? String.format("[%s]", playersInCell.size()) : getValue();

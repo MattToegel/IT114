@@ -5,6 +5,7 @@ import java.io.Serializable;
 public class CellData implements Serializable {
     private CellType cellType;
 
+
     public CellType getCellType() {
         return cellType;
     }
@@ -31,4 +32,13 @@ public class CellData implements Serializable {
 
     private int x, y;
 
+    private int numInCell;
+
+    public int getNumInCell() {
+        return numInCell;
+    }
+
+    public void setNumInCell(int numInCell) {
+        this.numInCell = numInCell;
+    }
 }

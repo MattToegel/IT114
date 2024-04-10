@@ -64,7 +64,7 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
             }
         });
 
-        setMinimumSize(new Dimension(400, 400));
+        setMinimumSize(new Dimension(500, 500));
         // centers window
         setLocationRelativeTo(null);
         card = new CardLayout();

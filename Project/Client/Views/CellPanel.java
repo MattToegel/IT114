@@ -48,7 +48,9 @@ public class CellPanel extends JPanel {
     }
 
     public void setOccupiedCount(int c) {
+        jtf.setVisible(c > 0);
         jtf.setText(c + "");
+        jtf.repaint();
     }
 
     public void setType(CellType type, int x, int y) {

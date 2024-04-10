@@ -38,7 +38,16 @@ public enum Client {
     private Thread fromServerThread;
     private String clientName = "";
 
-
+    private static final String CREATE_ROOM = "/createroom";
+    private static final String JOIN_ROOM = "/joinroom";
+    private static final String LIST_ROOMS = "/listrooms";
+    private static final String LIST_USERS = "/users";
+    private static final String DISCONNECT = "/disconnect";
+    private static final String READY_CHECK = "/ready";
+    private static final String SIMULATE_TURN = "/turn";
+    private static final String MOVE = "/move";
+    private static final String SHOW_GRID = "/grid";
+    private static final String ROLL = "/roll";
 
     // client id, is the key, client name is the value
     // private ConcurrentHashMap<Long, String> clientsInRoom = new
@@ -66,6 +75,147 @@ public enum Client {
         // if the server had a problem
         return server.isConnected() && !server.isClosed() && !server.isInputShutdown() && !server.isOutputShutdown();
 
+    }
+
+    // client commands
+    /**
+     * <p>
+     * Check if the string contains the <i>connect</i> command
+     * followed by an ip address and port or localhost and port.
+     * </p>
+     * <p>
+     * Example format: 123.123.123:3000
+     * </p>
+     * <p>
+     * Example format: localhost:3000
+     * </p>
+     * https://www.w3schools.com/java/java_regex.asp
+     * 
+     * @param text
+     * @return
+     */
+    private boolean isConnection(String text) {
+        // https://www.w3schools.com/java/java_regex.asp
+        return text.matches(ipAddressPattern)
+                || text.matches(localhostPattern);
+    }
+
+    private boolean isQuit(String text) {
+        return text.equalsIgnoreCase("/quit");
+    }
+
+    private boolean isName(String text) {
+        if (text.startsWith("/name")) {
+            String[] parts = text.split(" ");
+            if (parts.length >= 2) {
+                clientName = parts[1].trim();
+                logger.info("Name set to " + clientName);
+            }
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Controller for handling various text commands.
+     * <p>
+     * Add more here as needed
+     * </p>
+     * 
+     * @param text
+     * @return true if a text was a command or triggered a command
+     */
+    @Deprecated
+    private boolean processClientCommand(String text) {
+        /*
+         * if (isConnection(text)) {
+         * if (clientName.isBlank()) {
+         * logger.
+         * warning("You must set your name before you can connect via: /name your_name"
+         * );
+         * return true;
+         * }
+         * // replaces multiple spaces with single space
+         * // splits on the space after connect (gives us host and port)
+         * // splits on : to get host as index 0 and port as index 1
+         * String[] parts = text.trim().replaceAll(" +", " ").split(" ")[1].split(":");
+         * connect(parts[0].trim(), Integer.parseInt(parts[1].trim()));
+         * return true;
+         * } else
+         */
+        if (isQuit(text)) {
+            isRunning = false;
+            return true;
+        } else if (isName(text)) {
+            return true;
+        } else if (text.startsWith(CREATE_ROOM)) {
+
+            try {
+                String roomName = text.replace(CREATE_ROOM, "").trim();
+                sendCreateRoom(roomName);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return true;
+        } else if (text.startsWith(JOIN_ROOM)) {
+
+            try {
+                String roomName = text.replace(JOIN_ROOM, "").trim();
+                sendJoinRoom(roomName);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return true;
+        } else if (text.startsWith(LIST_ROOMS)) {
+
+            try {
+                String searchQuery = text.replace(LIST_ROOMS, "").trim();
+                sendListRooms(searchQuery);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return true;
+        } else if (text.equalsIgnoreCase(LIST_USERS)) {
+            System.out.println(TextFX.colorize("Users in Room: ", Color.CYAN));
+            clientsInRoom.forEach(((clientId, u) -> {
+                System.out.println(TextFX.colorize((String.format("%s - %s [%s] %s %s",
+                        clientId,
+                        u.getClientName(),
+                        u.isReady(),
+                        u.didTakeTurn() ? "*" : "",
+                        u.isMyTurn() ? "<--" : "")),
+
+                        Color.CYAN));
+            }));
+            return true;
+        } else if (text.equalsIgnoreCase(DISCONNECT)) {
+            try {
+                sendDisconnect();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return true;
+        } else if (text.equalsIgnoreCase(READY_CHECK)) {
+            try {
+                sendReadyCheck();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return true;
+        } else if (text.equalsIgnoreCase(ROLL)) {
+            try {
+                sendRoll();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return true;
+        } else if (text.equalsIgnoreCase(SHOW_GRID)) {
+            if (grid != null) {
+                grid.print();
+            }
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -148,6 +298,9 @@ public enum Client {
     }
 
     public void sendMessage(String message) throws IOException {
+        if (message.startsWith("/") && processClientCommand(message)) {
+            return;
+        }
         Payload p = new Payload();
         p.setPayloadType(PayloadType.MESSAGE);
         p.setMessage(message);
@@ -206,7 +359,7 @@ public enum Client {
         }
     }
 
-    protected String getClientNameFromId(long id) {
+    public String getClientNameFromId(long id) {
         if (clientsInRoom.containsKey(id)) {
             return clientsInRoom.get(id).getClientName();
         }
@@ -280,6 +433,9 @@ public enum Client {
                 events.forEach(e -> {
                     e.onResetUserList();
                 });
+                events.forEach(e -> {
+                    e.onRoomJoin(p.getMessage());
+                });
                 break;
             case MESSAGE:
 
@@ -323,7 +479,7 @@ public enum Client {
                     }
                     events.forEach(e -> {
                         if (e instanceof IGameEvents) {
-                            ((IGameEvents) e).onReceiveReady(p.getClientId());
+                            ((IGameEvents) e).onReceiveReady(p.getClientId(), rp.isReady());
                         }
                     });
                 } catch (Exception e) {
@@ -426,10 +582,11 @@ public enum Client {
                                     Color.YELLOW));
                     ClientPlayer clientPlayer = clientsInRoom.get(pp.getClientId());
                     Cell next = null;
-                    if (clientPlayer.getCell() == null) {
+                    Cell previous = clientPlayer.getCell();
+                    if (previous == null) {
                         next = grid.movePlayer(pp.getClientId(), null, pp.getX(), pp.getY());
                     } else {
-                        next = grid.movePlayer(pp.getClientId(), clientPlayer.getCell(), pp.getX(), pp.getY());
+                        next = grid.movePlayer(pp.getClientId(), previous, pp.getX(), pp.getY());
                     }
                     if (next != null) {
                         clientPlayer.setCell(next);
@@ -437,7 +594,45 @@ public enum Client {
 
                     grid.print();
                     // TODO call some game event to show players in some cell
+                    List<CellData> cdl = new ArrayList<CellData>();
+                    CellData cd = new CellData();
+                    Cell c = grid.getCell(pp.getX(), pp.getY());
+                    cd.setX(pp.getX());
+                    cd.setY(pp.getY());
+                    cd.setCellType(c.getCellType());
+                    cd.setNumInCell(c.getNumberInCell());
+                    if (previous != null) {
 
+                        CellData pcd = new CellData();
+                        pcd.setX(previous.getX());
+                        pcd.setY(previous.getY());
+                        pcd.setCellType(previous.getCellType());
+                        pcd.setNumInCell(previous.getNumberInCell());
+                        cdl.add(pcd);
+                    }
+                    cdl.add(cd);
+
+                    events.forEach(e -> {
+                        if (e instanceof IGameEvents) {
+                            ((IGameEvents) e).onReceiveCell(cdl);
+                        }
+                    });
+
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                break;
+            case ROLL:
+                try {
+                    TurnStatusPayload tsp = (TurnStatusPayload) p;
+                    if (clientsInRoom.containsKey(tsp.getClientId())) {
+                        clientsInRoom.get(tsp.getClientId()).setTakenTurn(tsp.didTakeTurn());
+                        events.forEach(e -> {
+                            if (e instanceof IGameEvents) {
+                                ((IGameEvents) e).onReceiveRoll(tsp.getClientId(), tsp.getRoll());
+                            }
+                        });
+                    }
                 } catch (Exception e) {
                     e.printStackTrace();
                 }

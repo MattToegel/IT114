@@ -86,6 +86,14 @@ public class ServerThread extends Thread {
     }
 
     // send methods
+    protected boolean sendRoll(long clientId, int roll) {
+        TurnStatusPayload tsp = new TurnStatusPayload();
+        tsp.setPayloadType(PayloadType.ROLL);
+        tsp.setClientId(clientId);
+        tsp.setDidTakeTurn(true);
+        tsp.setRoll(roll);
+        return send(tsp);
+    }
     public boolean sendGridDimensions(int x, int y) {
         PositionPayload pp = new PositionPayload(x, y);
         pp.setPayloadType(PayloadType.GRID);

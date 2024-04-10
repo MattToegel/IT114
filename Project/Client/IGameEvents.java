@@ -11,7 +11,7 @@ public interface IGameEvents extends IClientEvents {
      * 
      * @param clientId Use -1 to reset the list
      */
-    void onReceiveReady(long clientId);
+    void onReceiveReady(long clientId, boolean isReady);
 
     /**
      * Triggered when client receives phase update from server
@@ -29,5 +29,7 @@ public interface IGameEvents extends IClientEvents {
     void onReceiveGrid(int rows, int columns);
 
     void onReceiveCell(List<CellData> cells);
+
+    void onReceiveRoll(long clientId, int roll);
 
 }

@@ -1,12 +1,14 @@
 package Project.Client.Views;
 
+import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.GridLayout;
-import java.io.IOException;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.util.List;
 
-import javax.swing.JButton;
 import javax.swing.JPanel;
+import javax.swing.JSplitPane;
 
 import Project.Client.CardView;
 import Project.Client.Client;
@@ -22,37 +24,42 @@ public class GamePanel extends JPanel implements IGameEvents {
     private CellPanel[][] cells;
     private JPanel gridPanel;
     private CardLayout cardLayout;
-
+    private final static String READY_PANEL = "READY";
+    private final static String GRID_PANEL = "GRID";
     public GamePanel(ICardControls controls) {
-        super(new CardLayout());
-        cardLayout = (CardLayout) this.getLayout();
+        // super(new CardLayout());
+        super(new BorderLayout());
+        JPanel gameContainer = new JPanel();
+        gameContainer.setLayout(new CardLayout());
+        cardLayout = (CardLayout) gameContainer.getLayout();
         this.setName(CardView.GAME_SCREEN.name());
         Client.INSTANCE.addCallback(this);
-
-        createReadyPanel();
+        // ready panel
+        ReadyPanel rp = new ReadyPanel();
+        rp.setName(READY_PANEL);
+        gameContainer.add(READY_PANEL, rp);
+        // grid
         gridPanel = new JPanel();
-        gridPanel.setName("GRID");
-        add("GRID", gridPanel);
+        gridPanel.setName(GRID_PANEL);
+        gameContainer.add(GRID_PANEL, gridPanel);
+        // game events
+        GameEventsPanel gep = new GameEventsPanel();
+        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, gameContainer, gep);
+        splitPane.setResizeWeight(.7);
+
+        gridPanel.addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentShown(ComponentEvent e) {
+                // Recalculate the divider location when the left panel becomes visible
+                splitPane.setDividerLocation(0.7);
+            }
+        });
+        this.add(splitPane, BorderLayout.CENTER);
+        // this.add(gep, BorderLayout.SOUTH);
         setVisible(false);
         // don't need to add this to ClientUI as this isn't a primary panel(it's nested
         // in ChatGamePanel)
         // controls.addPanel(Card.GAME_SCREEN.name(), this);
-    }
-
-    private void createReadyPanel() {
-        JPanel readyPanel = new JPanel();
-        JButton readyButton = new JButton();
-        readyButton.setText("Ready");
-        readyButton.addActionListener(l -> {
-            try {
-                Client.INSTANCE.sendReadyCheck();
-            } catch (IOException e1) {
-                // TODO Auto-generated catch block
-                e1.printStackTrace();
-            }
-        });
-        readyPanel.add(readyButton);
-        this.add(readyPanel);
     }
 
     private void resetView() {
@@ -111,6 +118,8 @@ public class GamePanel extends JPanel implements IGameEvents {
     public void onRoomJoin(String roomName) {
         if (Constants.LOBBY.equals(roomName)) {
             setVisible(false);// TODO along the way to hide game view when you leave
+            this.revalidate();
+            this.repaint();
         }
     }
 
@@ -124,23 +133,21 @@ public class GamePanel extends JPanel implements IGameEvents {
         // I'll temporarily do next(), but there may be scenarios where the screen can
         // be inaccurate
         System.out.println("Received phase: " + phase.name());
+        if (!isVisible()) {
+            setVisible(true);
+            this.getParent().revalidate();
+            this.getParent().repaint();
+            System.out.println("GamePanel visible");
+        }
         if (phase == Phase.READY) {
-            if (!isVisible()) {
-                setVisible(true);
-                this.getParent().revalidate();
-                this.getParent().repaint();
-                System.out.println("GamePanel visible");
-            } else {
-                cardLayout.next(this);
-                System.out.println("GamePanel Grid (hopefully)");
-            }
+            cardLayout.show(gridPanel.getParent(), READY_PANEL);
         } else if (phase == Phase.TURN) {
-            cardLayout.show(this, "GRID");
+            cardLayout.show(gridPanel.getParent(), GRID_PANEL);
         }
     }
 
     @Override
-    public void onReceiveReady(long clientId) {
+    public void onReceiveReady(long clientId, boolean isReady) {
     }
 
     @Override
@@ -148,6 +155,7 @@ public class GamePanel extends JPanel implements IGameEvents {
         for (CellData c : cells) {
             CellPanel target = this.cells[c.getX()][c.getY()];
             target.setType(c.getCellType(), c.getX(), c.getY());
+            target.setOccupiedCount(c.getNumInCell());
         }
         gridPanel.revalidate();
         gridPanel.repaint();
@@ -159,6 +167,11 @@ public class GamePanel extends JPanel implements IGameEvents {
         if (rows > 0 && columns > 0) {
             makeGrid(rows, columns);
         }
+    }
+
+    @Override
+    public void onReceiveRoll(long clientId, int roll) {
+
     }
 
 }

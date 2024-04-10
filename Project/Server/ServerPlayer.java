@@ -161,4 +161,11 @@ public class ServerPlayer extends Player {
         }
         client.sendMessage(clientId, message);
     }
+
+    public void sendRoll(long clientId, int roll) {
+        if (client == null) {
+            return;
+        }
+        client.sendRoll(clientId, roll);
+    }
 }
