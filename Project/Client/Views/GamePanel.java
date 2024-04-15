@@ -26,9 +26,11 @@ public class GamePanel extends JPanel implements IGameEvents {
     private CardLayout cardLayout;
     private final static String READY_PANEL = "READY";
     private final static String GRID_PANEL = "GRID";
+    private ICardControls controls;
     public GamePanel(ICardControls controls) {
         // super(new CardLayout());
         super(new BorderLayout());
+        this.controls = controls;
         JPanel gameContainer = new JPanel();
         gameContainer.setLayout(new CardLayout());
         cardLayout = (CardLayout) gameContainer.getLayout();
@@ -172,6 +174,11 @@ public class GamePanel extends JPanel implements IGameEvents {
     @Override
     public void onReceiveRoll(long clientId, int roll) {
 
+    }
+
+    @Override
+    public void onReceivePoints(long clientId, int changedPoints, int currentPoints) {
+        controls.updateClientPoints(clientId, currentPoints);
     }
 
 }

@@ -134,6 +134,10 @@ public class ChatPanel extends JPanel {
         userListPanel.clearUserList();
     }
 
+    public void updateClientPoints(long clientId, int points) {
+        userListPanel.updateClientPoints(clientId, points);
+    }
+
     public void addText(String text) {
         JPanel content = chatArea;
         // add message

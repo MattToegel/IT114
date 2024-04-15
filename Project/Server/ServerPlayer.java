@@ -168,4 +168,11 @@ public class ServerPlayer extends Player {
         }
         client.sendRoll(clientId, roll);
     }
+
+    public void sendPoints(long clientId, int changedPoints, int currentPoints) {
+        if (client == null) {
+            return;
+        }
+        client.sendPoints(clientId, changedPoints, currentPoints);
+    }
 }

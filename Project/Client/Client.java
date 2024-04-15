@@ -18,6 +18,7 @@ import Project.Common.Grid;
 import Project.Common.Payload;
 import Project.Common.PayloadType;
 import Project.Common.Phase;
+import Project.Common.PointsPayload;
 import Project.Common.PositionPayload;
 import Project.Common.ReadyPayload;
 import Project.Common.RoomResultsPayload;
@@ -301,6 +302,7 @@ public enum Client {
         if (message.startsWith("/") && processClientCommand(message)) {
             return;
         }
+        System.out.println(TextFX.colorize("Client is sending message: " + message, Color.YELLOW));
         Payload p = new Payload();
         p.setPayloadType(PayloadType.MESSAGE);
         p.setMessage(message);
@@ -630,6 +632,23 @@ public enum Client {
                         events.forEach(e -> {
                             if (e instanceof IGameEvents) {
                                 ((IGameEvents) e).onReceiveRoll(tsp.getClientId(), tsp.getRoll());
+                            }
+                        });
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                break;
+            case POINTS:
+                try {
+                    PointsPayload pp = (PointsPayload) p;
+                    if (clientsInRoom.containsKey(pp.getClientId())) {
+                        ClientPlayer cpp = clientsInRoom.get(pp.getClientId());
+                        cpp.setPoints(pp.getCurrentPoints());
+                        events.forEach(e -> {
+                            if (e instanceof IGameEvents) {
+                                ((IGameEvents) e).onReceivePoints(pp.getClientId(), pp.getChangedPoints(),
+                                        pp.getCurrentPoints());
                             }
                         });
                     }

@@ -148,8 +148,10 @@ public class GameRoom extends Room {
                 System.out.println("Reached Dragon");
                 int treasure = random.nextInt(4);
                 // TODO record points and sync
+                int currentPoints = currentPlayer.changePoints(treasure);
+                sendPoints(currentPlayer.getClientId(), treasure, currentPoints);
                 System.out.println(TextFX.colorize(
-                        String.format("Recevied %s treasure", treasure), Color.YELLOW));
+                        String.format("Recevied %s treasure and now has %s", treasure, currentPoints), Color.YELLOW));
                 List<Cell> starts = grid.getStartCells();
                 // move to random start
                 Cell randomStart = starts.get(new Random().nextInt(starts.size()));
@@ -485,6 +487,13 @@ public class GameRoom extends Room {
     }
 
     // start send/sync methods
+    private void sendPoints(long clientId, int changedPoints, int currentPoints) {
+        Iterator<ServerPlayer> iter = players.values().iterator();
+        while (iter.hasNext()) {
+            ServerPlayer sp = iter.next();
+            sp.sendPoints(clientId, changedPoints, currentPoints);
+        }
+    }
     private void sendRoll(long clientId, int roll) {
         Iterator<ServerPlayer> iter = players.values().iterator();
         while (iter.hasNext()) {

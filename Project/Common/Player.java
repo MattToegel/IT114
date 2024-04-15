@@ -6,6 +6,20 @@ package Project.Common;
 public class Player {
     private boolean isReady;
 
+    public int getPoints() {
+        return points;
+    }
+
+    public void setPoints(int points) {
+        this.points = points;
+    }
+
+    public int changePoints(int points) {
+        this.points += points;
+        return this.points;
+    }
+
+    private int points;
 
     public boolean isReady() {
         return isReady;

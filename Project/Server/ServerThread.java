@@ -11,6 +11,7 @@ import Project.Common.ConnectionPayload;
 import Project.Common.Constants;
 import Project.Common.Payload;
 import Project.Common.PayloadType;
+import Project.Common.PointsPayload;
 import Project.Common.PositionPayload;
 import Project.Common.ReadyPayload;
 import Project.Common.RoomResultsPayload;
@@ -86,6 +87,14 @@ public class ServerThread extends Thread {
     }
 
     // send methods
+    protected boolean sendPoints(long clientId, int changedPoints, int currentPoints) {
+        PointsPayload pp = new PointsPayload();
+        pp.setPayloadType(PayloadType.POINTS);
+        pp.setClientId(clientId);
+        pp.setChangedPoints(changedPoints);
+        pp.setCurrentPoints(currentPoints);
+        return send(pp);
+    }
     protected boolean sendRoll(long clientId, int roll) {
         TurnStatusPayload tsp = new TurnStatusPayload();
         tsp.setPayloadType(PayloadType.ROLL);
@@ -271,6 +280,8 @@ public class ServerThread extends Thread {
                 break;
             case MESSAGE:
                 if (currentRoom != null) {
+                    System.out
+                            .println(TextFX.colorize("ServerThread received message: " + p.getMessage(), Color.YELLOW));
                     currentRoom.sendMessage(this, p.getMessage());
                 } else {
                     // TODO migrate to lobby

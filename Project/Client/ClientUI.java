@@ -229,4 +229,11 @@ public class ClientUI extends JFrame implements IClientEvents, ICardControls {
             chatGamePanel.getChatPanel().addText("Joined room " + roomName);
         }
     }
+
+    // ICardControl
+    @Override
+    public void updateClientPoints(long clientId, int currentPoints) {
+        System.out.println(String.format("Client %s has %s treasure", clientId, currentPoints));
+        chatGamePanel.getChatPanel().updateClientPoints(clientId, currentPoints);
+    }
 }

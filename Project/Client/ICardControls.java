@@ -12,4 +12,6 @@ public interface ICardControls {
     void addPanel(String name, JPanel panel);
 
     void connect();
+
+    void updateClientPoints(long clientId, int currentPoints);
 }
