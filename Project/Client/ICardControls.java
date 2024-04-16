@@ -14,4 +14,6 @@ public interface ICardControls {
     void connect();
 
     void updateClientPoints(long clientId, int currentPoints);
+
+    void updateCurrentTurn(long clientId);
 }

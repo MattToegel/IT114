@@ -146,7 +146,7 @@ public class GameRoom extends Room {
             boolean isAtDragon = grid.isAtOrAdjacentToDragon(next);
             if (isAtDragon) {
                 System.out.println("Reached Dragon");
-                int treasure = random.nextInt(4);
+                int treasure = random.nextInt(3) + 1;// value is 1-3
                 // TODO record points and sync
                 int currentPoints = currentPlayer.changePoints(treasure);
                 sendPoints(currentPlayer.getClientId(), treasure, currentPoints);

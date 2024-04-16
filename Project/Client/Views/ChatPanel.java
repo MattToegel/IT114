@@ -138,6 +138,10 @@ public class ChatPanel extends JPanel {
         userListPanel.updateClientPoints(clientId, points);
     }
 
+    public void highlightCurrentTurn(long clientId) {
+        userListPanel.highlightCurrentTurn(clientId);
+    }
+
     public void addText(String text) {
         JPanel content = chatArea;
         // add message

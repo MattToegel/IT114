@@ -181,4 +181,9 @@ public class GamePanel extends JPanel implements IGameEvents {
         controls.updateClientPoints(clientId, currentPoints);
     }
 
+    @Override
+    public void onReceiveCurrentTurn(long clientId) {
+        controls.updateCurrentTurn(clientId);
+    }
+
 }

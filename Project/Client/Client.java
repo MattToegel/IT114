@@ -529,11 +529,16 @@ public enum Client {
                  * }
                  */
                 clientsInRoom.values().stream().forEach(c -> {
-                    boolean isMyTurn = c.getClientId() == p.getClientId();
-                    c.setMyTurn(isMyTurn);
-                    if (isMyTurn) {
+                    boolean isThisPlayersTurn = c.getClientId() == p.getClientId();
+                    c.setMyTurn(isThisPlayersTurn);
+                    if (isThisPlayersTurn) {
                         System.out.println(
                                 TextFX.colorize(String.format("It's %s's turn", c.getClientName()), Color.PURPLE));
+                    }
+                });
+                events.forEach(e -> {
+                    if (e instanceof IGameEvents) {
+                        ((IGameEvents) e).onReceiveCurrentTurn(p.getClientId());
                     }
                 });
                 break;
@@ -645,6 +650,8 @@ public enum Client {
                     if (clientsInRoom.containsKey(pp.getClientId())) {
                         ClientPlayer cpp = clientsInRoom.get(pp.getClientId());
                         cpp.setPoints(pp.getCurrentPoints());
+                        // alternatively
+                        // cpp.changePoints(pp.getChangedPoints());
                         events.forEach(e -> {
                             if (e instanceof IGameEvents) {
                                 ((IGameEvents) e).onReceivePoints(pp.getClientId(), pp.getChangedPoints(),

@@ -6,19 +6,15 @@ import java.awt.Dimension;
 import java.awt.event.ContainerEvent;
 import java.awt.event.ContainerListener;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.swing.BoxLayout;
-import javax.swing.JEditorPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.ScrollPaneConstants;
 
-import Project.Client.ClientUtils;
 import Project.Common.TextFX;
 import Project.Common.TextFX.Color;
 
@@ -69,7 +65,9 @@ public class UserListPanel extends JPanel {
 
     protected void addUserListItem(long clientId, String clientName) {
         logger.log(Level.INFO, "Adding user to list: " + clientName);
-        UserListItem uli = new UserListItem(userListArea, clientId, clientName);
+        UserListItem uli = new UserListItem(clientId, clientName);
+        uli.setPreferredSize(new Dimension(userListArea.getWidth(), 20));
+        uli.setMaximumSize(uli.getPreferredSize());
         // add to container
         userListArea.add(uli);
     }
@@ -83,27 +81,6 @@ public class UserListPanel extends JPanel {
                 break;
             }
         }
-    }
-
-    private void test() {
-        long clientId = -1;// temp
-        List<UserListItem> ulis = new ArrayList<UserListItem>();
-        Component[] cs = userListArea.getComponents();
-        for (Component c : cs) {
-            System.out.println(TextFX.colorize("Checking panel", Color.BLUE));
-            if (c instanceof UserListItem && c.getName().equals(clientId + "")) {
-                System.out.println(TextFX.colorize("Found panel for points", Color.YELLOW));
-                UserListItem uli = (UserListItem) c;
-                ulis.add(uli);
-                break;
-            }
-        }
-        // TODO show a sort example
-        /*
-         * ulis.sort((UserListItem a, UserListItem b) -> {
-         * return a.getPoints() - b.getPoints();
-         * });
-         */
     }
 
     protected void clearUserList() {
@@ -122,6 +99,16 @@ public class UserListPanel extends JPanel {
                 UserListItem uli = (UserListItem) c;
                 uli.setPoints(points);
                 break;
+            }
+        }
+    }
+
+    protected void highlightCurrentTurn(long clientId) {
+        Component[] cs = userListArea.getComponents();
+        for (Component c : cs) {
+            if (c instanceof UserListItem) {
+                UserListItem uli = (UserListItem) c;
+                uli.setCurrentTurn(clientId);
             }
         }
     }
