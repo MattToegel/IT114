@@ -663,6 +663,13 @@ public enum Client {
                     e.printStackTrace();
                 }
                 break;
+            case GAME_EVENT:
+                events.forEach(e -> {
+                    if (e instanceof IGameEvents) {
+                        ((IGameEvents) e).onReceiveGameEvent(p.getMessage());
+                    }
+                });
+                break;
             // case END_SESSION: //clearing all local player data
             default:
                 break;
