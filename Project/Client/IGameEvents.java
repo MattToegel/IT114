@@ -35,4 +35,6 @@ public interface IGameEvents extends IClientEvents {
     void onReceivePoints(long clientId, int changedPoints, int currentPoints);
 
     void onReceiveCurrentTurn(long clientId);
+
+    void onReceiveGameEvent(String message);
 }

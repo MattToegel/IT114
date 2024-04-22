@@ -24,6 +24,10 @@ public class UserListItem extends JPanel {
         this.turnIndicator.setVisible(false);
         this.add(turnIndicator);
         JEditorPane textContainer = new JEditorPane("text/plain", clientName);
+        /*
+         * String display = String.format("%s [%s]", clientName, points);
+         * textContainer.setText(display);
+         */
         this.usernameContainer = textContainer;
         textContainer.setEditable(false);
         textContainer.setName(Long.toString(clientId));

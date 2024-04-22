@@ -87,6 +87,12 @@ public class ServerThread extends Thread {
     }
 
     // send methods
+    protected boolean sendGameEvent(String message) {
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.GAME_EVENT);
+        p.setMessage(message);
+        return send(p);
+    }
     protected boolean sendPoints(long clientId, int changedPoints, int currentPoints) {
         PointsPayload pp = new PointsPayload();
         pp.setPayloadType(PayloadType.POINTS);
@@ -318,6 +324,7 @@ public class ServerThread extends Thread {
                 break;
 
             case ROLL:
+                System.out.println(TextFX.colorize("Some Unique Message 2", Color.CYAN));
                 try {
                     ((GameRoom) currentRoom).doRoll(this);
                 } catch (Exception e) {

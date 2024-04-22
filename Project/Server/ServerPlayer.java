@@ -175,4 +175,11 @@ public class ServerPlayer extends Player {
         }
         client.sendPoints(clientId, changedPoints, currentPoints);
     }
+
+    public void sendGameEvent(String message) {
+        if (client == null) {
+            return;
+        }
+        client.sendGameEvent(message);
+    }
 }

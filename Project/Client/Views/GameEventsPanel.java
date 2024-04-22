@@ -71,7 +71,7 @@ public class GameEventsPanel extends JPanel implements IGameEvents {
 
     private void addText(String text) {
         // add message
-        JEditorPane textContainer = new JEditorPane("text/plain", text);
+        JEditorPane textContainer = new JEditorPane("text/html", text);
 
         // sizes the panel to attempt to take up the width of the container
         // and expand in height based on word wrapping
@@ -170,5 +170,10 @@ public class GameEventsPanel extends JPanel implements IGameEvents {
 
     @Override
     public void onReceiveCurrentTurn(long clientId) {
+    }
+
+    @Override
+    public void onReceiveGameEvent(String message) {
+        addText(message);
     }
 }

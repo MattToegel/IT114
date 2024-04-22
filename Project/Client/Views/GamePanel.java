@@ -5,8 +5,10 @@ import java.awt.CardLayout;
 import java.awt.GridLayout;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
+import java.io.IOException;
 import java.util.List;
 
+import javax.swing.JButton;
 import javax.swing.JPanel;
 import javax.swing.JSplitPane;
 
@@ -27,26 +29,56 @@ public class GamePanel extends JPanel implements IGameEvents {
     private final static String READY_PANEL = "READY";
     private final static String GRID_PANEL = "GRID";
     private ICardControls controls;
+    private JPanel gameContainerCardLayout;
     public GamePanel(ICardControls controls) {
         // super(new CardLayout());
         super(new BorderLayout());
         this.controls = controls;
-        JPanel gameContainer = new JPanel();
-        gameContainer.setLayout(new CardLayout());
-        cardLayout = (CardLayout) gameContainer.getLayout();
+        gameContainerCardLayout = new JPanel();
+        gameContainerCardLayout.setLayout(new CardLayout());
+        cardLayout = (CardLayout) gameContainerCardLayout.getLayout();
         this.setName(CardView.GAME_SCREEN.name());
         Client.INSTANCE.addCallback(this);
         // ready panel
         ReadyPanel rp = new ReadyPanel();
         rp.setName(READY_PANEL);
-        gameContainer.add(READY_PANEL, rp);
+        gameContainerCardLayout.add(READY_PANEL, rp);
         // grid
         gridPanel = new JPanel();
         gridPanel.setName(GRID_PANEL);
-        gameContainer.add(GRID_PANEL, gridPanel);
+        JPanel gridContainer = new JPanel();
+        gridContainer.setLayout(new BorderLayout());
+        gridContainer.add(gridPanel, BorderLayout.CENTER);
+        JButton rollButton = new JButton("Roll");
+        rollButton.addActionListener((action) -> {
+            try {
+                Client.INSTANCE.sendRoll();
+            } catch (IOException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+        });
+        JPanel buttonstuff = new JPanel();
+        String[] buttons = new String[] { "1", "2", "3" };
+        for (String s : buttons) {
+            JButton b = new JButton(s);
+            b.addActionListener(a -> {
+                final String myValue = s;
+                try {
+                    Client.INSTANCE.sendMessage(myValue);
+                } catch (IOException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                }
+            });
+            buttonstuff.add(b);
+        }
+        gridContainer.add(buttonstuff, BorderLayout.WEST);
+        gridContainer.add(rollButton, BorderLayout.SOUTH);
+        gameContainerCardLayout.add(GRID_PANEL, gridContainer);
         // game events
         GameEventsPanel gep = new GameEventsPanel();
-        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, gameContainer, gep);
+        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, gameContainerCardLayout, gep);
         splitPane.setResizeWeight(.7);
 
         gridPanel.addComponentListener(new ComponentAdapter() {
@@ -142,9 +174,9 @@ public class GamePanel extends JPanel implements IGameEvents {
             System.out.println("GamePanel visible");
         }
         if (phase == Phase.READY) {
-            cardLayout.show(gridPanel.getParent(), READY_PANEL);
+            cardLayout.show(gameContainerCardLayout, READY_PANEL);
         } else if (phase == Phase.TURN) {
-            cardLayout.show(gridPanel.getParent(), GRID_PANEL);
+            cardLayout.show(gameContainerCardLayout, GRID_PANEL);
         }
     }
 
@@ -184,6 +216,11 @@ public class GamePanel extends JPanel implements IGameEvents {
     @Override
     public void onReceiveCurrentTurn(long clientId) {
         controls.updateCurrentTurn(clientId);
+    }
+
+    @Override
+    public void onReceiveGameEvent(String message) {
+
     }
 
 }

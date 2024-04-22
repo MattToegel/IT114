@@ -251,6 +251,7 @@ public enum Client {
 
     // Send methods
     public void sendRoll() throws IOException {
+        System.out.println(TextFX.colorize("Some Unique Message 1", Color.CYAN));
         Payload p = new Payload();
         p.setPayloadType(PayloadType.ROLL);
         out.writeObject(p);
@@ -662,6 +663,13 @@ public enum Client {
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
+                break;
+            case GAME_EVENT:
+                events.forEach(e -> {
+                    if (e instanceof IGameEvents) {
+                        ((IGameEvents) e).onReceiveGameEvent(p.getMessage());
+                    }
+                });
                 break;
             // case END_SESSION: //clearing all local player data
             default:

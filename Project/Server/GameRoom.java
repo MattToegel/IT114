@@ -29,6 +29,7 @@ public class GameRoom extends Room {
     private List<Long> turnOrder = new ArrayList<Long>();
     private Grid grid = new Grid();
     private Random random = new Random();
+    private List<Boolean> sleepDeck = new ArrayList<Boolean>();
 
     public GameRoom(String name) {
         super(name);
@@ -147,32 +148,51 @@ public class GameRoom extends Room {
             if (isAtDragon) {
                 System.out.println("Reached Dragon");
                 int treasure = random.nextInt(3) + 1;// value is 1-3
+                int cardsToDraw = random.nextInt(4); // 0-3
                 // TODO record points and sync
                 int currentPoints = currentPlayer.changePoints(treasure);
                 sendPoints(currentPlayer.getClientId(), treasure, currentPoints);
                 System.out.println(TextFX.colorize(
                         String.format("Recevied %s treasure and now has %s", treasure, currentPoints), Color.YELLOW));
-                List<Cell> starts = grid.getStartCells();
-                // move to random start
-                Cell randomStart = starts.get(new Random().nextInt(starts.size()));
-                currentCell = grid.movePlayer(-1, currentCell, randomStart.getX(), randomStart.getY());
-                if (currentCell != null) {
-                    currentPlayer.setCell(currentCell);
-                    currentPlayer.resetPath();
-                    /*
-                     * System.out.println(TextFX.colorize(String.format("Path size %s",
-                     * currentPlayer.getPath().size()),
-                     * Color.GREEN));
-                     */
-                    currentPlayer.addPath(next);
-                    /*
-                     * System.out.println(TextFX.colorize(String.format("Path size %s",
-                     * currentPlayer.getPath().size()),
-                     * Color.GREEN));
-                     */
-                    sendPlayerPosition(currentPlayer);
+                // draw sleep cards to see if dragon awakens
+                boolean isAwake = false;
+                System.out.println(TextFX.colorize(
+                        String.format("Drawing %s sleep cards", cardsToDraw), Color.PURPLE));
+                if (cardsToDraw > 0) {
+                    sendGameEvent("<font color=purple>The Dragon stirs</font>");
+                    for (int i = 0; i < cardsToDraw; i++) {
+                        isAwake = sleepDeck.remove(0);
+                        if (isAwake) {
+                            break;
+                        }
+                    }
                 }
-                grid.print();
+                if (isAwake) {
+                    sendGameEvent("<font color=orange>Dragon Awoke</font>");
+                } else {
+
+                    List<Cell> starts = grid.getStartCells();
+                    // move to random start
+                    Cell randomStart = starts.get(new Random().nextInt(starts.size()));
+                    currentCell = grid.movePlayer(-1, currentCell, randomStart.getX(), randomStart.getY());
+                    if (currentCell != null) {
+                        currentPlayer.setCell(currentCell);
+                        currentPlayer.resetPath();
+                        /*
+                         * System.out.println(TextFX.colorize(String.format("Path size %s",
+                         * currentPlayer.getPath().size()),
+                         * Color.GREEN));
+                         */
+                        currentPlayer.addPath(next);
+                        /*
+                         * System.out.println(TextFX.colorize(String.format("Path size %s",
+                         * currentPlayer.getPath().size()),
+                         * Color.GREEN));
+                         */
+                        sendPlayerPosition(currentPlayer);
+                    }
+                    grid.print();
+                }
                 break;
             }
 
@@ -184,18 +204,22 @@ public class GameRoom extends Room {
     public synchronized void doRoll(ServerThread client) {
         final int roll = random.nextInt(6) + 1;// 1 - 6
         System.out.println(TextFX.colorize(
-                String.format("Player %s is attempt to roll %s", client.getClientName(), roll), Color.CYAN));
+                String.format("Player %s is attempting to roll %s", client.getClientName(), roll), Color.CYAN));
 
         try {
             // ensure proper phase
             checkCurrentPhase(client, Phase.TURN);
+            System.out.println(TextFX.colorize(currentPhase.name(), Color.CYAN));
             // ensure user is in room
             checkPlayerInRoom(client);
+            System.out.println(TextFX.colorize("Some Unique Message 4", Color.CYAN));
             // check player is ready
             ServerPlayer sp = players.get(client.getClientId());
+            System.out.println(TextFX.colorize("Some Unique Message 5", Color.CYAN));
             checkPlayerIsReady(sp);
             // is it their turn
             checkCurrentTurn(sp);
+            System.out.println(TextFX.colorize("Some Unique Message 1", Color.CYAN));
             // did they take their turn already
             checkTakenTurn(sp);
 
@@ -348,7 +372,7 @@ public class GameRoom extends Room {
                 // condition 2: start if everyone is ready
                 int totalPlayers = players.size();
                 boolean everyoneIsReady = numReady >= totalPlayers;
-                if (meetsMinimum || everyoneIsReady) {
+                if (meetsMinimum || (everyoneIsReady && meetsMinimum)) {
                     start();
                 } else {
                     sendMessage(ServerConstants.FROM_ROOM,
@@ -362,7 +386,23 @@ public class GameRoom extends Room {
                 readyCheckTimer.cancel();
                 readyCheckTimer = null;
             });
-            readyCheckTimer.setTickCallback((time) -> System.out.println("Ready Countdown: " + time));
+            readyCheckTimer.setTickCallback((time) -> sendGameEvent(String.format("<b>Ready Time: %s</b>", time)));
+        }
+        long numReady = players.values().stream().filter(p -> {
+            return p.isReady();
+        }).count();
+        // condition 1: start if we have the minimum ready
+        boolean meetsMinimum = numReady >= Constants.MINIMUM_REQUIRED_TO_START;
+        // condition 2: start if everyone is ready
+        int totalPlayers = players.size();
+        if (numReady == totalPlayers && meetsMinimum) {
+            if (readyCheckTimer != null) {
+                readyCheckTimer.cancel();
+                readyCheckTimer = null;
+            }
+            System.out.println(TextFX.colorize("Everyone is ready, GO!", Color.GREEN));
+            sendGameEvent("Everyone is ready, have fun!");
+            start();
         }
     }
 
@@ -386,7 +426,8 @@ public class GameRoom extends Room {
         grid.populate(6);
         // set users to random starts
         List<Cell> starts = grid.getStartCells();
-        players.values().stream().forEach(p -> {
+        // place only active players
+        players.values().stream().filter(ServerPlayer::isReady).forEach(p -> {
             Cell start = starts.get(random.nextInt(starts.size()));
             p.setCell(start);
             sendPlayerPosition(p);
@@ -395,6 +436,18 @@ public class GameRoom extends Room {
         canEndSession = false;
 
         numActivePlayers = players.values().stream().filter(ServerPlayer::isReady).count();
+        int sleepCards = (int) numActivePlayers * 3;
+        sleepDeck.clear();
+        for (int i = 0; i < sleepCards; i++) {
+            sleepDeck.add(false);
+        }
+        int min = sleepCards / 2;
+        int max = sleepCards;
+        int index = random.nextInt(max - min) + min;
+        sleepDeck.set(index, true);
+        System.out.println(TextFX.colorize(
+                String.format("Created a sleep deck with %s cards and Awake card at index %s", sleepCards, index),
+                Color.PURPLE));
         setupTurns();
         startTurnTimer();
     }
@@ -445,7 +498,7 @@ public class GameRoom extends Room {
             turnTimer = null;
         }
         // another fake end condition (since it's purely based on who goes first)
-        if (grid.isGridFull()) {
+        if (grid.isGridFull() || sleepDeck.stream().filter(d -> d).findAny().isEmpty()) {
             canEndSession = true;
             end();
         } else {
@@ -487,6 +540,13 @@ public class GameRoom extends Room {
     }
 
     // start send/sync methods
+    private void sendGameEvent(String message) {
+        Iterator<ServerPlayer> iter = players.values().iterator();
+        while (iter.hasNext()) {
+            ServerPlayer sp = iter.next();
+            sp.sendGameEvent(message);
+        }
+    }
     private void sendPoints(long clientId, int changedPoints, int currentPoints) {
         Iterator<ServerPlayer> iter = players.values().iterator();
         while (iter.hasNext()) {
