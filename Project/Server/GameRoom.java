@@ -29,8 +29,11 @@ public class GameRoom extends Room {
     private List<Long> turnOrder = new ArrayList<Long>();
     private Grid grid = new Grid();
     private Random random = new Random();
+    private int currentRollValue = -1;
+    private int currentStep = -1;
     // controls when the game ends (a "awake" card is drawn)
     private List<Boolean> dragonSleepDeck = new ArrayList<Boolean>();
+
     public GameRoom(String name) {
         super(name);
     }
@@ -116,89 +119,140 @@ public class GameRoom extends Room {
             throw new Exception("Player already took their turn");
         }
     }
+
     // end logic checks
-
-    private void processRoll(int roll) throws Exception {
-
-        for (int step = 0; step < roll; step++) {
-            Cell currentCell = currentPlayer.getCell();
-            System.out.println(TextFX.colorize("Doing step " + (step + 1), Color.CYAN));
+    private void handleNextCell(Cell next) {
+        if (next != null) {
+            currentPlayer.setCell(next);
+            currentPlayer.addPath(next);
+            sendPlayerPosition(currentPlayer);
+        }
+        System.out.println(TextFX.colorize(
+                String.format("Reached %s,%s", next.getX(), next.getY()), Color.YELLOW));
+        sendGameEvent(String.format("%s reached %s,%s", currentPlayer.getClientName(), next.getX(), next.getY()));
+        // check if at dragon
+        boolean isAtDragon = grid.isAtOrAdjacentToDragon(next);
+        if (isAtDragon) {
+            currentRollValue = 0;
+            System.out.println("Reached Dragon");
+            int treasure = random.nextInt(3) + 1;// value is 1-3
+            int drawAwakeCards = random.nextInt(4);// 0-3 awake cards
+            boolean isAwake = false; // ends the session
+            // TODO record points and sync
+            int currentPoints = currentPlayer.changePoints(treasure);
+            sendPoints(currentPlayer.getClientId(), treasure, currentPoints);
             System.out.println(TextFX.colorize(
-                    String.format("Current %s, %s", currentCell.getX(), currentCell.getY()), Color.YELLOW));
-            Cell next = grid.handleTurn(currentPlayer.getClientId(), currentCell, currentPlayer.getPath());
+                    String.format("Recevied %s treasure and now has %s", treasure, currentPoints), Color.YELLOW));
+            for (int i = 0; i < drawAwakeCards; i++) {
+                isAwake = dragonSleepDeck.remove(0);
+                if (isAwake) {
+                    break;
+                }
+            }
+            if (drawAwakeCards > 0) {
+                sendMessage(ServerConstants.FROM_ROOM, "The dragon stirs");
+                sendGameEvent("<font color=purple>The Dragon Stirs</font>");
+            }
+            if (!isAwake) {
+                List<Cell> starts = grid.getStartCells();
+                // move to random start
+                Cell randomStart = starts.get(new Random().nextInt(starts.size()));
+                Cell currentCell = currentPlayer.getCell();
+                currentCell = grid.movePlayer(-1, currentCell, randomStart.getX(), randomStart.getY());
+                if (currentCell != null) {
+                    currentPlayer.setCell(currentCell);
+                    currentPlayer.resetPath();
+
+                    currentPlayer.addPath(next);
+
+                    sendPlayerPosition(currentPlayer);
+                }
+                grid.print();
+            } else {
+                sendMessage(ServerConstants.FROM_ROOM, "The Dragon Awakens");
+                sendGameEvent("<font color=orange>The Dragon Awakens</font>");
+            }
+        } else {
+            currentStep++;
+            if (currentStep >= currentRollValue) {
+                currentRollValue = -1;
+            }
+        }
+    }
+
+    private Cell processRollStep(int step, int roll) throws Exception, MultiplePathException {
+
+        // for (int step = 0; step < remainingRollValue; step++) {
+
+        Cell currentCell = currentPlayer.getCell();
+        System.out.println(TextFX.colorize("Doing step " + (step + 1) + "/" + roll, Color.CYAN));
+        sendGameEvent("Doing step " + (step + 1) + "/" + roll);
+        System.out.println(TextFX.colorize(
+                String.format("Current %s, %s", currentCell.getX(), currentCell.getY()), Color.YELLOW));
+        Cell next = null;
+        try {
+            next = grid.handleMove(currentPlayer.getClientId(), currentCell, currentPlayer.getPath());
+        } catch (MultiplePathException e) {
+            // send choices to player
+            currentPlayer.sendPathChoices(e.getOptions());
+            throw e;
+        }
+        // this runs if it's a single choice
+
+        grid.print();
+        return next;
+        // }
+    }
+
+    private void processRoll(String choice) {
+        Cell currentCell = currentPlayer.getCell();
+        long clientId = currentPlayer.getClientId();
+        List<Cell> path = currentPlayer.getPath();
+
+        Cell next = null;
+        try {
+            if (choice == null) {
+                next = processRollStep(currentStep, currentRollValue);
+            } else {
+                next = grid.handleChoiceMove(clientId, currentCell, path, choice);
+            }
             if (next != null) {
-                currentPlayer.setCell(next);
-                /*
-                 * System.out.println(
-                 * TextFX.colorize(String.format("Path size %s",
-                 * currentPlayer.getPath().size()), Color.GREEN));
-                 */
-                currentPlayer.addPath(next);
-                /*
-                 * System.out.println(
-                 * TextFX.colorize(String.format("Path size %s",
-                 * currentPlayer.getPath().size()), Color.GREEN));
-                 */
-                sendPlayerPosition(currentPlayer);
-            }
-            System.out.println(TextFX.colorize(
-                    String.format("Reached %s,%s", next.getX(), next.getY()), Color.YELLOW));
-            // check if at dragon
-            boolean isAtDragon = grid.isAtOrAdjacentToDragon(next);
-            if (isAtDragon) {
-                System.out.println("Reached Dragon");
-                int treasure = random.nextInt(3) + 1;// value is 1-3
-                int drawAwakeCards = random.nextInt(4);// 0-3 awake cards
-                boolean isAwake = false; // ends the session
-                // TODO record points and sync
-                int currentPoints = currentPlayer.changePoints(treasure);
-                sendPoints(currentPlayer.getClientId(), treasure, currentPoints);
-                System.out.println(TextFX.colorize(
-                        String.format("Recevied %s treasure and now has %s", treasure, currentPoints), Color.YELLOW));
-                for (int i = 0; i < drawAwakeCards; i++) {
-                    isAwake = dragonSleepDeck.remove(0);
-                    if (isAwake) {
-                        break;
-                    }
-                }
-                if (drawAwakeCards > 0) {
-                    sendMessage(ServerConstants.FROM_ROOM, "The dragon stirs");
-                    sendGameEvent("<font color=purple>The Dragon Stirs</font>");
-                }
-                if (!isAwake) {
-                    List<Cell> starts = grid.getStartCells();
-                    // move to random start
-                    Cell randomStart = starts.get(new Random().nextInt(starts.size()));
-                    currentCell = grid.movePlayer(-1, currentCell, randomStart.getX(), randomStart.getY());
-                    if (currentCell != null) {
-                        currentPlayer.setCell(currentCell);
-                        currentPlayer.resetPath();
-                        /*
-                         * System.out.println(TextFX.colorize(String.format("Path size %s",
-                         * currentPlayer.getPath().size()),
-                         * Color.GREEN));
-                         */
-                        currentPlayer.addPath(next);
-                        /*
-                         * System.out.println(TextFX.colorize(String.format("Path size %s",
-                         * currentPlayer.getPath().size()),
-                         * Color.GREEN));
-                         */
-                        sendPlayerPosition(currentPlayer);
-                    }
-                    grid.print();
+                handleNextCell(next);
+                if (currentRollValue <= 0) {
+                    handleEndOfTurn();
                 } else {
-                    sendMessage(ServerConstants.FROM_ROOM, "The Dragon Awakens");
-                    sendGameEvent("<font color=orange>The Dragon Awakens</font>");
+                    processRoll(null);
                 }
-                break;
             }
+        } catch (MultiplePathException mpe) {
+            // currentStep++;
+            currentPlayer.sendPathChoices(mpe.getOptions());
 
-            grid.print();
+        } catch (Exception e) {
+
         }
     }
 
     // serverthread interactions
+    public synchronized void handleDirectionChoice(ServerThread client, String choice) {
+        // ensure proper phase
+        try {
+            checkCurrentPhase(client, Phase.TURN);
+            checkPlayerInRoom(client);
+            // check player is ready
+            ServerPlayer sp = players.get(client.getClientId());
+            checkPlayerIsReady(sp);
+            // is it their turn
+            checkCurrentTurn(sp);
+            processRoll(choice);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        // ensure user is in room
+
+    }
+
     public synchronized void doRoll(ServerThread client) {
         final int roll = random.nextInt(6) + 1;// 1 - 6
         System.out.println(TextFX.colorize(
@@ -219,9 +273,10 @@ public class GameRoom extends Room {
 
             // player can do turn (use roll from above)
             sendRoll(sp.getClientId(), roll);
-            processRoll(roll);
+            currentStep = 0;
+            currentRollValue = roll;
+            processRoll(null);
 
-            handleEndOfTurn();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -294,6 +349,7 @@ public class GameRoom extends Room {
         }
 
     }
+
     public synchronized void setReady(ServerThread client) {
         if (currentPhase != Phase.READY) {
             client.sendMessage(Constants.DEFAULT_CLIENT_ID, "Can't initiate ready check at this time");
@@ -485,13 +541,13 @@ public class GameRoom extends Room {
         }
     }
 
-
     private void handleEndOfTurn() {
         // don't forget to cancel your timer when applicable
         if (turnTimer != null) {
             turnTimer.cancel();
             turnTimer = null;
         }
+        currentPlayer.resetPath();
         // updated logic
         // filter for all true values in dragSleepDeck (there should just be 1)
         // if any are NOT found, game over (it was drawn)
@@ -545,6 +601,7 @@ public class GameRoom extends Room {
             sp.sendGameEvent(message);
         }
     }
+
     private void sendPoints(long clientId, int changedPoints, int currentPoints) {
         Iterator<ServerPlayer> iter = players.values().iterator();
         while (iter.hasNext()) {
@@ -552,6 +609,7 @@ public class GameRoom extends Room {
             sp.sendPoints(clientId, changedPoints, currentPoints);
         }
     }
+
     private void sendRoll(long clientId, int roll) {
         Iterator<ServerPlayer> iter = players.values().iterator();
         while (iter.hasNext()) {
@@ -559,6 +617,7 @@ public class GameRoom extends Room {
             sp.sendRoll(clientId, roll);
         }
     }
+
     private void sendGridDimensions(int x, int y) {
         Iterator<ServerPlayer> iter = players.values().iterator();
         while (iter.hasNext()) {
@@ -574,6 +633,7 @@ public class GameRoom extends Room {
             sp.sendPlayerPosition(playerWhoMoved.getClientId(), playerWhoMoved.getCellX(), playerWhoMoved.getCellY());
         }
     }
+
     private void sendCurrentPlayerTurn() {
         Iterator<ServerPlayer> iter = players.values().iterator();
         while (iter.hasNext()) {
@@ -605,6 +665,7 @@ public class GameRoom extends Room {
             sp.sendPlayerTurnStatus(isp.getClientId(), isp.didTakeTurn());
         }
     }
+
     private void syncCurrentPhase() {
         Iterator<ServerPlayer> iter = players.values().iterator();
         while (iter.hasNext()) {

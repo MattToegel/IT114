@@ -31,6 +31,7 @@ public class GamePanel extends JPanel implements IGameEvents {
     private final static String GRID_PANEL = "GRID";
     private ICardControls controls;
     private JPanel gameContainerCardLayout;
+    private JButton rollButton, leftButton, rightButton, upButton, downButton;
     public GamePanel(ICardControls controls) {
         // super(new CardLayout());
         super(new BorderLayout());
@@ -51,10 +52,10 @@ public class GamePanel extends JPanel implements IGameEvents {
         gridPanel = new JPanel();
         gridPanel.setName(GRID_PANEL);
         gridAreaContainer.add(gridPanel, BorderLayout.CENTER);
-        JButton roll = new JButton("Roll");
-        roll.setBackground(Color.BLACK);
-        roll.setForeground(Color.WHITE);
-        roll.addActionListener((action) -> {
+        rollButton = new JButton("Roll");
+        rollButton.setBackground(Color.BLACK);
+        rollButton.setForeground(Color.WHITE);
+        rollButton.addActionListener((action) -> {
             try {
                 Client.INSTANCE.sendRoll();
             } catch (IOException e) {
@@ -62,7 +63,55 @@ public class GamePanel extends JPanel implements IGameEvents {
                 e.printStackTrace();
             }
         });
-        gridAreaContainer.add(roll, BorderLayout.SOUTH);
+        leftButton = new JButton("Left");
+        leftButton.addActionListener((action) -> {
+            try {
+                Client.INSTANCE.sendChoice("left");
+            } catch (IOException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+        });
+        rightButton = new JButton("Right");
+        rightButton.addActionListener((action) -> {
+            try {
+                Client.INSTANCE.sendChoice("right");
+            } catch (IOException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+        });
+        upButton = new JButton("Up");
+        upButton.addActionListener((action) -> {
+            try {
+                Client.INSTANCE.sendChoice("up");
+            } catch (IOException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+        });
+        downButton = new JButton("Down");
+        downButton.addActionListener((action) -> {
+            try {
+                Client.INSTANCE.sendChoice("down");
+            } catch (IOException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+        });
+        leftButton.setVisible(false);
+        rightButton.setVisible(false);
+        upButton.setVisible(false);
+        downButton.setVisible(false);
+        JPanel buttonContainer = new JPanel();
+        buttonContainer.setLayout(new BorderLayout());
+        buttonContainer.add(rollButton, BorderLayout.NORTH);
+        buttonContainer.add(leftButton, BorderLayout.WEST);
+        buttonContainer.add(rightButton, BorderLayout.EAST);
+        buttonContainer.add(upButton, BorderLayout.CENTER);
+        buttonContainer.add(downButton, BorderLayout.SOUTH);
+
+        gridAreaContainer.add(buttonContainer, BorderLayout.SOUTH);
         gameContainerCardLayout.add(GRID_PANEL, gridAreaContainer);
         // game events
         GameEventsPanel gep = new GameEventsPanel();
@@ -204,10 +253,36 @@ public class GamePanel extends JPanel implements IGameEvents {
     @Override
     public void onReceiveCurrentTurn(long clientId) {
         controls.updateCurrentTurn(clientId);
+        if (Client.INSTANCE.getMyId() == clientId) {
+            rollButton.setVisible(true);
+            leftButton.setVisible(false);
+            rightButton.setVisible(false);
+            upButton.setVisible(false);
+            downButton.setVisible(false);
+        } else {
+            rollButton.setVisible(false);
+            leftButton.setVisible(false);
+            rightButton.setVisible(false);
+            upButton.setVisible(false);
+            downButton.setVisible(false);
+        }
     }
 
     @Override
     public void onReceiveGameEvent(String message) {
+
+    }
+
+    @Override
+    public void onReceiveChoices(List<String> choices) {
+        rollButton.setVisible(false);
+
+        upButton.setVisible(choices.contains("up"));
+
+        downButton.setVisible(choices.contains("down"));
+
+        leftButton.setVisible(choices.contains("left"));
+        rightButton.setVisible(choices.contains("right"));
 
     }
 

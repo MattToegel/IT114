@@ -8,6 +8,7 @@ import java.util.Scanner;
 import java.util.stream.Collectors;
 
 import Project.Common.TextFX.Color;
+import Project.Server.MultiplePathException;
 
 public class Grid {
     private Cell[][] grid;
@@ -22,6 +23,7 @@ public class Grid {
     public boolean isPopulated() {
         return dragonCell != null && !startCells.isEmpty();
     }
+
     public List<Cell> getStartCells() {
         return startCells;
     }
@@ -290,6 +292,7 @@ public class Grid {
     public boolean isAtOrAdjacentToDragon(Cell current) {
         return Cell.DRAGON.equals(current.getValue()) || isAdjacentToDragon(current);
     }
+
     public boolean isAdjacentToDragon(Cell current) {
         /*
          * (first version)
@@ -421,7 +424,30 @@ public class Grid {
         print();
     }
 
-    public Cell handleTurn(long clientId, Cell current, List<Cell> path) throws Exception {
+    public Cell handleChoiceMove(long clientId, Cell current, List<Cell> path, String choice) throws Exception {
+        List<Cell> validCells = getValidMoves(current, path);
+        if (validCells.size() > 1) {
+            final Cell cc = current;
+            validCells = validCells.stream().filter(cell -> {
+                String rel = cc.relativePosition(cell);// .equals(choice);
+                String m = String.format("Cell %s is %s of Cell %s", cell.getCoord(), rel, cc.getCoord());
+                System.out.println(TextFX.colorize(m, Color.PURPLE));
+                return rel.equals(choice);
+            })
+                    .collect(Collectors.toList());
+        }
+        System.out.println("Handle Move Matching Valid Cells: " + validCells.size());
+        if (validCells.size() >= 1) {
+            Cell next = validCells.get(0);
+            next = movePlayer(clientId, current, next.getX(), next.getY());
+            if (next != null) {
+                current = next;
+            }
+        }
+        return current;
+    }
+
+    public Cell handleMove(long clientId, Cell current, List<Cell> path) throws Exception {
 
         List<Cell> validCells = getValidMoves(current, path);
         System.out.println(TextFX.colorize(validCells.size() + " valid cells", Color.YELLOW));
@@ -433,20 +459,26 @@ public class Grid {
             next = movePlayer(clientId, current, next.getX(), next.getY());
             if (next != null) {
                 current = next;
-                // path.add(current);
             }
         } else {
             // TODO offload choice to player
             // random direction
-            Cell next = validCells.get(random.nextInt(validCells.size()));
-            next = movePlayer(clientId, current, next.getX(), next.getY());
-            if (next != null) {
-                current = next;
-                // path.add(current);
-            }
+            final Cell cc = current;
+            List<String> options = validCells.stream().filter(cell -> cell != null).map(cell -> {
+                return cc.relativePosition(cell);
+            }).collect(Collectors.toList());
+            throw new MultiplePathException(options);
+            /*
+             * Cell next = validCells.get(random.nextInt(validCells.size()));
+             * next = movePlayer(clientId, current, next.getX(), next.getY());
+             * if (next != null) {
+             * current = next;
+             * }
+             */
         }
         return current;
     }
+
     public static void main(String[] args) {
         /*
          * Grid grid = new Grid();

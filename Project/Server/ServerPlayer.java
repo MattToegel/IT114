@@ -182,4 +182,11 @@ public class ServerPlayer extends Player {
         }
         client.sendGameEvent(message);
     }
+
+    public void sendPathChoices(List<String> options) {
+        if (client == null) {
+            return;
+        }
+        client.sendPathChoices(options);
+    }
 }

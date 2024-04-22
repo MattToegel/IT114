@@ -24,6 +24,24 @@ public class Cell {
     public static final String DRAGON = "[D]";
     public static final String START = "[S]";
 
+    /**
+     * Returns the position of other relative to this
+     * 
+     * @param other
+     * @return
+     */
+    public String relativePosition(Cell other) {
+        if (this.x == other.x && this.y < other.y) {
+            return "right";
+        } else if (this.x == other.x && this.y > other.y) {
+            return "left";
+        } else if (this.x < other.x && this.y == other.y) {
+            return "down";
+        } else if (this.x > other.x && this.y == other.y) {
+            return "up";
+        }
+        return "invalid";
+    }
     public void addAdjacent(Cell c) {
         if (c.equals(this)) {
             System.out.println(TextFX.colorize("A cell can't be adjacent to itself", Color.RED));
@@ -136,5 +154,9 @@ public class Cell {
     @Override
     public String toString() {
         return isOccupied() ? String.format("[%s]", playersInCell.size()) : getValue();
+    }
+
+    public String getCoord() {
+        return String.format("%s,%s", x, y);
     }
 }

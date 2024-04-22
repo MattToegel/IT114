@@ -37,4 +37,6 @@ public interface IGameEvents extends IClientEvents {
     void onReceiveCurrentTurn(long clientId);
 
     void onReceiveGameEvent(String message);
+
+    void onReceiveChoices(List<String> choices);
 }

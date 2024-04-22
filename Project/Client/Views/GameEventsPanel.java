@@ -178,4 +178,9 @@ public class GameEventsPanel extends JPanel implements IGameEvents {
     public void onReceiveGameEvent(String message) {
         addText(message);
     }
+
+    @Override
+    public void onReceiveChoices(List<String> choices) {
+
+    }
 }

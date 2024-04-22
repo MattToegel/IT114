@@ -15,6 +15,7 @@ import Project.Common.CellData;
 import Project.Common.ConnectionPayload;
 import Project.Common.Constants;
 import Project.Common.Grid;
+import Project.Common.PathChoicesPayload;
 import Project.Common.Payload;
 import Project.Common.PayloadType;
 import Project.Common.Phase;
@@ -66,6 +67,9 @@ public enum Client {
         events.add(e);
     }
 
+    public long getMyId() {
+        return myClientId;
+    }
     public boolean isConnected() {
         if (server == null) {
             return false;
@@ -248,14 +252,18 @@ public enum Client {
         return isConnected();
     }
 
-
     // Send methods
+    public void sendChoice(String choice) throws IOException {
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.CHOICES);
+        p.setMessage(choice);
+        out.writeObject(p);
+    }
     public void sendRoll() throws IOException {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.ROLL);
         out.writeObject(p);
     }
-
 
     public void sendReadyCheck() throws IOException {
         ReadyPayload rp = new ReadyPayload();
@@ -312,7 +320,6 @@ public enum Client {
     }
 
     // end send methods
-
 
     private void listenForServerPayload() {
         fromServerThread = new Thread() {
@@ -669,6 +676,18 @@ public enum Client {
                         ((IGameEvents) e).onReceiveGameEvent(p.getMessage());
                     }
                 });
+                break;
+            case CHOICES:
+                try {
+                    PathChoicesPayload pcp = (PathChoicesPayload) p;
+                    events.forEach(e -> {
+                        if (e instanceof IGameEvents) {
+                            ((IGameEvents) e).onReceiveChoices(pcp.getChoices());
+                        }
+                    });
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
                 break;
             // case END_SESSION: //clearing all local player data
             default:

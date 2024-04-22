@@ -9,6 +9,7 @@ import java.util.logging.Logger;
 
 import Project.Common.ConnectionPayload;
 import Project.Common.Constants;
+import Project.Common.PathChoicesPayload;
 import Project.Common.Payload;
 import Project.Common.PayloadType;
 import Project.Common.PointsPayload;
@@ -87,6 +88,11 @@ public class ServerThread extends Thread {
     }
 
     // send methods
+    protected boolean sendPathChoices(List<String> options) {
+        PathChoicesPayload pcp = new PathChoicesPayload();
+        pcp.setChoices(options);
+        return send(pcp);
+    }
     protected boolean sendGameEvent(String message) {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.GAME_EVENT);
@@ -330,6 +336,15 @@ public class ServerThread extends Thread {
                     e.printStackTrace();
                     this.sendMessage(Constants.DEFAULT_CLIENT_ID,
                             "You can only use the /roll commmand in a GameRoom and not the Lobby");
+                }
+                break;
+            case CHOICES:
+                try {
+                    ((GameRoom) currentRoom).handleDirectionChoice(this, p.getMessage());
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    this.sendMessage(Constants.DEFAULT_CLIENT_ID,
+                            "You can only use the /choice commmand in a GameRoom and not the Lobby");
                 }
                 break;
             default:
