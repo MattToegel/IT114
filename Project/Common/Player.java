@@ -4,6 +4,16 @@ package Project.Common;
  * For chatroom projects, you can call this "User"
  */
 public class Player {
+    private boolean isAway;
+
+    public boolean isAway() {
+        return isAway;
+    }
+
+    public void setAway(boolean isAway) {
+        this.isAway = isAway;
+    }
+
     private boolean isReady;
 
     public int getPoints() {

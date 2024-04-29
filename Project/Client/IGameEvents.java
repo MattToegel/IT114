@@ -39,4 +39,6 @@ public interface IGameEvents extends IClientEvents {
     void onReceiveGameEvent(String message);
 
     void onReceiveChoices(List<String> choices);
+
+    void onReceiveTime(int time);
 }

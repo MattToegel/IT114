@@ -7,6 +7,7 @@ import java.net.Socket;
 import java.util.List;
 import java.util.logging.Logger;
 
+import Project.Common.BoolyPayload;
 import Project.Common.ConnectionPayload;
 import Project.Common.Constants;
 import Project.Common.PathChoicesPayload;
@@ -17,6 +18,7 @@ import Project.Common.PositionPayload;
 import Project.Common.ReadyPayload;
 import Project.Common.RoomResultsPayload;
 import Project.Common.TextFX;
+import Project.Common.TimePayload;
 import Project.Common.TurnStatusPayload;
 import Project.Common.TextFX.Color;
 
@@ -88,6 +90,11 @@ public class ServerThread extends Thread {
     }
 
     // send methods
+    protected boolean sendRemainingTime(int time) {
+        TimePayload tp = new TimePayload();
+        tp.setTime(time);
+        return send(tp);
+    }
     protected boolean sendPathChoices(List<String> options) {
         PathChoicesPayload pcp = new PathChoicesPayload();
         pcp.setChoices(options);
@@ -339,6 +346,7 @@ public class ServerThread extends Thread {
                 }
                 break;
             case CHOICES:
+                System.out.println("Received choice " + p.getMessage());
                 try {
                     ((GameRoom) currentRoom).handleDirectionChoice(this, p.getMessage());
                 } catch (Exception e) {
@@ -347,6 +355,13 @@ public class ServerThread extends Thread {
                             "You can only use the /choice commmand in a GameRoom and not the Lobby");
                 }
                 break;
+            case AWAY:
+                try {
+                    BoolyPayload bp = (BoolyPayload) p;
+                    ((GameRoom) currentRoom).handleAway(this, bp.isAway());
+                } catch (Exception e) {
+
+                }
             default:
                 break;
 

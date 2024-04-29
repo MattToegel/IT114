@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
+import Project.Common.BoolyPayload;
 import Project.Common.Cell;
 import Project.Common.CellData;
 import Project.Common.ConnectionPayload;
@@ -24,6 +25,7 @@ import Project.Common.PositionPayload;
 import Project.Common.ReadyPayload;
 import Project.Common.RoomResultsPayload;
 import Project.Common.TextFX;
+import Project.Common.TimePayload;
 import Project.Common.TurnStatusPayload;
 import Project.Common.TextFX.Color;
 
@@ -50,6 +52,7 @@ public enum Client {
     private static final String MOVE = "/move";
     private static final String SHOW_GRID = "/grid";
     private static final String ROLL = "/roll";
+    private static final String CHOICE = "/choice";
 
     // client id, is the key, client name is the value
     // private ConcurrentHashMap<Long, String> clientsInRoom = new
@@ -220,6 +223,16 @@ public enum Client {
             }
             return true;
         }
+        else if (text.startsWith(CHOICE)) {
+            String choice = text.replace(CHOICE, "");
+            System.out.println("Choice being sent as " + choice);
+            try {
+                sendChoice(choice);
+            } catch (IOException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+        }
         return false;
     }
 
@@ -253,7 +266,13 @@ public enum Client {
     }
 
     // Send methods
+    public void sendAway(boolean isAway) throws IOException {
+        BoolyPayload bp = new BoolyPayload();
+        bp.setAway(isAway);
+        out.writeObject(bp);
+    }
     public void sendChoice(String choice) throws IOException {
+        System.out.println("Generating Choice Payload for " + choice);
         Payload p = new Payload();
         p.setPayloadType(PayloadType.CHOICES);
         p.setMessage(choice);
@@ -308,6 +327,10 @@ public enum Client {
 
     public void sendMessage(String message) throws IOException {
         if (message.startsWith("/") && processClientCommand(message)) {
+            return;
+        }
+        else if (message.startsWith("@")) {
+            // do pm logic
             return;
         }
         System.out.println(TextFX.colorize("Client is sending message: " + message, Color.YELLOW));
@@ -683,6 +706,18 @@ public enum Client {
                     events.forEach(e -> {
                         if (e instanceof IGameEvents) {
                             ((IGameEvents) e).onReceiveChoices(pcp.getChoices());
+                        }
+                    });
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                break;
+            case TIME:
+                try {
+                    TimePayload tp = (TimePayload) p;
+                    events.forEach(e -> {
+                        if (e instanceof IGameEvents) {
+                            ((IGameEvents) e).onReceiveTime(tp.getTime());
                         }
                     });
                 } catch (Exception e) {

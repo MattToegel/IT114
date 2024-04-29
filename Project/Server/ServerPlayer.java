@@ -189,4 +189,11 @@ public class ServerPlayer extends Player {
         }
         client.sendPathChoices(options);
     }
+
+    public void sendRemainingTime(int time) {
+        if (client == null) {
+            return;
+        }
+        client.sendRemainingTime(time);
+    }
 }

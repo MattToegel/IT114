@@ -183,4 +183,9 @@ public class GameEventsPanel extends JPanel implements IGameEvents {
     public void onReceiveChoices(List<String> choices) {
 
     }
+
+    @Override
+    public void onReceiveTime(int time) {
+        addText(String.format("Time: %s", time));
+    }
 }

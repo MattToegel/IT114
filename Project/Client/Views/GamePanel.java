@@ -12,6 +12,7 @@ import java.util.List;
 import javax.swing.JButton;
 import javax.swing.JPanel;
 import javax.swing.JSplitPane;
+import javax.swing.JTextField;
 
 import Project.Client.CardView;
 import Project.Client.Client;
@@ -32,6 +33,7 @@ public class GamePanel extends JPanel implements IGameEvents {
     private ICardControls controls;
     private JPanel gameContainerCardLayout;
     private JButton rollButton, leftButton, rightButton, upButton, downButton;
+    private JTextField timeField;
     public GamePanel(ICardControls controls) {
         // super(new CardLayout());
         super(new BorderLayout());
@@ -113,6 +115,9 @@ public class GamePanel extends JPanel implements IGameEvents {
 
         gridAreaContainer.add(buttonContainer, BorderLayout.SOUTH);
         gameContainerCardLayout.add(GRID_PANEL, gridAreaContainer);
+        timeField = new JTextField();
+        timeField.setEditable(false);
+        gridAreaContainer.add(timeField, BorderLayout.NORTH);
         // game events
         GameEventsPanel gep = new GameEventsPanel();
         JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, gameContainerCardLayout, gep);
@@ -284,6 +289,13 @@ public class GamePanel extends JPanel implements IGameEvents {
         leftButton.setVisible(choices.contains("left"));
         rightButton.setVisible(choices.contains("right"));
 
+    }
+
+    @Override
+    public void onReceiveTime(int time) {
+        timeField.setText(String.format("Time: %s", time));
+
+        timeField.setVisible(time >= 0);
     }
 
 }
