@@ -23,7 +23,7 @@ public class Server {
             System.out.println("Client connected, waiting for message");
             String fromClient = "";
             while ((fromClient = in.readLine()) != null) {
-                if ("kill server".equalsIgnoreCase(fromClient)) {
+                if ("/kill server".equalsIgnoreCase(fromClient)) {
                     //normally you wouldn't have a remote kill command, this is just for example sake
                     System.out.println("Client killed server");
                     break;
