@@ -22,13 +22,13 @@ public class Server {
                 System.out.println("Waiting for next client");
                 Socket incomingClient = serverSocket.accept(); // blocking action, waits for a client connection
                 System.out.println("Client connected");
-                // wrap socket in a ServerThread
-                ServerThread sClient = new ServerThread(incomingClient, this);
-                // add to connected clients list
-                connectedClients.put(sClient.getClientId(), sClient);
+                // wrap socket in a ServerThread, pass a callback to notify the Server they're initialized
+                ServerThread sClient = new ServerThread(incomingClient, this, this::onClientInitialized);
                 // start the thread (typically an external entity manages the lifecycle and we
                 // don't have the thread start itself)
                 sClient.start();
+                // add to connected clients list
+                connectedClients.put(sClient.getClientId(), sClient);
             }
         } catch (IOException e) {
             System.err.println("Error accepting connection");
@@ -37,11 +37,20 @@ public class Server {
             System.out.println("Closing server socket");
         }
     }
-
+    /**
+     * Callback passed to ServerThread to inform Server they're ready to receive data
+     * @param sClient
+     */
+    private void onClientInitialized(ServerThread sClient) {
+        connectedClients.put(sClient.getClientId(), sClient);
+        relay(String.format("*User[%s] connected*", sClient.getClientId()), null);
+    }
     /**
      * Takes a ServerThread and removes them from the Server
-     * Adding the synchronized keyword ensures that only one thread can execute these methods at a time, 
+     * Adding the synchronized keyword ensures that only one thread can execute
+     * these methods at a time,
      * preventing concurrent modification issues and ensuring thread safety
+     * 
      * @param client
      */
     protected synchronized void disconnect(ServerThread client) {
@@ -49,20 +58,23 @@ public class Server {
         client.disconnect();
         connectedClients.remove(id);
         // Improved logging with user ID
-        relay("User[" + id + "] disconnected", client);
+        relay("disconnected", client);
     }
 
     /**
      * Relays the message from the sender to all connectedClients
      * Internally calls processCommand and evaluates as necessary.
-     * Note: Clients that fail to receive a message get removed from connectedClients.
-     * Adding the synchronized keyword ensures that only one thread can execute these methods at a time, 
+     * Note: Clients that fail to receive a message get removed from
+     * connectedClients.
+     * Adding the synchronized keyword ensures that only one thread can execute
+     * these methods at a time,
      * preventing concurrent modification issues and ensuring thread safety
+     * 
      * @param message
      * @param sender
      */
     protected synchronized void relay(String message, ServerThread sender) {
-        if (processCommand(message, sender)) {
+        if (sender != null && processCommand(message, sender)) {
 
             return;
         }
@@ -70,7 +82,8 @@ public class Server {
         // show in all client's chat. This isn't good practice since it's subject to
         // change as clients connect/disconnect
         // Note: any desired changes to the message must be done before this line
-        final String formattedMessage = String.format("User[%d]: %s", sender.getClientId(), message);
+        String senderString = sender == null ? "Server" : String.format("User[%s]", sender.getClientId());
+        final String formattedMessage = String.format("%s: %s", senderString, message);
         // end temp identifier
 
         // loop over clients and send out the message; remove client if message failed
@@ -89,6 +102,7 @@ public class Server {
 
     /**
      * Attempts to see if the message is a command and process its action
+     * 
      * @param message
      * @param sender
      * @return true if it was a command, false otherwise

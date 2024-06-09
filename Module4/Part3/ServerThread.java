@@ -5,6 +5,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.util.Objects;
+import java.util.function.Consumer;
 
 /**
  * A server-side representation of a single client
@@ -15,7 +16,8 @@ public class ServerThread extends Thread {
     private ObjectOutputStream out; //exposed here for send()
     private Server server;// ref to our server so we can call methods on it
     // more easily
-
+    private long clientId;
+    private Consumer<ServerThread> onInitializationComplete; //callback to inform when this object is ready
     /**
      * A wrapper method so we don't need to keep typing out the long/complex sysout line inside
      * @param message
@@ -25,21 +27,25 @@ public class ServerThread extends Thread {
     }
 
     /**
-     * Wraps the Socket connection and takes a Server reference
+     * Wraps the Socket connection and takes a Server reference and a callback
      * @param myClient
      * @param server
+     * @param onInitializationComplete method to inform listener that this object is ready
      */
-    protected ServerThread(Socket myClient, Server server) {
+    protected ServerThread(Socket myClient, Server server, Consumer<ServerThread> onInitializationComplete) {
         Objects.requireNonNull(myClient, "Client socket cannot be null");
         Objects.requireNonNull(server, "Server cannot be null");
+        Objects.requireNonNull(onInitializationComplete, "callback cannot be null");
         info("ServerThread created");
         // get communication channels to single client
         this.client = myClient;
         this.server = server;
+        this.clientId = this.threadId();
+        this.onInitializationComplete = onInitializationComplete;
 
     }
     public long getClientId(){
-        return threadId();
+        return this.clientId;
     }
     /**
      * One of the two ways to get this to exit the listen loop
@@ -51,8 +57,12 @@ public class ServerThread extends Thread {
         cleanup();
     }
 
+    /**
+     * Sends the message over the socket
+     * @param message
+     * @return true if no errors were encountered
+     */
     protected boolean send(String message) {
-        // added a boolean so we can see if the send was successful
         try {
             out.writeObject(message);
             return true;
@@ -72,6 +82,7 @@ public class ServerThread extends Thread {
                 ObjectInputStream in = new ObjectInputStream(client.getInputStream());) {
             this.out = out;
             isRunning = true;
+            onInitializationComplete.accept(this); // Notify server that initialization is complete
             String fromClient;
             /**
              * isRunning is a flag to let us manage the loop exit condition
@@ -88,6 +99,10 @@ public class ServerThread extends Thread {
                     else{
                         throw new IOException("Connection interrupted"); // Specific exception for a clean break
                     }
+                }
+                catch (ClassCastException | ClassNotFoundException cce) {
+                    System.err.println("Error reading object as specified type: " + cce.getMessage());
+                    cce.printStackTrace();
                 }
                 catch (IOException e) {
                     if (Thread.currentThread().isInterrupted()) {
