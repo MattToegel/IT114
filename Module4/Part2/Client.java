@@ -11,7 +11,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Demoing single direction of Client sending data to a Server
+ * Demoing bi-directional communication between client and server
  */
 public class Client {
 
