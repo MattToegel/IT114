@@ -93,7 +93,7 @@ public class Client {
      * @param text
      * @return true if a text was a command or triggered a command
      */
-    private boolean processCommand(String text) {
+    private boolean processClientCommand(String text) {
         if (isConnection(text)) {
             // replaces multiple spaces with single space
             // splits on the space after connect (gives us host and port)
@@ -118,7 +118,7 @@ public class Client {
                 try {
                     System.out.println("Waiting for input");
                     line = si.nextLine();
-                    if (!processCommand(line)) {
+                    if (!processClientCommand(line)) {
                         if (isConnected()) {
                             out.println(line);
                             // https://stackoverflow.com/a/8190411
