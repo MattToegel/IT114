@@ -32,3 +32,4 @@ config.*
 *.log
 *.conf
 .vscode
+.DS_Store

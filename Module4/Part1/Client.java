@@ -15,8 +15,8 @@ public class Client {
 
     private Socket server = null;
     private PrintWriter out = null;
-    final Pattern ipAddressPattern = Pattern.compile("/connect\\s+(\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}:\\d{3,5})");
-    final Pattern localhostPattern = Pattern.compile("/connect\\s+(localhost:\\d{3,5})");
+    final Pattern ipAddressPattern = Pattern.compile("/connect\\s+(\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}:\\d{3,5})"); //192.168.0.2:3000
+    final Pattern localhostPattern = Pattern.compile("/connect\\s+(localhost:\\d{3,5})"); //localhost:3000
     private boolean isRunning = false;
 
     public Client() {

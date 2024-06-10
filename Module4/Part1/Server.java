@@ -16,7 +16,7 @@ public class Server {
         try (ServerSocket serverSocket = new ServerSocket(port);
                 // client wait
                 Socket client = serverSocket.accept(); // blocking;
-                
+
                 // read from client
                 BufferedReader in = new BufferedReader(new InputStreamReader(client.getInputStream()));) {
 
@@ -24,7 +24,8 @@ public class Server {
             String fromClient = "";
             while ((fromClient = in.readLine()) != null) {
                 if ("/kill server".equalsIgnoreCase(fromClient)) {
-                    //normally you wouldn't have a remote kill command, this is just for example sake
+                    // normally you wouldn't have a remote kill command, this is just for example
+                    // sake
                     System.out.println("Client killed server");
                     break;
                 } else {
