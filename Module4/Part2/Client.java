@@ -162,7 +162,15 @@ public class Client {
             System.out.println("Closing output stream");
             out.close();
         } catch (NullPointerException ne) {
-            System.out.println("Server was never opened so this exception is ok");
+            System.out.println("Outputstream was never opened so this exception is ok");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        try {
+            System.out.println("Closing input stream");
+            in.close();
+        } catch (NullPointerException ne) {
+            System.out.println("InputStream was never opened so this exception is ok");
         } catch (Exception e) {
             e.printStackTrace();
         }

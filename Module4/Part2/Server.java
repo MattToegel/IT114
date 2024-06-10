@@ -32,7 +32,6 @@ public class Server {
                     System.out.println("Client killed server");
                     break;
                 } else if (fromClient.startsWith("/reverse")) {
-                    System.out.println("From Client: " + fromClient);
                     StringBuilder sb = new StringBuilder(fromClient.replace("/reverse ", ""));
                     sb.reverse();
                     String rev = sb.toString();
