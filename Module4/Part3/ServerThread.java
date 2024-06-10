@@ -54,7 +54,7 @@ public class ServerThread extends Thread {
         info("Thread being disconnected by server");
         isRunning = false;
         this.interrupt(); // breaks out of blocking read in the run() method
-        cleanup();
+        cleanup(); // good practice to ensure data is written out immediately
     }
 
     /**
@@ -65,6 +65,7 @@ public class ServerThread extends Thread {
     protected boolean send(String message) {
         try {
             out.writeObject(message);
+            out.flush();
             return true;
         } catch (IOException e) {
             info("Error sending message to client (most likely disconnected)");

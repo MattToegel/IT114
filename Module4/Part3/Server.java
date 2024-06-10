@@ -27,8 +27,6 @@ public class Server {
                 // start the thread (typically an external entity manages the lifecycle and we
                 // don't have the thread start itself)
                 sClient.start();
-                // add to connected clients list
-                connectedClients.put(sClient.getClientId(), sClient);
             }
         } catch (IOException e) {
             System.err.println("Error accepting connection");
@@ -42,6 +40,7 @@ public class Server {
      * @param sClient
      */
     private void onClientInitialized(ServerThread sClient) {
+        // add to connected clients list
         connectedClients.put(sClient.getClientId(), sClient);
         relay(String.format("*User[%s] connected*", sClient.getClientId()), null);
     }
@@ -58,7 +57,7 @@ public class Server {
         client.disconnect();
         connectedClients.remove(id);
         // Improved logging with user ID
-        relay("disconnected", client);
+        relay("User[" + id + "] disconnected", null);
     }
 
     /**
@@ -71,7 +70,7 @@ public class Server {
      * preventing concurrent modification issues and ensuring thread safety
      * 
      * @param message
-     * @param sender
+     * @param sender ServerThread (client) sending the message or null if it's a server-generated message
      */
     protected synchronized void relay(String message, ServerThread sender) {
         if (sender != null && processCommand(message, sender)) {
@@ -90,11 +89,12 @@ public class Server {
         // to be sent
         // Note: this uses a lambda expression for each item in the values() collection,
         // it's one way we can safely remove items during iteration
+        
         connectedClients.values().removeIf(client -> {
             boolean failedToSend = !client.send(formattedMessage);
             if (failedToSend) {
                 System.out.println(String.format("Removing disconnected client[%s] from list", client.getClientId()));
-                relay("User[" + client.getClientId() + "] disconnected", client);
+                disconnect(client);
             }
             return failedToSend;
         });
@@ -108,10 +108,13 @@ public class Server {
      * @return true if it was a command, false otherwise
      */
     private boolean processCommand(String message, ServerThread sender) {
+        if(sender == null){
+            return false;
+        }
         System.out.println("Checking command: " + message);
         // disconnect
         if ("/disconnect".equalsIgnoreCase(message)) {
-            ServerThread removedClient = connectedClients.remove(sender.getClientId());
+            ServerThread removedClient = connectedClients.get(sender.getClientId());
             if (removedClient != null) {
                 disconnect(removedClient);
             }
