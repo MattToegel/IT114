@@ -72,9 +72,9 @@ public class Room {
                 //afterwards, below processing will only share the result
                 sender.send(message);
                 //extract command and potential value from the message
-				String[] fullCommand = message.split(COMMAND_CHARACTER);
-				String part1 = fullCommand[1];
-				String[] commandParts = part1.split(SINGLE_SPACE);
+				String fullCommand = message.replace(COMMAND_CHARACTER, "");
+				String part1 = fullCommand;
+				String[] commandParts = part1.split(SINGLE_SPACE, 2);// using limit so spaces in the command value aren't split
 				final String command = commandParts[0];
 				final String commandValue = commandParts.length>=2?commandParts[1]:"";
 				switch (command) {
