@@ -14,8 +14,7 @@ public class ServerThread extends Thread {
     private Socket client; // communication directly to "my" client
     private boolean isRunning = false; //control variable to stop this thread
     private ObjectOutputStream out; //exposed here for send()
-    private Server server;// ref to our server so we can call methods on it
-    // more easily
+    private Room currentRoom;
     private long clientId;
     private Consumer<ServerThread> onInitializationComplete; //callback to inform when this object is ready
     /**
@@ -32,20 +31,29 @@ public class ServerThread extends Thread {
      * @param server
      * @param onInitializationComplete method to inform listener that this object is ready
      */
-    protected ServerThread(Socket myClient, Server server, Consumer<ServerThread> onInitializationComplete) {
+    protected ServerThread(Socket myClient, Consumer<ServerThread> onInitializationComplete) {
         Objects.requireNonNull(myClient, "Client socket cannot be null");
-        Objects.requireNonNull(server, "Server cannot be null");
         Objects.requireNonNull(onInitializationComplete, "callback cannot be null");
         info("ServerThread created");
         // get communication channels to single client
         this.client = myClient;
-        this.server = server;
         this.clientId = this.threadId();
         this.onInitializationComplete = onInitializationComplete;
 
     }
     public long getClientId(){
         return this.clientId;
+    }
+    
+    protected Room getCurrentRoom(){
+        return this.currentRoom;
+    }
+
+    protected void setCurrentRoom(Room room){
+        if(room == null){
+            throw new NullPointerException("Room argument can't be null");
+        }
+        currentRoom = room;
     }
     /**
      * One of the two ways to get this to exit the listen loop
@@ -95,7 +103,12 @@ public class ServerThread extends Thread {
                     fromClient = (String) in.readObject(); // blocking method
                     if (fromClient != null) {
                         info("Received from my client: " + fromClient);
-                        server.relay(fromClient, this);
+                        if(currentRoom != null){
+                            currentRoom.sendMessage(this, fromClient);
+                        }
+                        else{
+                            System.err.println("Message received but currentRoom isn't set");
+                        }
                     }
                     else{
                         throw new IOException("Connection interrupted"); // Specific exception for a clean break
@@ -134,6 +147,7 @@ public class ServerThread extends Thread {
         } catch (IOException e) {
             info("Client already closed");
         }
+        currentRoom = null;
         info("ServerThread cleanup() end");
     }
 }

@@ -5,12 +5,20 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class Server {
+public enum Server {
+    INSTANCE;
+
     private int port = 3000;
-    // connected clients
-    // Use ConcurrentHashMap for thread-safe client management
-    private final ConcurrentHashMap<Long, ServerThread> connectedClients = new ConcurrentHashMap<>();
+    // Use ConcurrentHashMap for thread-safe room management
+    private final ConcurrentHashMap<String, Room> rooms = new ConcurrentHashMap<>();
     private boolean isRunning = true;
+
+    private Server(){
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            System.out.println("JVM is shutting down. Perform cleanup tasks.");
+            shutdown();
+        }));
+    }
 
     private void start(int port) {
         this.port = port;
@@ -18,12 +26,14 @@ public class Server {
         System.out.println("Listening on port " + this.port);
         // Simplified client connection loop
         try (ServerSocket serverSocket = new ServerSocket(port)) {
+            createRoom(Room.LOBBY);// create the first room
             while (isRunning) {
                 System.out.println("Waiting for next client");
                 Socket incomingClient = serverSocket.accept(); // blocking action, waits for a client connection
                 System.out.println("Client connected");
-                // wrap socket in a ServerThread, pass a callback to notify the Server they're initialized
-                ServerThread sClient = new ServerThread(incomingClient, this, this::onClientInitialized);
+                // wrap socket in a ServerThread, pass a callback to notify the Server they're
+                // initialized
+                ServerThread sClient = new ServerThread(incomingClient, this::onClientInitialized);
                 // start the thread (typically an external entity manages the lifecycle and we
                 // don't have the thread start itself)
                 sClient.start();
@@ -32,101 +42,82 @@ public class Server {
             System.err.println("Error accepting connection");
             e.printStackTrace();
         } finally {
+            shutdown();
             System.out.println("Closing server socket");
         }
     }
     /**
-     * Callback passed to ServerThread to inform Server they're ready to receive data
+     * Gracefully disconnect clients
+     */
+    private void shutdown() {
+        try {
+            rooms.values().removeIf(room -> {
+                room.disconnectAll();
+                return true;
+            });
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Callback passed to ServerThread to inform Server they're ready to receive
+     * data
+     * 
      * @param sClient
      */
     private void onClientInitialized(ServerThread sClient) {
-        // add to connected clients list
-        connectedClients.put(sClient.getClientId(), sClient);
-        relay(String.format("*User[%s] connected*", sClient.getClientId()), null);
-    }
-    /**
-     * Takes a ServerThread and removes them from the Server
-     * Adding the synchronized keyword ensures that only one thread can execute
-     * these methods at a time,
-     * preventing concurrent modification issues and ensuring thread safety
-     * 
-     * @param client
-     */
-    protected synchronized void disconnect(ServerThread client) {
-        long id = client.getClientId();
-        client.disconnect();
-        connectedClients.remove(id);
-        // Improved logging with user ID
-        relay("User[" + id + "] disconnected", null);
+        // add to lobby room
+        System.out.println(String.format("Server: *User[%s] initialized*", sClient.getClientId()));
+        joinRoom(Room.LOBBY, sClient);
     }
 
     /**
-     * Relays the message from the sender to all connectedClients
-     * Internally calls processCommand and evaluates as necessary.
-     * Note: Clients that fail to receive a message get removed from
-     * connectedClients.
-     * Adding the synchronized keyword ensures that only one thread can execute
-     * these methods at a time,
-     * preventing concurrent modification issues and ensuring thread safety
+     * Attempts to create a new Room and add it to the tracked rooms collection
      * 
-     * @param message
-     * @param sender ServerThread (client) sending the message or null if it's a server-generated message
+     * @param name Unique name of the room
+     * @return true if it was created and false if it wasn't
      */
-    protected synchronized void relay(String message, ServerThread sender) {
-        if (sender != null && processCommand(message, sender)) {
-
-            return;
-        }
-        // let's temporarily use the thread id as the client identifier to
-        // show in all client's chat. This isn't good practice since it's subject to
-        // change as clients connect/disconnect
-        // Note: any desired changes to the message must be done before this line
-        String senderString = sender == null ? "Server" : String.format("User[%s]", sender.getClientId());
-        final String formattedMessage = String.format("%s: %s", senderString, message);
-        // end temp identifier
-
-        // loop over clients and send out the message; remove client if message failed
-        // to be sent
-        // Note: this uses a lambda expression for each item in the values() collection,
-        // it's one way we can safely remove items during iteration
-        
-        connectedClients.values().removeIf(client -> {
-            boolean failedToSend = !client.send(formattedMessage);
-            if (failedToSend) {
-                System.out.println(String.format("Removing disconnected client[%s] from list", client.getClientId()));
-                disconnect(client);
-            }
-            return failedToSend;
-        });
-    }
-
-    /**
-     * Attempts to see if the message is a command and process its action
-     * 
-     * @param message
-     * @param sender
-     * @return true if it was a command, false otherwise
-     */
-    private boolean processCommand(String message, ServerThread sender) {
-        if(sender == null){
+    protected boolean createRoom(String name) {
+        final String nameCheck = name.toLowerCase();
+        if (rooms.containsKey(nameCheck)) {
             return false;
         }
-        System.out.println("Checking command: " + message);
-        // disconnect
-        if ("/disconnect".equalsIgnoreCase(message)) {
-            ServerThread removedClient = connectedClients.get(sender.getClientId());
-            if (removedClient != null) {
-                disconnect(removedClient);
-            }
-            return true;
+        Room room = new Room(name);
+        rooms.put(nameCheck, room);
+        System.out.println(String.format("Created new Room %s", name));
+        return true;
+    }
+
+    /**
+     * Attempts to move a client (ServerThread) between rooms
+     * 
+     * @param name   the target room to join
+     * @param client the client moving
+     * @return true if the move was successful, false otherwise
+     */
+    protected boolean joinRoom(String name, ServerThread client) {
+        final String nameCheck = name.toLowerCase();
+        if (!rooms.containsKey(nameCheck)) {
+            return false;
         }
-        // add more "else if" as needed
-        return false;
+        Room current = client.getCurrentRoom();
+        if (current != null) {
+            current.removedClient(client);
+        }
+        Room next = rooms.get(nameCheck);
+        next.addClient(client);
+        return true;
+    }
+
+    protected void removeRoom(Room room) {
+        rooms.remove(room.getName().toLowerCase());
+        System.out.println(String.format("Server removed room %s", room.getName()));
     }
 
     public static void main(String[] args) {
         System.out.println("Server Starting");
-        Server server = new Server();
+        Server server = Server.INSTANCE;
         int port = 3000;
         try {
             port = Integer.parseInt(args[0]);

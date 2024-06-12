@@ -14,8 +14,8 @@ import java.util.regex.Pattern;
  * Demoing bi-directional communication between client and server in a
  * multi-client scenario
  */
-public class Client {
-
+public enum Client {
+    INSTANCE;
     private Socket server = null;
     private ObjectOutputStream out = null;
     private ObjectInputStream in = null;
@@ -24,7 +24,8 @@ public class Client {
     final Pattern localhostPattern = Pattern.compile("/connect\\s+(localhost:\\d{3,5})");
     private volatile boolean isRunning = true; // volatile for thread-safe visibility
 
-    public Client() {
+    //needs to be private now that the enum logic is handling this
+    private Client() {
         System.out.println("Client Created");
     }
 
@@ -128,7 +129,7 @@ public class Client {
             while (isRunning && isConnected()) {
                 String fromServer = (String) in.readObject(); // blocking read
                 if (fromServer != null) {
-                    System.out.println("(Server)" + fromServer);
+                    System.out.println(fromServer);
                 } else {
                     System.out.println("Server disconnected");
                     break;
@@ -214,7 +215,7 @@ public class Client {
     }
 
     public static void main(String[] args) {
-        Client client = new Client();
+        Client client = Client.INSTANCE;
         try {
             client.start();
         } catch (IOException e) {
