@@ -51,6 +51,8 @@ public enum Server {
      */
     private void shutdown() {
         try {
+            //chose removeIf over forEach to avoid potential ConcurrentModificationException
+            //since empty rooms tell the server to remove themselves
             rooms.values().removeIf(room -> {
                 room.disconnectAll();
                 return true;

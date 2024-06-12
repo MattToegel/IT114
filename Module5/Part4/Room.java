@@ -4,7 +4,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class Room {
     private String name;//unique name of the Room
-    private boolean isRunning = false;
+    private volatile boolean isRunning = false;
     private ConcurrentHashMap<Long, ServerThread> clientsInRoom = new ConcurrentHashMap<Long, ServerThread>();
     
     //constants (used to reduce potential types when using them in code)
@@ -167,7 +167,7 @@ public class Room {
         sendMessage(null, "User[" + id + "] disconnected");
     }
     protected synchronized void disconnectAll(){
-        info("Disconnect All triggers");
+        info("Disconnect All triggered");
         if(!isRunning){
             return;
         }
