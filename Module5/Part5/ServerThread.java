@@ -1,35 +1,27 @@
 package Module5.Part5;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
- * A server-side representation of a single client
+ * A server-side representation of a single client.
+ * This class is more about the data and abstracted communication
  */
-public class ServerThread extends Thread {
-    private Socket client; // communication directly to "my" client
-    private boolean isRunning = false; //control variable to stop this thread
-    private ObjectOutputStream out; //exposed here for send()
+public class ServerThread extends BaseServerThread {
+    public static final long DEFAULT_CLIENT_ID = -1;
     private Room currentRoom;
     private long clientId;
-    private Consumer<ServerThread> onInitializationComplete; //callback to inform when this object is ready
-    /**
-     * A wrapper method so we don't need to keep typing out the long/complex sysout line inside
-     * @param message
-     */
-    private void info(String message) {
-        System.out.println(String.format("Thread[%s]: %s", getClientId(), message));
-    }
+    private String clientName;
+    private Consumer<ServerThread> onInitializationComplete; // callback to inform when this object is ready
 
     /**
      * Wraps the Socket connection and takes a Server reference and a callback
+     * 
      * @param myClient
      * @param server
-     * @param onInitializationComplete method to inform listener that this object is ready
+     * @param onInitializationComplete method to inform listener that this object is
+     *                                 ready
      */
     protected ServerThread(Socket myClient, Consumer<ServerThread> onInitializationComplete) {
         Objects.requireNonNull(myClient, "Client socket cannot be null");
@@ -37,117 +29,174 @@ public class ServerThread extends Thread {
         info("ServerThread created");
         // get communication channels to single client
         this.client = myClient;
-        this.clientId = this.threadId();
+        this.clientId = ServerThread.DEFAULT_CLIENT_ID;// this is updated later by the server
         this.onInitializationComplete = onInitializationComplete;
 
     }
-    public long getClientId(){
+
+    public void setClientName(String name) {
+        if (name == null) {
+            throw new NullPointerException("Client name can't be null");
+        }
+        this.clientName = name;
+        onInitialized();
+    }
+    public String getClientName(){
+        return clientName;
+    }
+
+    public long getClientId() {
         return this.clientId;
     }
-    
-    protected Room getCurrentRoom(){
+
+    protected Room getCurrentRoom() {
         return this.currentRoom;
     }
 
-    protected void setCurrentRoom(Room room){
-        if(room == null){
+    protected void setCurrentRoom(Room room) {
+        if (room == null) {
             throw new NullPointerException("Room argument can't be null");
         }
         currentRoom = room;
     }
-    /**
-     * One of the two ways to get this to exit the listen loop
-     */
-    protected void disconnect() {
-        info("Thread being disconnected by server");
-        isRunning = false;
-        this.interrupt(); // breaks out of blocking read in the run() method
-        cleanup(); // good practice to ensure data is written out immediately
-    }
 
-    /**
-     * Sends the message over the socket
-     * @param message
-     * @return true if no errors were encountered
-     */
-    protected boolean send(String message) {
-        try {
-            out.writeObject(message);
-            out.flush();
-            return true;
-        } catch (IOException e) {
-            info("Error sending message to client (most likely disconnected)");
-            // comment this out to inspect the stack trace
-            // e.printStackTrace();
-            cleanup();
-            return false;
-        }
+    @Override
+    protected void onInitialized() {
+        onInitializationComplete.accept(this); // Notify server that initialization is complete
     }
 
     @Override
-    public void run() {
-        info("Thread starting");
-        try (ObjectOutputStream out = new ObjectOutputStream(client.getOutputStream());
-                ObjectInputStream in = new ObjectInputStream(client.getInputStream());) {
-            this.out = out;
-            isRunning = true;
-            onInitializationComplete.accept(this); // Notify server that initialization is complete
-            String fromClient;
-            /**
-             * isRunning is a flag to let us manage the loop exit condition
-             * fromClient (in.readObject()) is a blocking method that waits until data is received
-             *  - null would likely mean a disconnect so we use a "set and check" logic to alternatively exit the loop
-             */
-            while (isRunning) {
-                try{
-                    fromClient = (String) in.readObject(); // blocking method
-                    if (fromClient != null) {
-                        info("Received from my client: " + fromClient);
-                        if(currentRoom != null){
-                            currentRoom.sendMessage(this, fromClient);
-                        }
-                        else{
-                            System.err.println("Message received but currentRoom isn't set");
-                        }
-                    }
-                    else{
-                        throw new IOException("Connection interrupted"); // Specific exception for a clean break
-                    }
-                }
-                catch (ClassCastException | ClassNotFoundException cce) {
-                    System.err.println("Error reading object as specified type: " + cce.getMessage());
-                    cce.printStackTrace();
-                }
-                catch (IOException e) {
-                    if (Thread.currentThread().isInterrupted()) {
-                        info("Thread interrupted during read (likely from the disconnect() method)");
-                        break;
-                    }
-                    info("IO exception while reading from client");
-                    e.printStackTrace();
+    protected void info(String message) {
+        System.out.println(String.format("ServerThread[%s(%s)]: %s", getClientName(), getClientId(), message));
+    }
+
+    @Override
+    protected void cleanup() {
+        currentRoom = null;
+        super.cleanup();
+    }
+    
+    @Override
+    protected void disconnect(){
+        //sendDisconnect(clientId, clientName);
+        super.disconnect();
+    }
+    // handle received message from the Client
+    @Override
+    protected void processPayload(Payload payload) {
+        try {
+            switch (payload.getPayloadType()) {
+                case CLIENT_CONNECT:
+                    ConnectionPayload cp = (ConnectionPayload) payload;
+                    setClientName(cp.getClientName());
                     break;
-                }
-            } // close while loop
+                case MESSAGE:
+                    currentRoom.sendMessage(this, payload.getMessage());
+                    break;
+                case ROOM_CREATE:
+                    currentRoom.handCreateRoom(this, payload.getMessage());
+                    break;
+                case ROOM_JOIN:
+                    currentRoom.handleJoinRoom(this, payload.getMessage());
+                    break;
+                case DISCONNECT:
+                    currentRoom.disconnect(this);
+                    break;
+                default:
+                    break;
+            }
         } catch (Exception e) {
-            // happens when client disconnects
-            info("General Exception");
+            System.out.println("Could not process Payload: " + payload);
             e.printStackTrace();
-            info("My Client disconnected");
-        } finally {
-            isRunning = false;
-            info("Exited thread loop. Cleaning up connection");
-            cleanup();
         }
     }
 
-    private void cleanup() {
-        info("ServerThread cleanup() start");
-        try {
-            client.close();
-        } catch (IOException e) {
-            info("Client already closed");
-        }
-        currentRoom = null;
-        info("ServerThread cleanup() end");
+    // send methods to pass data back to the Client
+
+    public boolean sendClientSync(long clientId, String clientName){
+        ConnectionPayload cp = new ConnectionPayload();
+        cp.setClientId(clientId);
+        cp.setClientName(clientName);
+        cp.setConnect(true);
+        cp.setPayloadType(PayloadType.SYNC_CLIENT);
+        return send(cp);
     }
+
+    /**
+     * Overload of sendMessage used for server-side generated messages
+     * 
+     * @param message
+     * @return @see {@link #send(Payload)}
+     */
+    public boolean sendMessage(String message) {
+        return sendMessage(ServerThread.DEFAULT_CLIENT_ID, message);
+    }
+
+    /**
+     * Sends a message with the author/source identifier
+     * 
+     * @param senderId
+     * @param message
+     * @return @see {@link #send(Payload)}
+     */
+    public boolean sendMessage(long senderId, String message) {
+        Payload p = new Payload();
+        p.setClientId(senderId);
+        p.setMessage(message);
+        p.setPayloadType(PayloadType.MESSAGE);
+        return send(p);
+    }
+
+    /**
+     * Tells the client information about a client joining/leaving a room
+     * 
+     * @param clientId   their unique identifier
+     * @param clientName their name
+     * @param room       the room
+     * @param isJoin     true for join, false for leaivng
+     * @return success of sending the payload
+     */
+    public boolean sendRoomAction(long clientId, String clientName, String room, boolean isJoin) {
+        ConnectionPayload cp = new ConnectionPayload();
+        cp.setPayloadType(PayloadType.ROOM_JOIN);
+        cp.setConnect(isJoin); //<-- determine if join or leave
+        cp.setMessage(room);
+        cp.setClientId(clientId);
+        cp.setClientName(clientName);
+        return send(cp);
+    }
+
+    /**
+     * Tells the client information about a disconnect (similar to leaving a room)
+     * 
+     * @param clientId   their unique identifier
+     * @param clientName their name
+     * @return success of sending the payload
+     */
+    public boolean sendDisconnect(long clientId, String clientName) {
+        ConnectionPayload cp = new ConnectionPayload();
+        cp.setPayloadType(PayloadType.DISCONNECT);
+        cp.setConnect(false);
+        cp.setClientId(clientId);
+        cp.setClientName(clientName);
+        return send(cp);
+    }
+
+    /**
+     * Sends (and sets) this client their id (typically when they first connect)
+     * 
+     * @param clientId
+     * @return success of sending the payload
+     */
+    public boolean sendClientId(long clientId) {
+        this.clientId = clientId;
+        ConnectionPayload cp = new ConnectionPayload();
+        cp.setPayloadType(PayloadType.CLIENT_ID);
+        cp.setConnect(true);
+        cp.setClientId(clientId);
+        cp.setClientName(clientName);
+        return send(cp);
+    }
+
+    // end send methods
 }

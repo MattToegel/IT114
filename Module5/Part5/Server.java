@@ -12,6 +12,7 @@ public enum Server {
     // Use ConcurrentHashMap for thread-safe room management
     private final ConcurrentHashMap<String, Room> rooms = new ConcurrentHashMap<>();
     private boolean isRunning = true;
+    private long nextClientId = 1;
 
     private Server(){
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
@@ -69,8 +70,13 @@ public enum Server {
      * @param sClient
      */
     private void onClientInitialized(ServerThread sClient) {
+        sClient.sendClientId(nextClientId);
+        nextClientId++;
+        if(nextClientId < 0){
+            nextClientId = 1;
+        }
         // add to lobby room
-        System.out.println(String.format("Server: *User[%s] initialized*", sClient.getClientId()));
+        System.out.println(String.format("Server: *%s[%s] initialized*", sClient.getClientName(), sClient.getClientId()));
         joinRoom(Room.LOBBY, sClient);
     }
 
