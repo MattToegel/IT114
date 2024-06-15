@@ -134,9 +134,10 @@ public enum Client {
             return true;
         } else if (text.equalsIgnoreCase("/users")) {
             System.out.println(
-                    String.join("\n", knownClients.values().stream().map(c -> String.format("%s(%s)", c.getClientName(), c.getClientId())).toList()));
+                    String.join("\n", knownClients.values().stream()
+                            .map(c -> String.format("%s(%s)", c.getClientName(), c.getClientId())).toList()));
             return true;
-        } else { //logic previously from Room.java
+        } else { // logic previously from Room.java
             // decided to make this as separate block to separate the core client-side items
             // vs the ones that generally are used after connection and that send requests
             if (text.startsWith(COMMAND_CHARACTER)) {
@@ -402,27 +403,30 @@ public enum Client {
 
     // payload processors
 
-    private void processDisconnect(long clientId, String clientName){
+    private void processDisconnect(long clientId, String clientName) {
         System.out.println(
-            TextFX.colorize(String.format("*%s disconnected*",
-            clientId == myData.getClientId() ? "You" : clientName),
-                    Color.RED));
-    if (clientId == myData.getClientId()) {
-        closeServerConnection();
+                TextFX.colorize(String.format("*%s disconnected*",
+                        clientId == myData.getClientId() ? "You" : clientName),
+                        Color.RED));
+        if (clientId == myData.getClientId()) {
+            closeServerConnection();
+        }
     }
-    }
-    private void processClientData(long clientId, String clientName){
+
+    private void processClientData(long clientId, String clientName) {
         if (myData.getClientId() == ClientData.DEFAULT_CLIENT_ID) {
             myData.setClientId(clientId);
             myData.setClientName(clientName);
             // knownClients.put(cp.getClientId(), myData);// <-- this is handled later
         }
     }
+
     private void processMessage(long clientId, String message) {
         String name = knownClients.containsKey(clientId) ? knownClients.get(clientId).getClientName() : "Room";
         System.out.println(TextFX.colorize(String.format("%s: %s", name, message), Color.BLUE));
     }
-    private void processClientSync(long clientId, String clientName){
+
+    private void processClientSync(long clientId, String clientName) {
         if (!knownClients.containsKey(clientId)) {
             ClientData cd = new ClientData();
             cd.setClientId(clientId);
@@ -430,6 +434,7 @@ public enum Client {
             knownClients.put(clientId, cd);
         }
     }
+
     private void processRoomAction(long clientId, String clientName, String message, boolean isJoin) {
         if (isJoin && !knownClients.containsKey(clientId)) {
             ClientData cd = new ClientData();
@@ -437,13 +442,18 @@ public enum Client {
             cd.setClientName(clientName);
             knownClients.put(clientId, cd);
             System.out.println(TextFX
-                    .colorize(String.format("*%s[%s] joined the Room %s*", clientName, clientId, message), Color.GREEN));
+                    .colorize(String.format("*%s[%s] joined the Room %s*", clientName, clientId, message),
+                            Color.GREEN));
         } else if (!isJoin) {
             ClientData removed = knownClients.remove(clientId);
             if (removed != null) {
                 System.out.println(
                         TextFX.colorize(String.format("*%s[%s] left the Room %s*", clientName, clientId, message),
                                 Color.YELLOW));
+            }
+            //clear our list
+            if(clientId == myData.getClientId()){
+                knownClients.clear();
             }
         }
     }

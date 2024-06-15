@@ -7,29 +7,43 @@ public class Payload implements Serializable {
     private long clientId;
     private String message;
 
+    
+
     public PayloadType getPayloadType() {
         return payloadType;
     }
+
+
 
     public void setPayloadType(PayloadType payloadType) {
         this.payloadType = payloadType;
     }
 
+
+
     public long getClientId() {
         return clientId;
     }
+
+
 
     public void setClientId(long clientId) {
         this.clientId = clientId;
     }
 
+
+
     public String getMessage() {
         return message;
     }
 
+
+
     public void setMessage(String message) {
         this.message = message;
     }
+
+
 
     @Override
     public String toString(){

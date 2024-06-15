@@ -94,7 +94,7 @@ public class ServerThread extends BaseServerThread {
                     currentRoom.sendMessage(this, payload.getMessage());
                     break;
                 case ROOM_CREATE:
-                    currentRoom.handCreateRoom(this, payload.getMessage());
+                    currentRoom.handleCreateRoom(this, payload.getMessage());
                     break;
                 case ROOM_JOIN:
                     currentRoom.handleJoinRoom(this, payload.getMessage());
