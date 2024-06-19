@@ -1,4 +1,4 @@
-package Project;
+package Project.Client;
 
 public class ClientData {
     public static long DEFAULT_CLIENT_ID = -1L;

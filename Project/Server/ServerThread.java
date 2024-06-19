@@ -1,8 +1,13 @@
-package Project;
+package Project.Server;
 
 import java.net.Socket;
 import java.util.Objects;
 import java.util.function.Consumer;
+
+import Project.Common.PayloadType;
+import Project.Common.Payload;
+
+import Project.Common.ConnectionPayload;
 
 /**
  * A server-side representation of a single client.
