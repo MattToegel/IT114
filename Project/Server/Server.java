@@ -3,22 +3,33 @@ package Project.Server;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
-
+import Project.Common.LoggerUtil;
 
 public enum Server {
     INSTANCE;
 
+    {
+        // statically initialize the server-side LoggerUtil
+        LoggerUtil.LoggerConfig config = new LoggerUtil.LoggerConfig();
+        config.setFileSizeLimit(2048 * 1024); // 2MB
+        config.setFileCount(1);
+        config.setLogLocation("server.log");
+        // Set the logger configuration
+        LoggerUtil.INSTANCE.setConfig(config);
+    }
     private int port = 3000;
     // Use ConcurrentHashMap for thread-safe room management
     private final ConcurrentHashMap<String, Room> rooms = new ConcurrentHashMap<>();
     private boolean isRunning = true;
     private long nextClientId = 1;
 
-    private Server(){
+    private Server() {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            System.out.println("JVM is shutting down. Perform cleanup tasks.");
+            LoggerUtil.INSTANCE.info("JVM is shutting down. Perform cleanup tasks.");
             shutdown();
         }));
     }
@@ -26,14 +37,14 @@ public enum Server {
     private void start(int port) {
         this.port = port;
         // server listening
-        System.out.println("Listening on port " + this.port);
+        LoggerUtil.INSTANCE.info("Listening on port " + this.port);
         // Simplified client connection loop
         try (ServerSocket serverSocket = new ServerSocket(port)) {
             createRoom(Room.LOBBY);// create the first room
             while (isRunning) {
-                System.out.println("Waiting for next client");
+                LoggerUtil.INSTANCE.info("Waiting for next client");
                 Socket incomingClient = serverSocket.accept(); // blocking action, waits for a client connection
-                System.out.println("Client connected");
+                LoggerUtil.INSTANCE.info("Client connected");
                 // wrap socket in a ServerThread, pass a callback to notify the Server they're
                 // initialized
                 ServerThread sClient = new ServerThread(incomingClient, this::onClientInitialized);
@@ -42,26 +53,27 @@ public enum Server {
                 sClient.start();
             }
         } catch (IOException e) {
-            System.err.println("Error accepting connection");
-            e.printStackTrace();
+            LoggerUtil.INSTANCE.severe("Error accepting connection", e);
         } finally {
             shutdown();
-            System.out.println("Closing server socket");
+            LoggerUtil.INSTANCE.info("Closing server socket");
         }
     }
+
     /**
      * Gracefully disconnect clients
      */
     private void shutdown() {
         try {
-            //chose removeIf over forEach to avoid potential ConcurrentModificationException
-            //since empty rooms tell the server to remove themselves
+            // chose removeIf over forEach to avoid potential
+            // ConcurrentModificationException
+            // since empty rooms tell the server to remove themselves
             rooms.values().removeIf(room -> {
                 room.disconnectAll();
                 return true;
             });
         } catch (Exception e) {
-            e.printStackTrace();
+            LoggerUtil.INSTANCE.info("Error cleaning up rooms", e);
         }
     }
 
@@ -74,11 +86,12 @@ public enum Server {
     private void onClientInitialized(ServerThread sClient) {
         sClient.sendClientId(nextClientId);
         nextClientId++;
-        if(nextClientId < 0){
+        if (nextClientId < 0) {
             nextClientId = 1;
         }
         // add to lobby room
-        System.out.println(String.format("Server: *%s[%s] initialized*", sClient.getClientName(), sClient.getClientId()));
+        LoggerUtil.INSTANCE.info(String.format("Server: *%s[%s] initialized*",
+                sClient.getClientName(), sClient.getClientId()));
         joinRoom(Room.LOBBY, sClient);
     }
 
@@ -95,7 +108,7 @@ public enum Server {
         }
         Room room = new Room(name);
         rooms.put(nameCheck, room);
-        System.out.println(String.format("Created new Room %s", name));
+        LoggerUtil.INSTANCE.info(String.format("Created new Room %s", name));
         return true;
     }
 
@@ -120,13 +133,21 @@ public enum Server {
         return true;
     }
 
+    protected List<String> listRooms(String roomQuery) {
+        final String nameCheck = roomQuery.toLowerCase();
+        return rooms.values().stream()
+                .filter(room -> room.getName().toLowerCase().contains(nameCheck))// find partially matched rooms
+                .map(room -> room.getName())// map room to String (name)
+                .collect(Collectors.toList()); // return a mutable list
+    }
+
     protected void removeRoom(Room room) {
         rooms.remove(room.getName().toLowerCase());
-        System.out.println(String.format("Server removed room %s", room.getName()));
+        LoggerUtil.INSTANCE.info(String.format("Server removed room %s", room.getName()));
     }
 
     public static void main(String[] args) {
-        System.out.println("Server Starting");
+        LoggerUtil.INSTANCE.info("Server Starting");
         Server server = Server.INSTANCE;
         int port = 3000;
         try {
@@ -136,6 +157,6 @@ public enum Server {
             // will default to the defined value prior to the try/catch
         }
         server.start(port);
-        System.out.println("Server Stopped");
+        LoggerUtil.INSTANCE.info("Server Stopped");
     }
 }

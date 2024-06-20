@@ -2,6 +2,8 @@ package Project.Server;
 
 import java.util.concurrent.ConcurrentHashMap;
 
+import Project.Common.LoggerUtil;
+
 public class Room implements AutoCloseable{
     private String name;// unique name of the Room
     private volatile boolean isRunning = false;
@@ -10,13 +12,13 @@ public class Room implements AutoCloseable{
     public final static String LOBBY = "lobby";
 
     private void info(String message) {
-        System.out.println(String.format("Room[%s]: %s", name, message));
+        LoggerUtil.INSTANCE.info(String.format("Room[%s]: %s", name, message));
     }
 
     public Room(String name) {
         this.name = name;
         isRunning = true;
-        System.out.println(String.format("Room[%s] created", this.name));
+        info("created");
     }
 
     public String getName() {
@@ -218,6 +220,10 @@ public class Room implements AutoCloseable{
         if (!Server.INSTANCE.joinRoom(room, sender)) {
             sender.sendMessage(String.format("Room %s doesn't exist", room));
         }
+    }
+
+    protected void handleListRooms(ServerThread sender, String roomQuery){
+        sender.sendRooms(Server.INSTANCE.listRooms(roomQuery));
     }
 
     protected void clientDisconnect(ServerThread sender) {

@@ -1,13 +1,16 @@
 package Project.Server;
 
 import java.net.Socket;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 
 import Project.Common.PayloadType;
+import Project.Common.RoomResultsPayload;
 import Project.Common.Payload;
 
 import Project.Common.ConnectionPayload;
+import Project.Common.LoggerUtil;
 
 /**
  * A server-side representation of a single client.
@@ -46,7 +49,8 @@ public class ServerThread extends BaseServerThread {
         this.clientName = name;
         onInitialized();
     }
-    public String getClientName(){
+
+    public String getClientName() {
         return clientName;
     }
 
@@ -72,7 +76,7 @@ public class ServerThread extends BaseServerThread {
 
     @Override
     protected void info(String message) {
-        System.out.println(String.format("ServerThread[%s(%s)]: %s", getClientName(), getClientId(), message));
+        LoggerUtil.INSTANCE.info(String.format("ServerThread[%s(%s)]: %s", getClientName(), getClientId(), message));
     }
 
     @Override
@@ -80,12 +84,13 @@ public class ServerThread extends BaseServerThread {
         currentRoom = null;
         super.cleanup();
     }
-    
+
     @Override
-    protected void disconnect(){
-        //sendDisconnect(clientId, clientName);
+    protected void disconnect() {
+        // sendDisconnect(clientId, clientName);
         super.disconnect();
     }
+
     // handle received message from the Client
     @Override
     protected void processPayload(Payload payload) {
@@ -104,6 +109,9 @@ public class ServerThread extends BaseServerThread {
                 case ROOM_JOIN:
                     currentRoom.handleJoinRoom(this, payload.getMessage());
                     break;
+                case ROOM_LIST:
+                    currentRoom.handleListRooms(this, payload.getMessage());
+                    break;
                 case DISCONNECT:
                     currentRoom.disconnect(this);
                     break;
@@ -111,14 +119,20 @@ public class ServerThread extends BaseServerThread {
                     break;
             }
         } catch (Exception e) {
-            System.out.println("Could not process Payload: " + payload);
-            e.printStackTrace();
+            LoggerUtil.INSTANCE.severe("Could not process Payload: " + payload,e);
+        
         }
     }
 
     // send methods to pass data back to the Client
 
-    public boolean sendClientSync(long clientId, String clientName){
+    public boolean sendRooms(List<String> rooms) {
+        RoomResultsPayload rrp = new RoomResultsPayload();
+        rrp.setRooms(rooms);
+        return send(rrp);
+    }
+
+    public boolean sendClientSync(long clientId, String clientName) {
         ConnectionPayload cp = new ConnectionPayload();
         cp.setClientId(clientId);
         cp.setClientName(clientName);
@@ -164,7 +178,7 @@ public class ServerThread extends BaseServerThread {
     public boolean sendRoomAction(long clientId, String clientName, String room, boolean isJoin) {
         ConnectionPayload cp = new ConnectionPayload();
         cp.setPayloadType(PayloadType.ROOM_JOIN);
-        cp.setConnect(isJoin); //<-- determine if join or leave
+        cp.setConnect(isJoin); // <-- determine if join or leave
         cp.setMessage(room);
         cp.setClientId(clientId);
         cp.setClientName(clientName);
