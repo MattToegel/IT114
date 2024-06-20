@@ -1,4 +1,4 @@
-package Project;
+package Project.Common;
 /**
  * Utility to attempt to provide colored text in the terminal.
  * <p>Important: This does not satisfy the text formatting feature/requirement for chatroom projects.</p>
