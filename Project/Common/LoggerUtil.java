@@ -63,9 +63,9 @@ public enum LoggerUtil {
             String level = getColoredLevel(record.getLevel());
             String throwable = "";
             if (record.getThrown() != null) {
-                throwable = getStackTrace(record.getThrown());
+                throwable = "\n" +getStackTrace(record.getThrown());
             }
-            return String.format("%s [%s] (%s):\n> %s\n%s\n", date, source, level, message, throwable);
+            return String.format("%s [%s] (%s):\n> %s%s\n", date, source, level, message, throwable);
         }
 
         /**

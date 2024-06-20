@@ -1,3 +1,4 @@
+#!/bin/bash
 wd=$(pwd)
 cd $1
 # delete all .class files

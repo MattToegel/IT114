@@ -194,6 +194,10 @@ public enum Client {
 
     // send methods to pass data to the ServerThread
 
+    /**
+     * Sends a search to the server-side to get a list of potentially matching Rooms
+     * @param roomQuery optional partial match search String
+     */
     private void sendListRooms(String roomQuery) {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.ROOM_LIST);
