@@ -106,7 +106,15 @@ public enum Server {
         if (rooms.containsKey(nameCheck)) {
             return false;
         }
-        Room room = new Room(name);
+        Room room = null;
+        if (Room.LOBBY.equalsIgnoreCase(nameCheck)) {
+            room = new Room(name);
+        } else {
+            // uncomment this if doing chatroom
+            // room = new Room(name);
+            // comment this out if doing chatroom
+            room = new GameRoom(name); // <-- added during Ready Check lesson
+        }
         rooms.put(nameCheck, room);
         LoggerUtil.INSTANCE.info(String.format("Created new Room %s", name));
         return true;
