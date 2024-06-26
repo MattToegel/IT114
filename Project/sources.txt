@@ -5,7 +5,6 @@
 ./Common/Payload.java
 ./Common/PayloadType.java
 ./Common/Phase.java
-./Common/PhasePayload.java
 ./Common/Player.java
 ./Common/ReadyPayload.java
 ./Common/RoomResultsPayload.java

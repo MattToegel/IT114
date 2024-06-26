@@ -34,3 +34,5 @@ config.*
 .vscode
 .DS_Store
 *.lck
+*.log*
+sources.txt
