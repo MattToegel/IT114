@@ -7,11 +7,20 @@ public class Player {
     public static long DEFAULT_CLIENT_ID = -1L;
     private long clientId = Player.DEFAULT_CLIENT_ID;
     private boolean isReady = false;
+    private boolean takeTurn = false;
     
     public long getClientId() {
         return clientId;
     }
     
+    public boolean didTakeTurn() {
+        return takeTurn;
+    }
+
+    public void setTakeTurn(boolean tookTurn) {
+        this.takeTurn = tookTurn;
+    }
+
     public void setClientId(long clientId) {
         this.clientId = clientId;
     }

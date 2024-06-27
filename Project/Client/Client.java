@@ -13,6 +13,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import Project.Common.ConnectionPayload;
+import Project.Common.Grid;
 import Project.Common.LoggerUtil;
 import Project.Common.Payload;
 import Project.Common.PayloadType;
@@ -20,6 +21,7 @@ import Project.Common.Phase;
 import Project.Common.ReadyPayload;
 import Project.Common.RoomResultsPayload;
 import Project.Common.TextFX;
+import Project.Common.XYPayload;
 import Project.Common.TextFX.Color;
 
 /**
@@ -60,6 +62,9 @@ public enum Client {
     private final String SINGLE_SPACE = " ";
     // other constants
     private final String READY = "ready";
+    private final String MOVE = "move";
+
+    private Grid grid = null;
 
     // needs to be private now that the enum logic is handling this
     private Client() {
@@ -163,10 +168,18 @@ public enum Client {
              * c.getClientId())).toList()));
              */
             // non-chatroom version
+            /**
+             * System.out.println(
+             * String.join("\n", knownClients.values().stream()
+             * .map(c -> String.format("%s(%s) %s", c.getClientName(), c.getClientId(),
+             * c.isReady() ? "[x]" : "[ ]"))
+             * .toList()));
+             */
+            // updated to show turn status
             System.out.println(
                     String.join("\n", knownClients.values().stream()
-                            .map(c -> String.format("%s(%s) %s", c.getClientName(), c.getClientId(),
-                                    c.isReady() ? "[x]" : "[ ]"))
+                            .map(c -> String.format("%s(%s) %s %s", c.getClientName(), c.getClientId(),
+                                    c.isReady() ? "[R]" : "[ ]", c.didTakeTurn() ? "[T]" : "[ ]"))
                             .toList()));
             return true;
         } else { // logic previously from Room.java
@@ -205,6 +218,17 @@ public enum Client {
                         sendReady();
                         wasCommand = true;
                         break;
+                    case MOVE:
+                        try {
+                            String[] parts = commandValue.split(",");
+                            int x = Integer.parseInt(parts[0]);
+                            int y = Integer.parseInt(parts[1]);
+                            sendMove(x, y);
+                        } catch (Exception e) {
+                            System.out.println(TextFX.colorize("Invalid command format, try /move #,#", Color.RED));
+                        }
+                        wasCommand = true;
+                        break;
                 }
                 return wasCommand;
             }
@@ -213,6 +237,18 @@ public enum Client {
     }
 
     // send methods to pass data to the ServerThread
+
+    private void sendMove(int x, int y) {
+        // check local grid first
+        if (grid.getCell(x, y).isOccupied()) {
+            System.out
+                    .println(TextFX.colorize("That coordinate is already occupied, please try another", Color.YELLOW));
+            return;
+        }
+        XYPayload p = new XYPayload(x, y);
+        p.setPayloadType(PayloadType.MOVE);
+        send(p);
+    }
 
     /**
      * Sends the client's intent to be ready.
@@ -460,7 +496,7 @@ public enum Client {
                     processReadyStatus(rp.getClientId(), rp.isReady(), false);
                     break;
                 case PayloadType.SYNC_READY:
-                    ReadyPayload qrp = (ReadyPayload)payload;
+                    ReadyPayload qrp = (ReadyPayload) payload;
                     processReadyStatus(qrp.getClientId(), qrp.isReady(), true);
                     break;
                 case PayloadType.RESET_READY:
@@ -469,6 +505,18 @@ public enum Client {
                     break;
                 case PayloadType.PHASE:
                     processPhase(payload.getMessage());
+                    break;
+                case PayloadType.GRID_DIMENSION:
+                    XYPayload gd = (XYPayload) payload;
+                    processGridDimension(gd.getX(), gd.getY());
+                    break;
+                case PayloadType.MOVE:
+                    XYPayload mp = (XYPayload) payload;
+                    processMove(mp.getClientId(), mp.getX(), mp.getY());
+                    break;
+                case PayloadType.TURN:
+                    ReadyPayload tp = (ReadyPayload) payload;
+                    processTurnStatus(tp.getClientId(), tp.isReady());
                     break;
                 default:
                     break;
@@ -479,14 +527,50 @@ public enum Client {
     }
 
     // payload processors
-    private void processPhase(String phase){
+
+    private void processMove(long clientId, int x, int y) {
+        ClientPlayer cp = knownClients.get(clientId);
+        grid.setCell(x, y, true);
+        System.out.println(TextFX.colorize(String.format("%s moved to %s,%s", cp.getClientName(), x, y), Color.CYAN));
+        LoggerUtil.INSTANCE.info("Grid: " + grid);
+    }
+
+    private void processResetTurns() {
+        knownClients.values().forEach(cp -> cp.setTakeTurn(false));
+    }
+
+    private void processTurnStatus(long clientId, boolean didTakeTurn) {
+        if (clientId < 1) {
+            processResetTurns();
+            return;
+        }
+        ClientPlayer cp = knownClients.get(clientId);
+        cp.setTakeTurn(didTakeTurn);
+        if (didTakeTurn) {
+            System.out
+                    .println(TextFX.colorize(String.format("%s finished their turn", cp.getClientName()), Color.CYAN));
+        }
+    }
+
+    private void processGridDimension(int x, int y) {
+        if (x > 0 && y > 0) {
+            grid = new Grid(x, y);
+        } else {
+            grid.reset();
+        }
+        LoggerUtil.INSTANCE.info("Grid: " + grid);
+    }
+
+    private void processPhase(String phase) {
         currentPhase = Enum.valueOf(Phase.class, phase);
         System.out.println(TextFX.colorize("Current phase is " + currentPhase.name(), Color.YELLOW));
     }
-    private void processResetReady(){
-        knownClients.values().forEach(cp->cp.setReady(false));
+
+    private void processResetReady() {
+        knownClients.values().forEach(cp -> cp.setReady(false));
         System.out.println("Ready status reset for everyone");
     }
+
     private void processReadyStatus(long clientId, boolean isReady, boolean quiet) {
         if (!knownClients.containsKey(clientId)) {
             LoggerUtil.INSTANCE.severe(String.format("Received ready status [%s] for client id %s who is not known",
