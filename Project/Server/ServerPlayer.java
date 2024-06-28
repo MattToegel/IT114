@@ -38,16 +38,16 @@ public class ServerPlayer extends Player {
     }
     // add any wrapper methods to call on the ServerThread
     // don't used the exposed full ServerThread object
-    public boolean removeCardFromHand(Card card){
+    public boolean sendRemoveCardFromHand(Card card){
         return client.sendRemoveCardFromHand(card);
     }
-    public boolean removeCardsFromHand(List<Card> cards){
+    public boolean sendRemoveCardsFromHand(List<Card> cards){
         return client.sendRemoveCardsFromHand(cards);
     }
-    public boolean addCardToHand(Card card){
+    public boolean sendAddCardToHand(Card card){
         return client.sendAddCardToHand(card);
     }
-    public boolean addCardsToHand(List<Card> cards){
+    public boolean sendAddCardsToHand(List<Card> cards){
         return client.sendAddCardsToHand(cards);
     }
     public boolean sendCardsInHand(List<Card> cards){

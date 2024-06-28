@@ -64,8 +64,10 @@ public class GameRoom extends BaseGameRoom {
     }
 
     private void startTurnTimer() {
-        roundTimer = new TimedEvent(30, () -> onTurnEnd());
-        roundTimer.setTickCallback((time) -> System.out.println("Turn Time: " + time));
+        // Fixed in Deck/Card lesson, had incorrectly referenced roundTimer instead of
+        // turnTimer
+        turnTimer = new TimedEvent(30, () -> onTurnEnd());
+        turnTimer.setTickCallback((time) -> System.out.println("Turn Time: " + time));
     }
 
     private void resetTurnTimer() {
@@ -114,6 +116,7 @@ public class GameRoom extends BaseGameRoom {
         round++;
         sendMessage(null, "Round: " + round);
         sendResetTurnStatus();
+        currentPlayerIndex = -1; // so nextPlayer makes it index 0
         LoggerUtil.INSTANCE.info("onRoundStart() end");
         onTurnStart();
     }
@@ -218,6 +221,7 @@ public class GameRoom extends BaseGameRoom {
 
         }
     }
+
     /**
      * Hand initialization
      */
@@ -244,6 +248,7 @@ public class GameRoom extends BaseGameRoom {
             LoggerUtil.INSTANCE.severe("Failed to draw a card");
         }
     }
+
     // example if Players all draw at once
     private void eachDrawCard() {
         playersInRoom.values().stream().filter(p -> p.isReady()).forEach(p -> {
@@ -293,11 +298,11 @@ public class GameRoom extends BaseGameRoom {
 
     // send/sync data to ServerPlayer(s)
     private void syncRemoveCard(ServerPlayer sp, Card card) {
-        sp.removeCardFromHand(card);
+        sp.sendRemoveCardFromHand(card);
     }
 
     private void syncAddCard(ServerPlayer sp, Card card) {
-        sp.addCardToHand(card);
+        sp.sendAddCardToHand(card);
     }
 
     private void syncPlayerHand(ServerPlayer sp) {
@@ -378,6 +383,7 @@ public class GameRoom extends BaseGameRoom {
             checkCurrentPlayer(st);
             // TODO finish this
             ServerPlayer sp = playersInRoom.get(st.getClientId());
+            sp.removeFromHand(card);
             syncRemoveCard(sp, card);
             sendMessage(null, String.format("%s discarded %s", st.getClientName(), card));
             // example turn end condition
@@ -394,6 +400,7 @@ public class GameRoom extends BaseGameRoom {
             checkCurrentPlayer(st);
             // TODO finish this
             ServerPlayer sp = playersInRoom.get(st.getClientId());
+            sp.removeFromHand(card);
             syncRemoveCard(sp, card);
             sendMessage(null, String.format("%s used %s", st.getClientName(), card));
             // example turn end condition
