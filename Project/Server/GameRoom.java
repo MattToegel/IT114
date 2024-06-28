@@ -63,11 +63,12 @@ public class GameRoom extends BaseGameRoom {
         }
     }
 
-    private void startTurnTimer() {
+    private void startTurnTimer(){
+        // Depending when you saw this
         // Fixed in Deck/Card lesson, had incorrectly referenced roundTimer instead of
-        // turnTimer
-        turnTimer = new TimedEvent(30, () -> onTurnEnd());
-        turnTimer.setTickCallback((time) -> System.out.println("Turn Time: " + time));
+        // turnTimer. Applied the fix to older branches to avoid inconsistencies though
+        turnTimer = new TimedEvent(30, ()-> onTurnEnd());
+        turnTimer.setTickCallback((time)->System.out.println("Turn Time: " + time));
     }
 
     private void resetTurnTimer() {
