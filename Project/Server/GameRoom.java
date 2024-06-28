@@ -1,6 +1,8 @@
 package Project.Server;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import Project.Common.Card;
@@ -22,6 +24,10 @@ public class GameRoom extends BaseGameRoom {
     private Grid grid = null;
 
     private Deck deck = null;
+
+    private List<ServerPlayer> turnOrder = new ArrayList<>();
+    private int currentPlayerIndex = 0;
+    private int round = 0;
 
     public GameRoom(String name) {
         super(name);
@@ -70,33 +76,6 @@ public class GameRoom extends BaseGameRoom {
     }
     // end timer handlers
 
-    // misc start
-    private void drawHands() {
-        playersInRoom.values().stream().filter(p -> p.isReady()).forEach(p -> {
-            List<Card> cards = deck.draw(3);
-            if (cards == null || cards.size() == 0) {
-                LoggerUtil.INSTANCE.severe("Failed to draw cards");
-            } else {
-                p.addToHand(cards);
-                syncPlayerHand(p);
-            }
-
-        });
-    }
-
-    private void eachDrawCard() {
-        playersInRoom.values().stream().filter(p -> p.isReady()).forEach(p -> {
-            Card card = deck.draw();
-            if (card != null) {
-                p.addToHand(card);
-                syncAddCard(p, card);
-            } else {
-                LoggerUtil.INSTANCE.severe("Failed to draw a card");
-            }
-        });
-    }
-    // misc end
-
     // lifecycle methods
 
     /** {@inheritDoc} */
@@ -115,6 +94,12 @@ public class GameRoom extends BaseGameRoom {
         deck.shuffle();
         sendGridDimensions();
         drawHands();
+        turnOrder.clear();
+        playersInRoom.values().stream().filter(ServerPlayer::isReady).forEach(p -> {
+            turnOrder.add(p); // add ServerPlayer reference
+        });
+        Collections.shuffle(turnOrder); // random order
+        round = 0;
         LoggerUtil.INSTANCE.info("onSessionStart() end");
         onRoundStart();
     }
@@ -124,9 +109,13 @@ public class GameRoom extends BaseGameRoom {
     protected void onRoundStart() {
         LoggerUtil.INSTANCE.info("onRoundStart() start");
         resetRoundTimer();
-        startRoundTimer();
-        eachDrawCard();
+        // startRoundTimer(); // not using rounds as turns in this lesson
+        // eachDrawCard(); // if everyone draws at once
+        round++;
+        sendMessage(null, "Round: " + round);
+        sendResetTurnStatus();
         LoggerUtil.INSTANCE.info("onRoundStart() end");
+        onTurnStart();
     }
 
     /** {@inheritDoc} */
@@ -135,6 +124,9 @@ public class GameRoom extends BaseGameRoom {
         LoggerUtil.INSTANCE.info("onTurnStart() start");
         resetTurnTimer();
         startTurnTimer();
+        nextPlayer();
+        sendMessage(null, String.format("It's %s's turn", getCurrentPlayer().getClientName()));
+        drawCard();
         LoggerUtil.INSTANCE.info("onTurnStart() end");
     }
 
@@ -145,8 +137,13 @@ public class GameRoom extends BaseGameRoom {
     protected void onTurnEnd() {
         LoggerUtil.INSTANCE.info("onTurnEnd() start");
         resetTurnTimer(); // reset timer if turn ended without the time expiring
-
+        sendTurnStatus(getCurrentPlayer());
         LoggerUtil.INSTANCE.info("onTurnEnd() end");
+        if (isRoundOver()) {
+            onRoundEnd(); // next round
+        } else {
+            onTurnStart(); // next player
+        }
     }
 
     // Note: logic between Round Start and Round End is typically handled via timers
@@ -155,12 +152,34 @@ public class GameRoom extends BaseGameRoom {
     @Override
     protected void onRoundEnd() {
         LoggerUtil.INSTANCE.info("onRoundEnd() start");
+        resetTurnTimer(); // just in case it's still active if we forgot to end it sooner
         resetRoundTimer(); // reset timer if round ended without the time expiring
 
         LoggerUtil.INSTANCE.info("onRoundEnd() end");
-        // example of some end session condition 2
-        sendMessage(null, "Too slow populating the grid, you all lose");
-        onSessionEnd();
+        // example of some end session condition 2 (not using this in the Deck/Card)
+        // lesson)
+        // sendMessage(null, "Too slow populating the grid, you all lose");
+        // onSessionEnd();
+
+        // example end of session for Deck/Card
+        // if the player has the lucky card they win
+        // alternatively end the session if the deck is empty (since it's possible to
+        // discard the lucky card)
+        int luckyId = 5;
+        ServerPlayer luckyPlayer = turnOrder.stream()
+                .filter(player -> player.getHand().stream().anyMatch(card -> card.getId() == luckyId))
+                .findFirst()
+                .orElse(null);
+
+        if (luckyPlayer == null) {
+            onRoundStart(); // move to the next round
+        } else if (!deck.isEmpty()) {
+            sendMessage(null, String.format("%s has the lucky card and wins!", luckyPlayer.getClientName()));
+            onSessionEnd(); // end the session if a winner is found
+        } else {
+            sendMessage(null, "The deck is empty, game over");
+            onSessionEnd(); // end the session, empty deck
+        }
     }
 
     /** {@inheritDoc} */
@@ -168,7 +187,9 @@ public class GameRoom extends BaseGameRoom {
     protected void onSessionEnd() {
         LoggerUtil.INSTANCE.info("onSessionEnd() start");
         grid.reset();
+        resetTurnTimer(); // just in case it's still active if we forgot to end it sooner
         resetRoundTimer(); // just in case it's still active if we forgot to end it sooner
+
         sendGridDimensions();
         sendResetTurnStatus();
         resetReadyStatus();
@@ -178,6 +199,8 @@ public class GameRoom extends BaseGameRoom {
     // end lifecycle methods
 
     // misc logic
+    @Deprecated // removing this as the Deck/Cards lesson introduces turns instead of just
+                // rounds
     private void checkIfAllTookTurns() {
         long ready = playersInRoom.values().stream().filter(p -> p.isReady()).count();
         long tookTurn = playersInRoom.values().stream().filter(p -> p.isReady() && p.didTakeTurn()).count();
@@ -195,7 +218,78 @@ public class GameRoom extends BaseGameRoom {
 
         }
     }
-    // end misc logic
+    /**
+     * Hand initialization
+     */
+    private void drawHands() {
+        playersInRoom.values().stream().filter(p -> p.isReady()).forEach(p -> {
+            List<Card> cards = deck.draw(3);
+            if (cards == null || cards.size() == 0) {
+                LoggerUtil.INSTANCE.severe("Failed to draw cards");
+            } else {
+                p.addToHand(cards);
+                syncPlayerHand(p);
+            }
+
+        });
+    }
+
+    private void drawCard() {
+        ServerPlayer current = getCurrentPlayer();
+        Card card = deck.draw();
+        if (card != null) {
+            current.addToHand(card);
+            syncAddCard(current, card);
+        } else {
+            LoggerUtil.INSTANCE.severe("Failed to draw a card");
+        }
+    }
+    // example if Players all draw at once
+    private void eachDrawCard() {
+        playersInRoom.values().stream().filter(p -> p.isReady()).forEach(p -> {
+            Card card = deck.draw();
+            if (card != null) {
+                p.addToHand(card);
+                syncAddCard(p, card);
+            } else {
+                LoggerUtil.INSTANCE.severe("Failed to draw a card");
+            }
+        });
+    }
+
+    /**
+     * Early exit (via exception throwing) if the user isn't in the room
+     * 
+     * @param client
+     * @throws Exception
+     */
+    protected void checkCurrentPlayer(ServerThread client) throws Exception {
+        if (getCurrentPlayer().getClientId() != client.getClientId()) {
+            LoggerUtil.INSTANCE.severe("Player isn't the current Player");
+            client.sendMessage("It's not your turn");
+            throw new Exception("Player isn't the current Player");
+        }
+    }
+    // misc end
+
+    // turn helpers start
+    private ServerPlayer getCurrentPlayer() {
+        return turnOrder.get(currentPlayerIndex);
+    }
+
+    private ServerPlayer nextPlayer() {
+        currentPlayerIndex++;
+        if (currentPlayerIndex >= turnOrder.size()) {
+            currentPlayerIndex = 0;
+        }
+        return getCurrentPlayer();
+    }
+
+    private boolean isRoundOver() {
+        int check = currentPlayerIndex + 1;
+        return check >= turnOrder.size();
+    }
+    // turn helpers end
 
     // send/sync data to ServerPlayer(s)
     private void syncRemoveCard(ServerPlayer sp, Card card) {
@@ -281,10 +375,13 @@ public class GameRoom extends BaseGameRoom {
         try {
             checkCurrentPhase(st, Phase.IN_PROGRESS);
             checkPlayerInRoom(st);
+            checkCurrentPlayer(st);
             // TODO finish this
             ServerPlayer sp = playersInRoom.get(st.getClientId());
             syncRemoveCard(sp, card);
             sendMessage(null, String.format("%s discarded %s", st.getClientName(), card));
+            // example turn end condition
+            onTurnEnd();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -294,10 +391,13 @@ public class GameRoom extends BaseGameRoom {
         try {
             checkCurrentPhase(st, Phase.IN_PROGRESS);
             checkPlayerInRoom(st);
+            checkCurrentPlayer(st);
             // TODO finish this
             ServerPlayer sp = playersInRoom.get(st.getClientId());
             syncRemoveCard(sp, card);
             sendMessage(null, String.format("%s used %s", st.getClientName(), card));
+            // example turn end condition
+            onTurnEnd();
         } catch (Exception e) {
             e.printStackTrace();
         }

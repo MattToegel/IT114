@@ -33,6 +33,9 @@ public class ServerPlayer extends Player {
         return client;
     }
     
+    public String getClientName(){
+        return client.getClientName();
+    }
     // add any wrapper methods to call on the ServerThread
     // don't used the exposed full ServerThread object
     public boolean removeCardFromHand(Card card){

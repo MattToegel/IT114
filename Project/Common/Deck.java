@@ -29,7 +29,7 @@ public class Deck {
         this.cards = new ArrayList<>();
         this.defaultCards = new ArrayList<>();
         loadCardsFromFile(filePath);
-        resetDeck();
+        reset();
     }
 
     /**
@@ -69,9 +69,13 @@ public class Deck {
     /**
      * Resets the deck to its default state.
      */
-    public synchronized void resetDeck() {
+    public synchronized void reset() {
         cards.clear();
         cards.addAll(defaultCards);
+    }
+
+    public synchronized boolean isEmpty() {
+        return cards.isEmpty();
     }
 
     public synchronized Card draw() {
@@ -176,7 +180,7 @@ public class Deck {
         System.out.println("\nDeck after picking cards:");
         deck.getCards().forEach(System.out::println);
 
-        deck.resetDeck();
+        deck.reset();
         System.out.println("\nDeck after reset:");
         deck.getCards().forEach(System.out::println);
     }
