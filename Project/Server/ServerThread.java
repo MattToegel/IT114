@@ -133,7 +133,7 @@ public class ServerThread extends BaseServerThread {
                         XYPayload movePayload = (XYPayload)payload;
                         ((GameRoom) currentRoom).handleMove(this, movePayload.getX(), movePayload.getY());
                     } catch (Exception e) {
-                        sendMessage("You must be in a GameRoom to do the ready check");
+                        sendMessage("You must be in a GameRoom to move");
                     }
                     break;
                 default:
