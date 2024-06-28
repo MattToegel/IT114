@@ -170,7 +170,7 @@ public class ServerThread extends BaseServerThread {
         cp.setCards(cards);
         return send(cp);
     }
-    public boolean sendCardsInHand(List<Card> cards){
+    public boolean sendHand(List<Card> cards){
         CardPayload cp = new CardPayload();
         cp.setPayloadType(PayloadType.CARDS_IN_HAND);
         cp.setCards(cards);
