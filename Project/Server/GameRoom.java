@@ -1,5 +1,10 @@
 package Project.Server;
 
+import java.io.IOException;
+import java.util.List;
+
+import Project.Common.Card;
+import Project.Common.Deck;
 import Project.Common.Grid;
 import Project.Common.LoggerUtil;
 import Project.Common.Phase;
@@ -15,6 +20,8 @@ public class GameRoom extends BaseGameRoom {
     private TimedEvent turnTimer = null;
 
     private Grid grid = null;
+
+    private Deck deck = null;
 
     public GameRoom(String name) {
         super(name);
@@ -63,6 +70,33 @@ public class GameRoom extends BaseGameRoom {
     }
     // end timer handlers
 
+    // misc start
+    private void drawHands() {
+        playersInRoom.values().stream().filter(p -> p.isReady()).forEach(p -> {
+            List<Card> cards = deck.draw(3);
+            if (cards == null || cards.size() == 0) {
+                LoggerUtil.INSTANCE.severe("Failed to draw cards");
+            } else {
+                p.addToHand(cards);
+                syncPlayerHand(p);
+            }
+
+        });
+    }
+
+    private void eachDrawCard() {
+        playersInRoom.values().stream().filter(p -> p.isReady()).forEach(p -> {
+            Card card = deck.draw();
+            if (card != null) {
+                p.addToHand(card);
+                syncAddCard(p, card);
+            } else {
+                LoggerUtil.INSTANCE.severe("Failed to draw a card");
+            }
+        });
+    }
+    // misc end
+
     // lifecycle methods
 
     /** {@inheritDoc} */
@@ -71,7 +105,16 @@ public class GameRoom extends BaseGameRoom {
         LoggerUtil.INSTANCE.info("onSessionStart() start");
         changePhase(Phase.IN_PROGRESS);
         grid = new Grid(2, 2);
+        try {
+            deck = new Deck("Project/Common/cards.txt");
+        } catch (IOException e) {
+            e.printStackTrace();
+            onSessionEnd();
+            return;
+        }
+        deck.shuffle();
         sendGridDimensions();
+        drawHands();
         LoggerUtil.INSTANCE.info("onSessionStart() end");
         onRoundStart();
     }
@@ -82,6 +125,7 @@ public class GameRoom extends BaseGameRoom {
         LoggerUtil.INSTANCE.info("onRoundStart() start");
         resetRoundTimer();
         startRoundTimer();
+        eachDrawCard();
         LoggerUtil.INSTANCE.info("onRoundStart() end");
     }
 
@@ -154,6 +198,17 @@ public class GameRoom extends BaseGameRoom {
     // end misc logic
 
     // send/sync data to ServerPlayer(s)
+    private void syncRemoveCard(ServerPlayer sp, Card card) {
+        sp.removeCardFromHand(card);
+    }
+
+    private void syncAddCard(ServerPlayer sp, Card card) {
+        sp.addCardToHand(card);
+    }
+
+    private void syncPlayerHand(ServerPlayer sp) {
+        sp.sendCardsInHand(sp.getHand());
+    }
 
     /**
      * Sends a movement coordinate of one Player to all Players (including
@@ -222,6 +277,32 @@ public class GameRoom extends BaseGameRoom {
     // end send data to ServerPlayer(s)
 
     // receive data from ServerThread (GameRoom specific)
+    protected void handleDiscardCard(ServerThread st, Card card) {
+        try {
+            checkCurrentPhase(st, Phase.IN_PROGRESS);
+            checkPlayerInRoom(st);
+            // TODO finish this
+            ServerPlayer sp = playersInRoom.get(st.getClientId());
+            syncRemoveCard(sp, card);
+            sendMessage(null, String.format("%s discarded %s", st.getClientName(), card));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    protected void handleUseCard(ServerThread st, Card card) {
+        try {
+            checkCurrentPhase(st, Phase.IN_PROGRESS);
+            checkPlayerInRoom(st);
+            // TODO finish this
+            ServerPlayer sp = playersInRoom.get(st.getClientId());
+            syncRemoveCard(sp, card);
+            sendMessage(null, String.format("%s used %s", st.getClientName(), card));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     protected void handleMove(ServerThread st, int x, int y) {
         try {
             checkPlayerInRoom(st);

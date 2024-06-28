@@ -1,5 +1,8 @@
 package Project.Server;
 
+import java.util.List;
+
+import Project.Common.Card;
 import Project.Common.Phase;
 import Project.Common.Player;
 
@@ -32,6 +35,21 @@ public class ServerPlayer extends Player {
     
     // add any wrapper methods to call on the ServerThread
     // don't used the exposed full ServerThread object
+    public boolean removeCardFromHand(Card card){
+        return client.removeCardFromHand(card);
+    }
+    public boolean removeCardsFromHand(List<Card> cards){
+        return client.removeCardsFromHand(cards);
+    }
+    public boolean addCardToHand(Card card){
+        return client.addCardToHand(card);
+    }
+    public boolean addCardsToHand(List<Card> cards){
+        return client.addCardsToHand(cards);
+    }
+    public boolean sendCardsInHand(List<Card> cards){
+        return client.sendCardsInHand(cards);
+    }
     public boolean sendMove(long clientId, int x, int y){
         return client.sendMove(clientId, x, y);
     }

@@ -1,19 +1,21 @@
 package Project.Server;
 
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 
+import Project.Common.Card;
+import Project.Common.CardPayload;
+import Project.Common.ConnectionPayload;
+import Project.Common.LoggerUtil;
+import Project.Common.Payload;
 import Project.Common.PayloadType;
 import Project.Common.Phase;
 import Project.Common.ReadyPayload;
 import Project.Common.RoomResultsPayload;
 import Project.Common.XYPayload;
-import Project.Common.Payload;
-
-import Project.Common.ConnectionPayload;
-import Project.Common.LoggerUtil;
 
 /**
  * A server-side representation of a single client.
@@ -146,6 +148,34 @@ public class ServerThread extends BaseServerThread {
     }
 
     // send methods specific to non-chatroom projects
+    public boolean removeCardFromHand(Card card){
+        List<Card> cards = new ArrayList<>();
+        cards.add(card);
+        return removeCardsFromHand(cards);
+    }
+    public boolean removeCardsFromHand(List<Card> cards){
+        CardPayload cp = new CardPayload();
+        cp.setPayloadType(PayloadType.REMOVE_CARD);
+        cp.setCards(cards);
+        return send(cp);
+    }
+    public boolean addCardToHand(Card card){
+        List<Card> cards = new ArrayList<>();
+        cards.add(card);
+        return addCardsToHand(cards);
+    }
+    public boolean addCardsToHand(List<Card> cards){
+        CardPayload cp = new CardPayload();
+        cp.setPayloadType(PayloadType.ADD_CARD);
+        cp.setCards(cards);
+        return send(cp);
+    }
+    public boolean sendCardsInHand(List<Card> cards){
+        CardPayload cp = new CardPayload();
+        cp.setPayloadType(PayloadType.CARDS_IN_HAND);
+        cp.setCards(cards);
+        return send(cp);
+    }
     public boolean sendMove(long clientId, int x, int y){
         XYPayload p = new XYPayload(x, y);
         p.setPayloadType(PayloadType.MOVE);

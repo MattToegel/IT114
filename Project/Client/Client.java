@@ -11,7 +11,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
+import Project.Common.Card;
+import Project.Common.CardPayload;
 import Project.Common.ConnectionPayload;
 import Project.Common.Grid;
 import Project.Common.LoggerUtil;
@@ -32,6 +36,7 @@ public enum Client {
     INSTANCE;
 
     {
+
         // statically initialize the client-side LoggerUtil
         LoggerUtil.LoggerConfig config = new LoggerUtil.LoggerConfig();
         config.setFileSizeLimit(2048 * 1024); // 2MB
@@ -63,6 +68,9 @@ public enum Client {
     // other constants
     private final String READY = "ready";
     private final String MOVE = "move";
+    private final String HAND = "hand";
+    private final String USE = "use";
+    private final String DISCARD = "discard";
 
     private Grid grid = null;
 
@@ -229,6 +237,36 @@ public enum Client {
                         }
                         wasCommand = true;
                         break;
+                    case HAND:
+                        System.out.println("Your hand:");
+
+                        List<Card> hand = myData.getHand();
+                        String result = IntStream.range(0, hand.size())
+                                .mapToObj(i -> String.format("%d) %s", i + 1, hand.get(i)))
+                                .collect(Collectors.joining("\n"));
+
+                        System.out.println(result);
+                        break;
+                    case USE:
+                        try {
+                            int cardOffset = Integer.parseInt(commandValue) - 1;
+                            Card c = myData.getHand().get(cardOffset);
+                            sendUseCard(c);
+                        } catch (Exception e) {
+                            System.out.println(
+                                    TextFX.colorize("Invalid command format, try /use card_number (see /hand first)", Color.RED));
+                        }
+                        break;
+                    case DISCARD:
+                        try {
+                            int cardOffset = Integer.parseInt(commandValue) - 1;
+                            Card c = myData.getHand().get(cardOffset);
+                            sendDiscardCard(c);
+                        } catch (Exception e) {
+                            System.out.println(
+                                    TextFX.colorize("Invalid command format, try /discard card_number (see /hand first)", Color.RED));
+                        }
+                        break;
                 }
                 return wasCommand;
             }
@@ -237,6 +275,19 @@ public enum Client {
     }
 
     // send methods to pass data to the ServerThread
+    private void sendUseCard(Card c) {
+        CardPayload cp = new CardPayload();
+        cp.setCard(c);
+        cp.setPayloadType(PayloadType.USE_CARD);
+        send(cp);
+    }
+
+    private void sendDiscardCard(Card c) {
+        CardPayload cp = new CardPayload();
+        cp.setCard(c);
+        cp.setPayloadType(PayloadType.REMOVE_CARD);
+        send(cp);
+    }
 
     private void sendMove(int x, int y) {
         // check local grid first

@@ -1,5 +1,8 @@
 package Project.Common;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Common Player data shared between Client and Server
  */
@@ -8,6 +11,8 @@ public class Player {
     private long clientId = Player.DEFAULT_CLIENT_ID;
     private boolean isReady = false;
     private boolean takeTurn = false;
+
+    private List<Card> hand = new ArrayList<Card>();
     
     public long getClientId() {
         return clientId;
@@ -30,6 +35,19 @@ public class Player {
     }
     public void setReady(boolean isReady) {
         this.isReady = isReady;
+    }
+
+    public void addToHand(Card card){
+        hand.add(card);
+    }
+    public void addToHand(List<Card> cards){
+        hand.addAll(cards);
+    }
+    public Card removeFromHand(Card c){
+        return hand.remove(hand.indexOf(c));
+    }
+    public List<Card> getHand(){
+        return hand;
     }
     
     /**
