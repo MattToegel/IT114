@@ -17,6 +17,7 @@ import java.util.stream.Collectors;
 public class Deck {
     private List<Card> cards;
     private List<Card> defaultCards;
+    private static int idCounter = 0;
 
     /**
      * Constructs a Deck object and loads the cards from a file.
@@ -48,11 +49,21 @@ public class Deck {
                     .map(line -> line.split(","))
                     .filter(cardDetails -> cardDetails.length == 3)
                     .map(cardDetails -> new Card(
+                            generateID(),
                             cardDetails[0].trim(),
                             cardDetails[1].trim(),
                             Integer.parseInt(cardDetails[2].trim())))
                     .collect(Collectors.toList());
         }
+    }
+
+    /**
+     * Generates a unique ID for each card.
+     *
+     * @return a unique integer ID
+     */
+    private synchronized int generateID() {
+        return ++idCounter;
     }
 
     /**
@@ -62,13 +73,15 @@ public class Deck {
         cards.clear();
         cards.addAll(defaultCards);
     }
-    public synchronized Card draw(){
+
+    public synchronized Card draw() {
         Card c = null;
-        if(!cards.isEmpty()){
+        if (!cards.isEmpty()) {
             c = cards.remove(0);
         }
         return c;
     }
+
     /**
      * Draws a specified number of cards from the top of the deck.
      *

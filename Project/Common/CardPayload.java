@@ -10,10 +10,16 @@ public class CardPayload extends Payload {
         return cards;
     }
 
-    public void setCard(Card card){
-        cards = new ArrayList<>();
+    public Card getCard() {
+        return cards.get(0);
+    }
+
+    public void setCard(Card card) {
+        cards = new ArrayList<Card>();
+
         cards.add(card);
     }
+
     public void setCards(List<Card> cards) {
         this.cards = cards;
     }

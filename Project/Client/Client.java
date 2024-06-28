@@ -238,14 +238,8 @@ public enum Client {
                         wasCommand = true;
                         break;
                     case HAND:
-                        System.out.println("Your hand:");
-
-                        List<Card> hand = myData.getHand();
-                        String result = IntStream.range(0, hand.size())
-                                .mapToObj(i -> String.format("%d) %s", i + 1, hand.get(i)))
-                                .collect(Collectors.joining("\n"));
-
-                        System.out.println(result);
+                        showHand();
+                        wasCommand = true;
                         break;
                     case USE:
                         try {
@@ -254,8 +248,10 @@ public enum Client {
                             sendUseCard(c);
                         } catch (Exception e) {
                             System.out.println(
-                                    TextFX.colorize("Invalid command format, try /use card_number (see /hand first)", Color.RED));
+                                    TextFX.colorize("Invalid command format, try /use card_number (see /hand first)",
+                                            Color.RED));
                         }
+                        wasCommand = true;
                         break;
                     case DISCARD:
                         try {
@@ -264,14 +260,28 @@ public enum Client {
                             sendDiscardCard(c);
                         } catch (Exception e) {
                             System.out.println(
-                                    TextFX.colorize("Invalid command format, try /discard card_number (see /hand first)", Color.RED));
+                                    TextFX.colorize(
+                                            "Invalid command format, try /discard card_number (see /hand first)",
+                                            Color.RED));
                         }
+                        wasCommand = true;
                         break;
                 }
                 return wasCommand;
             }
         }
         return false;
+    }
+
+    private void showHand() {
+        System.out.println("Your hand:");
+
+        List<Card> hand = myData.getHand();
+        String result = IntStream.range(0, hand.size())
+                .mapToObj(i -> String.format("%d) %s", i + 1, hand.get(i)))
+                .collect(Collectors.joining("\n"));
+
+        System.out.println(result);
     }
 
     // send methods to pass data to the ServerThread
@@ -569,6 +579,18 @@ public enum Client {
                     ReadyPayload tp = (ReadyPayload) payload;
                     processTurnStatus(tp.getClientId(), tp.isReady());
                     break;
+                case PayloadType.CARDS_IN_HAND:
+                    CardPayload hand = (CardPayload) payload;
+                    processHand(hand.getClientId(), hand.getCards());
+                    break;
+                case PayloadType.ADD_CARD:
+                    CardPayload add = (CardPayload) payload;
+                    processAddCard(add.getClientId(), add.getCard());
+                    break;
+                case PayloadType.REMOVE_CARD:
+                    CardPayload remove = (CardPayload) payload;
+                    processRemoveCard(remove.getClientId(), remove.getCard());
+                    break;
                 default:
                     break;
             }
@@ -578,6 +600,37 @@ public enum Client {
     }
 
     // payload processors
+    private void processRemoveCard(long clientId, Card card) {
+        // Note: generally the player will only know their own hand
+        // I chose to utilize clientId just in case there are future implementations
+        // where you can see info about other players
+        if (clientId == myData.getClientId()) {
+            myData.removeFromHand(card);
+            // Note: We may need to leverage an additional PayloadType
+            // to distinguish between Use/Discard; I didn't for this lesson
+            System.out.println("Used/Discarded Card " + card);
+        }
+    }
+
+    private void processAddCard(long clientId, Card card) {
+        // Note: generally the player will only know their own hand
+        // I chose to utilize clientId just in case there are future implementations
+        // where you can see info about other players
+        if (clientId == myData.getClientId()) {
+            myData.addToHand(card);
+            System.out.println("Received Card " + card);
+        }
+    }
+
+    private void processHand(long clientId, List<Card> cards) {
+        // Note: generally the player will only know their own hand
+        // I chose to utilize clientId just in case there are future implementations
+        // where you can see info about other players
+        if (clientId == myData.getClientId()) {
+            myData.setHand(cards);
+            showHand();
+        }
+    }
 
     private void processMove(long clientId, int x, int y) {
         ClientPlayer cp = knownClients.get(clientId);

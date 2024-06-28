@@ -132,10 +132,28 @@ public class ServerThread extends BaseServerThread {
                 case MOVE:
                     try {
                         // cast to GameRoom as the subclass will handle all Game logic
-                        XYPayload movePayload = (XYPayload)payload;
+                        XYPayload movePayload = (XYPayload) payload;
                         ((GameRoom) currentRoom).handleMove(this, movePayload.getX(), movePayload.getY());
                     } catch (Exception e) {
                         sendMessage("You must be in a GameRoom to move");
+                    }
+                    break;
+                case USE_CARD:
+                    try {
+                        // cast to GameRoom as the subclass will handle all Game logic
+                        CardPayload cardPayload = (CardPayload) payload;
+                        ((GameRoom) currentRoom).handleUseCard(this, cardPayload.getCard());
+                    } catch (Exception e) {
+                        sendMessage("You must be in a GameRoom to use a card");
+                    }
+                    break;
+                case REMOVE_CARD:
+                    try {
+                        // cast to GameRoom as the subclass will handle all Game logic
+                        CardPayload cardPayload = (CardPayload) payload;
+                        ((GameRoom) currentRoom).handleDiscardCard(this, cardPayload.getCard());
+                    } catch (Exception e) {
+                        sendMessage("You must be in a GameRoom to discard a card");
                     }
                     break;
                 default:
@@ -148,42 +166,50 @@ public class ServerThread extends BaseServerThread {
     }
 
     // send methods specific to non-chatroom projects
-    public boolean removeCardFromHand(Card card){
+    public boolean sendRemoveCardFromHand(Card card) {
         List<Card> cards = new ArrayList<>();
         cards.add(card);
-        return removeCardsFromHand(cards);
+        return sendRemoveCardsFromHand(cards);
     }
-    public boolean removeCardsFromHand(List<Card> cards){
+
+    public boolean sendRemoveCardsFromHand(List<Card> cards) {
         CardPayload cp = new CardPayload();
         cp.setPayloadType(PayloadType.REMOVE_CARD);
         cp.setCards(cards);
+        cp.setClientId(clientId);
         return send(cp);
     }
-    public boolean addCardToHand(Card card){
+
+    public boolean sendAddCardToHand(Card card) {
         List<Card> cards = new ArrayList<>();
         cards.add(card);
-        return addCardsToHand(cards);
+        return sendAddCardsToHand(cards);
     }
-    public boolean addCardsToHand(List<Card> cards){
+
+    public boolean sendAddCardsToHand(List<Card> cards) {
         CardPayload cp = new CardPayload();
         cp.setPayloadType(PayloadType.ADD_CARD);
         cp.setCards(cards);
+        cp.setClientId(clientId);
         return send(cp);
     }
-    public boolean sendHand(List<Card> cards){
+
+    public boolean sendCardsInHand(List<Card> cards) {
         CardPayload cp = new CardPayload();
         cp.setPayloadType(PayloadType.CARDS_IN_HAND);
         cp.setCards(cards);
+        cp.setClientId(clientId);
         return send(cp);
     }
-    public boolean sendMove(long clientId, int x, int y){
+
+    public boolean sendMove(long clientId, int x, int y) {
         XYPayload p = new XYPayload(x, y);
         p.setPayloadType(PayloadType.MOVE);
         p.setClientId(clientId);
         return send(p);
     }
 
-    public boolean sendTurnStatus(long clientId, boolean didTakeTurn){
+    public boolean sendTurnStatus(long clientId, boolean didTakeTurn) {
         ReadyPayload rp = new ReadyPayload();
         rp.setPayloadType(PayloadType.TURN);
         rp.setReady(didTakeTurn);

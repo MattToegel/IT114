@@ -2,15 +2,21 @@ package Project.Common;
 
 import java.io.Serializable;
 
-public class Card implements Serializable{
+public class Card implements Serializable {
+    private int id;
     private String name;
     private String description;
     private int value;
 
-    public Card(String name, String description, int value) {
+    public Card(int id, String name, String description, int value) {
+        this.id = id;
         this.name = name;
         this.description = description;
         this.value = value;
+    }
+
+    public int getId() {
+        return id;
     }
 
     public String getName() {
@@ -27,6 +33,6 @@ public class Card implements Serializable{
 
     @Override
     public String toString() {
-        return name + " (" + description + ") - Value: " + value;
+        return id + ") " + name + " (" + description + ") - Value: " + value;
     }
 }

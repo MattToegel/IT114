@@ -106,7 +106,7 @@ public class GameRoom extends BaseGameRoom {
         changePhase(Phase.IN_PROGRESS);
         grid = new Grid(2, 2);
         try {
-            deck = new Deck("Project/Common/cards.txt");
+            deck = new Deck("Project/cards.txt");
         } catch (IOException e) {
             e.printStackTrace();
             onSessionEnd();
