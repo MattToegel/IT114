@@ -426,6 +426,10 @@ public class GameRoom extends BaseGameRoom {
         try {
             checkPlayerInRoom(st);
             ServerPlayer sp = playersInRoom.get(st.getClientId());
+            if(!sp.isReady()){
+                st.sendMessage("You weren't ready in time");
+                return;
+            }
             if (sp.didTakeTurn()) {
                 st.sendMessage("You already took your turn");
                 return;
