@@ -144,8 +144,7 @@ public class GameRoom extends BaseGameRoom {
                 onSessionEnd();
             } else {
                 sendResetTurnStatus();
-                resetRoundTimer();
-                startRoundTimer();
+                onRoundStart();
                 sendMessage(null, "Move again");
             }
 
