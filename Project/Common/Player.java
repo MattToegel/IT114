@@ -67,7 +67,11 @@ public class Player {
     }
 
     public void setHand(List<Card> cards) {
-        hand = cards;
+        if (cards == null) {
+            hand.clear();
+        } else {
+            hand = cards;
+        }
     }
 
     /**
@@ -77,5 +81,6 @@ public class Player {
     public void reset() {
         this.clientId = Player.DEFAULT_CLIENT_ID;
         this.isReady = false;
+        this.hand.clear();
     }
 }

@@ -193,7 +193,7 @@ public class GameRoom extends BaseGameRoom {
         grid.reset();
         resetTurnTimer(); // just in case it's still active if we forgot to end it sooner
         resetRoundTimer(); // just in case it's still active if we forgot to end it sooner
-
+        sendResetHands();
         sendGridDimensions();
         sendResetTurnStatus();
         resetReadyStatus();
@@ -297,6 +297,18 @@ public class GameRoom extends BaseGameRoom {
     // turn helpers end
 
     // send/sync data to ServerPlayer(s)
+    private void sendResetHands(){
+        playersInRoom.values().removeIf(spInRoom -> {
+            spInRoom.setHand(null); // reset server data
+            // using DEFAULT_CLIENT_ID as a trigger, prevents needing a nested loop to
+            // update the status of each player to each player
+            boolean failedToSend = !spInRoom.sendCardsInHand(null);
+            if (failedToSend) {
+                removedClient(spInRoom.getServerThread());
+            }
+            return failedToSend;
+        });
+    }
     private void syncRemoveCard(ServerPlayer sp, Card card) {
         sp.sendRemoveCardFromHand(card);
     }
