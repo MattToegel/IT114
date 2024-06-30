@@ -16,9 +16,9 @@ public enum PayloadType {
     MOVE, // syncs as a point/coordinate
     GRID_DIMENSION, // syncs grid dimension for server-side controlled grid building
     TURN, // used for syncing turn data
-    CARDS_IN_HAND,
-    ADD_CARD,
-    REMOVE_CARD,
-    USE_CARD
+    CARDS_IN_HAND, //syncs a full hand to a client
+    ADD_CARD, // syncs a new card to a client's hand
+    REMOVE_CARD, // client to tell server-side it'll discard, server-side confirms to client
+    USE_CARD, // client to tell server-side it'll activate a card, server-side confirms to client
     
 }

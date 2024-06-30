@@ -135,6 +135,7 @@ public abstract class BaseGameRoom extends Room {
     private void checkReadyStatus() {
         long numReady = playersInRoom.values().stream().filter(p -> p.isReady()).count();
         if (numReady >= MINIMUM_REQUIRED_TO_START) {
+            resetReadyTimer();
             onSessionStart();
         } else {
             onSessionEnd();
