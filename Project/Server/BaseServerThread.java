@@ -47,6 +47,7 @@ public abstract class BaseServerThread extends Thread {
             return true;
         }
         try {
+            LoggerUtil.INSTANCE.info("Sending Payload: " + payload);
             out.writeObject(payload);
             out.flush();
             return true;
