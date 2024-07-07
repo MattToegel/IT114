@@ -9,12 +9,15 @@ import java.util.function.Consumer;
 import Project.Common.Card;
 import Project.Common.CardPayload;
 import Project.Common.ConnectionPayload;
+import Project.Common.EnergyPayload;
 import Project.Common.LoggerUtil;
 import Project.Common.Payload;
 import Project.Common.PayloadType;
 import Project.Common.Phase;
 import Project.Common.ReadyPayload;
 import Project.Common.RoomResultsPayload;
+import Project.Common.Tower;
+import Project.Common.TowerPayload;
 import Project.Common.XYPayload;
 
 /**
@@ -156,6 +159,43 @@ public class ServerThread extends BaseServerThread {
                         sendMessage("You must be in a GameRoom to discard a card");
                     }
                     break;
+                case TOWER_PLACE:
+                    try {
+                        // cast to GameRoom as the subclass will handle all Game logic
+                        XYPayload towerPlace = (XYPayload) payload;
+                        ((GameRoom) currentRoom).handlePlaceTower(this, towerPlace.getX(), towerPlace.getY());
+                    } catch (Exception e) {
+                        sendMessage("You must be in a GameRoom to place a tower");
+                    }
+                    break;
+                case TOWER_ATTACK:
+                    try {
+                        // cast to GameRoom as the subclass will handle all Game logic
+                        TowerPayload towerAttack = (TowerPayload) payload;
+                        ((GameRoom) currentRoom).handleAttack(this, towerAttack.getX(), towerAttack.getY(),
+                                towerAttack.getTowerIds());
+                    } catch (Exception e) {
+                        sendMessage("You must be in a GameRoom to attack");
+                    }
+                    break;
+                case TOWER_ALLOCATE:
+                    try {
+                        // cast to GameRoom as the subclass will handle all Game logic
+                        EnergyPayload epAllocate = (EnergyPayload) payload;
+                        ((GameRoom) currentRoom).handleAllocationChange(this, epAllocate.getX(), epAllocate.getY(),
+                                epAllocate.getEnergy());
+                    } catch (Exception e) {
+                        sendMessage("You must be in a GameRoom to allocate energy to a tower");
+                    }
+                    break;
+                case END_TURN:
+                    try {
+                        // cast to GameRoom as the subclass will handle all Game logic
+                        ((GameRoom) currentRoom).handleEndTurn(this);
+                    } catch (Exception e) {
+                        sendMessage("You must be in a GameRoom to end your turn");
+                    }
+                    break;
                 default:
                     break;
             }
@@ -166,6 +206,19 @@ public class ServerThread extends BaseServerThread {
     }
 
     // send methods specific to non-chatroom projects
+    public boolean sendPlayerCurrentEnergy(long clientId, int energy) {
+        EnergyPayload ep = new EnergyPayload();
+        ep.setEnergy(energy);
+        ep.setClientId(clientId);
+        return send(ep);
+    }
+
+    public boolean sendTowerStatus(int x, int y, Tower tower) {
+        TowerPayload tp = new TowerPayload(x, y, tower);
+        tp.setClientId(tower.getClientId());
+        return send(tp);
+    }
+
     public boolean sendRemoveCardFromHand(Card card) {
         List<Card> cards = new ArrayList<>();
         cards.add(card);

@@ -5,6 +5,7 @@ import java.util.List;
 import Project.Common.Card;
 import Project.Common.Phase;
 import Project.Common.Player;
+import Project.Common.Tower;
 
 /**
  * Server-only data about a player
@@ -32,33 +33,48 @@ public class ServerPlayer extends Player {
     public ServerThread getServerThread() {
         return client;
     }
-    
-    public String getClientName(){
+
+    public String getClientName() {
         return client.getClientName();
     }
+
     // add any wrapper methods to call on the ServerThread
     // don't used the exposed full ServerThread object
-    public boolean sendRemoveCardFromHand(Card card){
+    public boolean sendPlayerCurrentEnergy(long clientId, int energy){
+        return client.sendPlayerCurrentEnergy(clientId, energy);
+    }
+    public boolean sendTowerStatus(int x, int y, Tower t) {
+        return client.sendTowerStatus(x, y, t);
+    }
+
+    public boolean sendRemoveCardFromHand(Card card) {
         return client.sendRemoveCardFromHand(card);
     }
-    public boolean sendRemoveCardsFromHand(List<Card> cards){
+
+    public boolean sendRemoveCardsFromHand(List<Card> cards) {
         return client.sendRemoveCardsFromHand(cards);
     }
-    public boolean sendAddCardToHand(Card card){
+
+    public boolean sendAddCardToHand(Card card) {
         return client.sendAddCardToHand(card);
     }
-    public boolean sendAddCardsToHand(List<Card> cards){
+
+    public boolean sendAddCardsToHand(List<Card> cards) {
         return client.sendAddCardsToHand(cards);
     }
-    public boolean sendCardsInHand(List<Card> cards){
+
+    public boolean sendCardsInHand(List<Card> cards) {
         return client.sendCardsInHand(cards);
     }
-    public boolean sendMove(long clientId, int x, int y){
+
+    public boolean sendMove(long clientId, int x, int y) {
         return client.sendMove(clientId, x, y);
     }
-    public boolean sendTurnStatus(long clientId, boolean didTakeTurn){
+
+    public boolean sendTurnStatus(long clientId, boolean didTakeTurn) {
         return client.sendTurnStatus(clientId, didTakeTurn);
     }
+
     public boolean sendGridDimensions(int x, int y) {
         return client.sendGridDimensions(x, y);
     }

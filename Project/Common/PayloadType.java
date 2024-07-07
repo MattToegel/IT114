@@ -20,5 +20,10 @@ public enum PayloadType {
     ADD_CARD, // syncs a new card to a client's hand
     REMOVE_CARD, // client to tell server-side it'll discard, server-side confirms to client
     USE_CARD, // client to tell server-side it'll activate a card, server-side confirms to client
-    
+    TOWER_PLACE, // client to tell the server-side it wants to place a Tower at a coordinate
+    TOWER_ATTACK, // client to tell the server-side it wants to attack with a Tower at x,y and hit specific IDs
+    TOWER_STATUS, // server-side to tell the Clients to sync Tower data
+    TOWER_ALLOCATE, // client-side to tell the server-side to alloc/dealloc energy
+    ENERGY, // server-side to update the Clients of their energy
+    END_TURN // client-side to tell the server-side that they're ending their turn
 }

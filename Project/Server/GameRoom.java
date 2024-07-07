@@ -4,14 +4,17 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import Project.Common.Card;
+import Project.Common.Cell;
 import Project.Common.Deck;
 import Project.Common.Grid;
 import Project.Common.LoggerUtil;
 import Project.Common.Phase;
 import Project.Common.Player;
 import Project.Common.TimedEvent;
+import Project.Common.Tower;
 
 public class GameRoom extends BaseGameRoom {
 
@@ -28,6 +31,8 @@ public class GameRoom extends BaseGameRoom {
     private List<ServerPlayer> turnOrder = new ArrayList<>();
     private int currentPlayerIndex = 0;
     private int round = 0;
+    private final int ENERGY_PER_ROUND = 5;
+    private final int TURN_DURATION = 90;
 
     public GameRoom(String name) {
         super(name);
@@ -67,7 +72,7 @@ public class GameRoom extends BaseGameRoom {
         // Depending when you saw this
         // Fixed in Deck/Card lesson, had incorrectly referenced roundTimer instead of
         // turnTimer. Applied the fix to older branches to avoid inconsistencies though
-        turnTimer = new TimedEvent(30, () -> onTurnEnd());
+        turnTimer = new TimedEvent(TURN_DURATION, () -> onTurnEnd());
         turnTimer.setTickCallback((time) -> System.out.println("Turn Time: " + time));
     }
 
@@ -86,7 +91,7 @@ public class GameRoom extends BaseGameRoom {
     protected void onSessionStart() {
         LoggerUtil.INSTANCE.info("onSessionStart() start");
         changePhase(Phase.IN_PROGRESS);
-        grid = new Grid(2, 2);
+        grid = new Grid(4, 4);
         try {
             deck = new Deck("Project/cards.txt");
         } catch (IOException e) {
@@ -96,7 +101,7 @@ public class GameRoom extends BaseGameRoom {
         }
         deck.shuffle();
         sendGridDimensions();
-        
+
         turnOrder.clear();
         playersInRoom.values().stream().filter(ServerPlayer::isReady).forEach(p -> {
             turnOrder.add(p); // add ServerPlayer reference
@@ -130,8 +135,19 @@ public class GameRoom extends BaseGameRoom {
         resetTurnTimer();
         startTurnTimer();
         nextPlayer();
+        ServerPlayer sp = getCurrentPlayer();
+        if(isEliminated()){
+            String message = String.format("Skipped %s(%s) due to being eliminated");
+            sendMessage(null, message);
+            LoggerUtil.INSTANCE.info(message);
+            onTurnStart();
+            return;
+        }
         sendMessage(null, String.format("It's %s's turn", getCurrentPlayer().getClientName()));
         drawCard();
+        sp.incrementEnergy(ENERGY_PER_ROUND);
+        sendPlayerCurrentEnergy(sp);
+        sp.refreshTowers();
         LoggerUtil.INSTANCE.info("onTurnStart() end");
     }
 
@@ -145,7 +161,19 @@ public class GameRoom extends BaseGameRoom {
         ServerPlayer sp = getCurrentPlayer();
         sp.setTakeTurn(true);
         sendTurnStatus(sp);
+        int current = sp.getEnergy();
+        // cap energy
+        if (current > sp.getEnergyCap()) {
+            int diff = current - sp.getEnergyCap();
+            sp.decrementEnergy(diff);
+            sendPlayerCurrentEnergy(sp);
+            sendMessage(null, String.format("%s(%s) burned %s energy", sp.getClientName(), sp.getClientId(), diff));
+        }
         LoggerUtil.INSTANCE.info("onTurnEnd() end");
+        if (isWinConditionMet()) {
+            onSessionEnd();
+            return;
+        }
         if (isRoundOver()) {
             onRoundEnd(); // next round
         } else {
@@ -163,30 +191,8 @@ public class GameRoom extends BaseGameRoom {
         resetRoundTimer(); // reset timer if round ended without the time expiring
 
         LoggerUtil.INSTANCE.info("onRoundEnd() end");
-        // example of some end session condition 2 (not using this in the Deck/Card)
-        // lesson)
-        // sendMessage(null, "Too slow populating the grid, you all lose");
-        // onSessionEnd();
-
-        // example end of session for Deck/Card
-        // if the player has the lucky card they win
-        // alternatively end the session if the deck is empty (since it's possible to
-        // discard the lucky card)
-        int luckyId = 5;
-        ServerPlayer luckyPlayer = turnOrder.stream()
-                .filter(player -> player.getHand().stream().anyMatch(card -> card.getId() == luckyId))
-                .findFirst()
-                .orElse(null);
-
-        if (luckyPlayer == null) {
-            onRoundStart(); // move to the next round
-        } else if (!deck.isEmpty()) {
-            sendMessage(null, String.format("%s has the lucky card and wins!", luckyPlayer.getClientName()));
-            onSessionEnd(); // end the session if a winner is found
-        } else {
-            sendMessage(null, "The deck is empty, game over");
-            onSessionEnd(); // end the session, empty deck
-        }
+        // Currently don't have any end session logic for end of round
+        onRoundStart();
     }
 
     /** {@inheritDoc} */
@@ -196,6 +202,11 @@ public class GameRoom extends BaseGameRoom {
         grid.reset();
         resetTurnTimer(); // just in case it's still active if we forgot to end it sooner
         resetRoundTimer(); // just in case it's still active if we forgot to end it sooner
+        // clear towers and energy
+        playersInRoom.values().forEach(p -> {
+            p.clearTowers();
+            p.setEnergy(0);
+        });
         sendResetHands();
         sendGridDimensions();
         sendResetTurnStatus();
@@ -282,6 +293,29 @@ public class GameRoom extends BaseGameRoom {
             throw new Exception("Player isn't the current Player");
         }
     }
+
+    /**
+     * Early exit (via exception throwing) if the player can't afford the action
+     * 
+     * @param sp
+     * @param cost positive cost
+     * @throws Exception
+     */
+    protected void checkCost(ServerPlayer sp, int cost) throws Exception {
+        if (sp.getEnergy() - cost <= 0) {
+            sp.getServerThread().sendMessage("You can't afford to do that");
+            LoggerUtil.INSTANCE.info("Player can't afford action");
+            throw new Exception("Player can't afford action");
+        }
+    }
+
+    protected void checkFinishedTurn(ServerPlayer sp) throws Exception {
+        if (sp.didTakeTurn()) {
+            sp.getServerThread().sendMessage("You already completed your turn");
+            LoggerUtil.INSTANCE.info("Player already completed their turn");
+            throw new Exception("Player already completed their turn");
+        }
+    }
     // misc end
 
     // turn helpers start
@@ -301,9 +335,47 @@ public class GameRoom extends BaseGameRoom {
         int check = currentPlayerIndex + 1;
         return check >= turnOrder.size();
     }
+
+    private boolean isWinConditionMet() {
+        // find players with 0 towers (they didn't go yet) and players with at least 1
+        // alive tower (not eliminated)
+        List<ServerPlayer> remainingPlayers = turnOrder.stream()
+                .filter(p -> p.getTotalTowers() == 0 || (p.getTotalTowers() > 0 && p.getTowersAlive() > 0))
+                .collect(Collectors.toList());
+        int size = remainingPlayers.size();
+        if(size == 1){
+            ServerPlayer sp = remainingPlayers.get(0);
+            sendMessage(null, String.format("%s(%s) successfully eliminated all other opponents", sp.getClientName(), sp.getClientId()));
+        }
+        return size <= 1;
+    }
+    private boolean isEliminated(){
+        ServerPlayer sp = getCurrentPlayer();
+        return sp.getTotalTowers() > 0 && sp.getTowersAlive() == 0;
+    }
     // turn helpers end
 
     // send/sync data to ServerPlayer(s)
+    private void sendPlayerCurrentEnergy(ServerPlayer sp) {
+        playersInRoom.values().removeIf(spInRoom -> {
+            boolean failedToSend = !spInRoom.sendPlayerCurrentEnergy(sp.getClientId(), sp.getEnergy());
+            if (failedToSend) {
+                removedClient(spInRoom.getServerThread());
+            }
+            return failedToSend;
+        });
+    }
+
+    private void sendTowerStatus(int x, int y, Tower t) {
+        playersInRoom.values().removeIf(spInRoom -> {
+            boolean failedToSend = !spInRoom.sendTowerStatus(x, y, t);
+            if (failedToSend) {
+                removedClient(spInRoom.getServerThread());
+            }
+            return failedToSend;
+        });
+    }
+
     private void sendResetHands() {
         playersInRoom.values().removeIf(spInRoom -> {
             spInRoom.setHand(null); // reset server data
@@ -396,6 +468,211 @@ public class GameRoom extends BaseGameRoom {
     // end send data to ServerPlayer(s)
 
     // receive data from ServerThread (GameRoom specific)
+
+    protected void handleEndTurn(ServerThread st) {
+        try {
+            checkCurrentPhase(st, Phase.IN_PROGRESS);
+            checkPlayerInRoom(st);
+            checkCurrentPlayer(st);
+            ServerPlayer sp = playersInRoom.get(st.getClientId());
+            checkFinishedTurn(sp);
+            onTurnEnd();
+        } catch (Exception e) {
+
+        }
+    }
+
+    /**
+     * Handles a Player's attempt to allocate or deallocate energy to/from a Tower
+     * based on coordinate
+     * 
+     * @param st
+     * @param x
+     * @param y
+     * @param energy positive for allocation, negative for deallocation
+     */
+    protected void handleAllocationChange(ServerThread st, int x, int y, int energy) {
+        try {
+            checkCurrentPhase(st, Phase.IN_PROGRESS);
+            checkPlayerInRoom(st);
+            checkCurrentPlayer(st);
+            ServerPlayer sp = playersInRoom.get(st.getClientId());
+            checkFinishedTurn(sp);
+            Tower playersTower = grid.getCell(x, y).getTower();
+            if (playersTower == null) {
+                st.sendMessage("Invalid coordinate for allocation");
+                return;
+            }
+            if (playersTower.getClientId() != st.getClientId()) {
+                st.sendMessage("You can only control your towers");
+                return;
+            }
+            if(playersTower.didAllocate()){
+                st.sendMessage("You can only do one allocation event per Tower per turn");
+                return;
+            }
+            int absEnergy = Math.abs(energy);
+            LoggerUtil.INSTANCE.info(String.format("Player's current energy %s", sp.getEnergy()));
+            if (energy > 0) {
+                if (sp.decrementEnergy(absEnergy)) {
+                    playersTower.allocateEnergy(absEnergy); // adds
+                    LoggerUtil.INSTANCE
+                            .info(String.format("Allocated %s energy to tower %s", absEnergy, playersTower.getId()));
+                } else {
+                    LoggerUtil.INSTANCE.info(
+                            String.format("Failed to allocate %s energy to tower %s", absEnergy, playersTower.getId()));
+                    st.sendMessage("You can't afford to allocate that much energy");
+                    return;
+                }
+            } else {
+                if (playersTower.getAllocatedEnergy() - absEnergy < 0) {
+                    LoggerUtil.INSTANCE.info(String.format("Failed to deallocate %s energy from tower %s", absEnergy,
+                            playersTower.getId()));
+                    st.sendMessage("You can't deallocate more energy than the tower has");
+                    return;
+                }
+                playersTower.allocateEnergy(energy); // removes
+                LoggerUtil.INSTANCE
+                        .info(String.format("Deallocated %s energy to tower %s", absEnergy, playersTower.getId()));
+                sp.incrementEnergy(absEnergy);
+            }
+            LoggerUtil.INSTANCE.info(String.format("Player's energy after alloc logic %s", sp.getEnergy()));
+            sendPlayerCurrentEnergy(sp);
+            playersTower.setDidAllocate(true);
+            sendTowerStatus(x, y, playersTower);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    protected void handleAttack(ServerThread st, int x, int y, List<Long> targets) {
+        try {
+            checkCurrentPhase(st, Phase.IN_PROGRESS);
+            checkPlayerInRoom(st);
+            checkCurrentPlayer(st);
+            ServerPlayer sp = playersInRoom.get(st.getClientId());
+            checkFinishedTurn(sp);
+            Tower playersTower = grid.getCell(x, y).getTower();
+            if (playersTower == null) {
+                st.sendMessage("Invalid coordinate for source of attack");
+                return;
+            }
+            if (playersTower.getClientId() != st.getClientId()) {
+                st.sendMessage("You can only control your towers");
+                return;
+            }
+            if (targets == null || targets.isEmpty()) {
+                st.sendMessage("You need to provide at least one target");
+                return;
+            }
+            // TODO prevent the same tower from attacking twice
+            if (playersTower.didAttack()) {
+                st.sendMessage("You can only attack once per tower per turn");
+                return;
+            }
+            // validate range and targets
+            final List<Cell> cellsInRange = grid.getValidCellsWithinRange(x, y, playersTower.getRange())
+                    .stream().filter(c -> c.isOccupied() // only consider occupied cells
+                            && targets.contains(c.getTower().getId()) // filter out targets that match the ids the
+                                                                      // client sent
+                                                                      // over (validation)
+                            && c.getTower().getHealth() > 0 // make sure targets are alive (doesn't make sense to attack
+                                                            // a
+                                                            // defeated tower)
+                    ).collect(Collectors.toList());
+            if (cellsInRange == null || cellsInRange.isEmpty()) {
+                st.sendMessage("No valid targets in range");
+                return;
+            }
+            // get defenders from cells
+            List<Tower> defenders = cellsInRange.stream().map(c -> c.getTower()).collect(Collectors.toList());
+
+            // handle combat
+            Tower.calculateDamage(playersTower, defenders, (defender, damage) -> {
+                playersTower.setDidAttack(true);
+                boolean defeated = defender.getHealth() <= 0;
+
+                Cell towersCell = cellsInRange.stream().filter(c -> c.getTower().getId() == defender.getId())
+                        .findFirst().orElse(null);
+                if (towersCell != null) {
+                    sendMessage(null,
+                            String.format("Tower[%s] attacked Tower[%s] for %s damage %s",
+                                    playersTower.getId(),
+                                    defender.getId(), damage,
+                                    defeated ? ": Tower Defeated" : ""));
+                    sendTowerStatus(towersCell.getX(), towersCell.getY(), defender);
+                    if (defeated) {
+                        // TODO make this elegant
+                        grid.getCell(towersCell.getX(), towersCell.getY()).updateTower(null);
+                        ServerPlayer defenderPlayer = playersInRoom.get(defender.getClientId());
+                        if (defenderPlayer.getTowersAlive() == 0) {
+                            // TODO handle elimination
+                            sendMessage(null, String.format("%s(%s) eliminated %s(%s)", sp.getClientName(),
+                                    sp.getClientId(), defenderPlayer.getClientName(), defenderPlayer.getClientId()));
+                        }
+                    }
+                } else {
+                    LoggerUtil.INSTANCE.severe("Failed to find Tower's Cell during damage resolution");
+                }
+            });
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    protected void handlePlaceTower(ServerThread st, int x, int y) {
+        try {
+            checkCurrentPhase(st, Phase.IN_PROGRESS);
+            checkPlayerInRoom(st);
+            checkCurrentPlayer(st);
+            ServerPlayer sp = playersInRoom.get(st.getClientId());
+            checkFinishedTurn(sp);
+            if (grid.getCell(x, y).isOccupied()) {
+                st.sendMessage("This cell is already occupied");
+                return;
+            }
+            int tempCost = 1; // TODO: adjust this based on game rules later
+            checkCost(sp, tempCost);
+            Tower newTower = null;
+            try {
+                // create a new tower for this player
+                newTower = new Tower(sp.getClientId());
+
+                // rule for first tower placement
+                if (sp.getTotalTowers() == 0) {
+                    if (x != 0 && y != 0) {
+                        st.sendMessage("Your first tower must start at the edge");
+                        return;
+                    }
+                } else { // rule for subsequent tower placement
+                    List<Cell> validCells = grid.getValidCellsWithinRange(x, y, 1);
+                    Cell target = validCells.stream().filter(c -> c.getTower().getClientId() == sp.getClientId())
+                            .findFirst().orElse(null);
+                    if (target == null) {
+                        st.sendMessage("Towers must be placed adjacent to your own towers");
+                        return;
+                    }
+                }
+
+                // attempt to allocate tower to cell
+                grid.setCell(x, y, newTower);
+                // assign tower
+                sp.setTower(newTower);
+                // send update
+                sendTowerStatus(x, y, newTower);
+                // decrease energy
+                sp.decrementEnergy(tempCost);
+                // send energy update
+                sendPlayerCurrentEnergy(sp);
+            } catch (Exception e) {
+                e.printStackTrace();
+                return;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     protected void handleDiscardCard(ServerThread st, Card card) {
         try {
             checkCurrentPhase(st, Phase.IN_PROGRESS);
@@ -403,7 +680,7 @@ public class GameRoom extends BaseGameRoom {
             checkCurrentPlayer(st);
             // TODO finish this
             ServerPlayer sp = playersInRoom.get(st.getClientId());
-            if(sp.removeFromHand(card) == null){
+            if (sp.removeFromHand(card) == null) {
                 LoggerUtil.INSTANCE.severe("User doesn't have this card in hand: " + card);
                 return;
             }
@@ -423,7 +700,7 @@ public class GameRoom extends BaseGameRoom {
             checkCurrentPlayer(st);
             // TODO finish this
             ServerPlayer sp = playersInRoom.get(st.getClientId());
-            if(sp.removeFromHand(card) == null){
+            if (sp.removeFromHand(card) == null) {
                 LoggerUtil.INSTANCE.severe("User doesn't have this card in hand: " + card);
                 return;
             }
@@ -436,6 +713,7 @@ public class GameRoom extends BaseGameRoom {
         }
     }
 
+    @Deprecated
     protected void handleMove(ServerThread st, int x, int y) {
         try {
             checkPlayerInRoom(st);
@@ -452,7 +730,7 @@ public class GameRoom extends BaseGameRoom {
                 st.sendMessage("This cell is already occupied");
                 return;
             }
-            grid.setCell(x, y, true);
+            // grid.setCell(x, y, true);
             sendMove(sp, x, y);
             sp.setTakeTurn(true);
             sendTurnStatus(sp);

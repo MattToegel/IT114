@@ -1,5 +1,8 @@
 package Project.Common;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Represents a grid of cells.
  * The grid is defined by its number of rows and columns.
@@ -74,14 +77,15 @@ public class Grid {
      *
      * @param row      the row index of the cell.
      * @param col      the column index of the cell.
-     * @param occupied true to mark the cell as occupied, false to mark it as unoccupied.
+     * @param occupied true to mark the cell as occupied, false to mark it as
+     *                 unoccupied.
      * @throws IndexOutOfBoundsException if the position is out of bounds.
      */
-    public void setCell(int row, int col, boolean occupied) {
+    public void setCell(int row, int col, Tower tower) {
         if (row < 0 || row >= rows || col < 0 || col >= cols) {
             throw new IndexOutOfBoundsException("Cell position out of bounds");
         }
-        cells[row][col].setOccupied(occupied);
+        cells[row][col].placeTower(tower);
     }
 
     /**
@@ -89,10 +93,11 @@ public class Grid {
      *
      * @param row the row index of the cell.
      * @param col the column index of the cell.
-     * @return true if the cell was successfully marked as occupied, false if it was already occupied.
+     * @return true if the cell was successfully marked as occupied, false if it was
+     *         already occupied.
      * @throws IndexOutOfBoundsException if the position is out of bounds.
      */
-    public boolean tryOccupyCell(int row, int col) {
+    public boolean tryOccupyCell(int row, int col, Tower tower) {
         if (row < 0 || row >= rows || col < 0 || col >= cols) {
             throw new IndexOutOfBoundsException("Cell position out of bounds");
         }
@@ -100,7 +105,7 @@ public class Grid {
         if (cell.isOccupied()) {
             return false;
         } else {
-            cell.setOccupied(true);
+            cell.placeTower(tower);
             return true;
         }
     }
@@ -153,22 +158,44 @@ public class Grid {
     }
 
     /**
+     * Returns a list of all valid cells within a given range from a specified coordinate.
+     *
+     * @param centerX the x-coordinate of the center cell.
+     * @param centerY the y-coordinate of the center cell.
+     * @param range the range (in units) to look for valid cells.
+     * @return a list of all valid cells within the specified range.
+     */
+    public List<Cell> getValidCellsWithinRange(int centerX, int centerY, int range) {
+        List<Cell> validCells = new ArrayList<>();
+        for (int row = Math.max(0, centerX - range); row <= Math.min(rows - 1, centerX + range); row++) {
+            for (int col = Math.max(0, centerY - range); col <= Math.min(cols - 1, centerY + range); col++) {
+                if (Math.abs(row - centerX) + Math.abs(col - centerY) <= range) {
+                    validCells.add(cells[row][col]);
+                }
+            }
+        }
+        return validCells;
+    }
+
+    /**
      * Main method for demonstrating the Grid functionality.
      *
      * @param args command-line arguments (not used).
      */
     public static void main(String[] args) {
         Grid grid = new Grid(3, 3);
-        grid.setCell(1, 1, true);
-        grid.setCell(0, 2, true);
+        grid.setCell(1, 1, new Tower(-1));
+        grid.setCell(0, 2, new Tower(-1));
         System.out.println(grid);
 
-        System.out.println("Trying to occupy cell (1, 1): " + grid.tryOccupyCell(1, 1));
-        System.out.println("Trying to occupy cell (2, 2): " + grid.tryOccupyCell(2, 2));
+        System.out.println("Trying to occupy cell (1, 1): " + grid.tryOccupyCell(1, 1, new Tower(-1)));
+        System.out.println("Trying to occupy cell (2, 2): " + grid.tryOccupyCell(2, 2, new Tower(-1)));
         System.out.println("All cells occupied: " + grid.areAllCellsOccupied());
-        
+
         grid.reset();
         System.out.println("After reset:");
         System.out.println(grid);
+
+        System.out.println("Valid cells within range 1 of (1, 1): " + grid.getValidCellsWithinRange(1, 1, 1));
     }
 }

@@ -7,7 +7,7 @@ package Project.Common;
 public class Cell {
     private int x;
     private int y;
-    private boolean occupied;
+    private Tower tower;
 
     /**
      * Constructs a Cell with specified coordinates.
@@ -18,7 +18,7 @@ public class Cell {
     public Cell(int x, int y) {
         this.x = x;
         this.y = y;
-        this.occupied = false;
+        this.tower = null; // Initially, the cell has no tower.
     }
 
     /**
@@ -42,27 +42,52 @@ public class Cell {
     /**
      * Checks if the cell is occupied.
      *
-     * @return true if the cell is occupied, false otherwise.
+     * @return true if the cell has a tower, false otherwise.
      */
     public boolean isOccupied() {
-        return occupied;
+        return tower != null;
     }
 
     /**
-     * Sets the occupied status of the cell.
+     * Gets the tower placed on the cell.
      *
-     * @param occupied true to mark the cell as occupied, false to mark it as unoccupied.
+     * @return the tower, or null if no tower is placed.
      */
-    public void setOccupied(boolean occupied) {
-        this.occupied = occupied;
+    public Tower getTower() {
+        return tower;
+    }
+
+    /**
+     * Places a tower on the cell.
+     *
+     * @param tower the tower to be placed.
+     */
+    public void placeTower(Tower tower) {
+        if (this.tower != null) {
+            throw new IllegalStateException("Cell is already occupied by a tower.");
+        }
+        this.tower = tower;
+    }
+
+    public void updateTower(Tower tower) {
+        if (this.tower == null) {
+            throw new IllegalStateException("No tower is assigned to this Cell.");
+        }
+        this.tower = tower;
+    }
+
+    /**
+     * Removes the tower from the cell.
+     */
+    public void removeTower() {
+        this.tower = null;
     }
 
     /**
      * Resets the cell to its initial state.
      */
     public void reset() {
-        this.occupied = false;
-        // Reset other object references here if needed
+        this.tower = null; // Remove the tower reference if any
     }
 
     /**
@@ -75,7 +100,7 @@ public class Cell {
         return "Cell{" +
                 "x=" + x +
                 ", y=" + y +
-                ", occupied=" + occupied +
+                ", tower=" + tower +
                 '}';
     }
 }

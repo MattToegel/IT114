@@ -5,6 +5,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
 import java.util.concurrent.CompletableFuture;
@@ -17,6 +18,7 @@ import java.util.stream.IntStream;
 import Project.Common.Card;
 import Project.Common.CardPayload;
 import Project.Common.ConnectionPayload;
+import Project.Common.EnergyPayload;
 import Project.Common.Grid;
 import Project.Common.LoggerUtil;
 import Project.Common.Payload;
@@ -25,6 +27,8 @@ import Project.Common.Phase;
 import Project.Common.ReadyPayload;
 import Project.Common.RoomResultsPayload;
 import Project.Common.TextFX;
+import Project.Common.Tower;
+import Project.Common.TowerPayload;
 import Project.Common.XYPayload;
 import Project.Common.TextFX.Color;
 
@@ -71,6 +75,10 @@ public enum Client {
     private final String HAND = "hand";
     private final String USE = "use";
     private final String DISCARD = "discard";
+    private final String PLACE = "place";
+    private final String ATTACK = "attack";
+    private final String ALLOCATE = "allocate";
+    private final String END = "end";
 
     private Grid grid = null;
 
@@ -184,10 +192,18 @@ public enum Client {
              * .toList()));
              */
             // updated to show turn status
+            /*
+             * System.out.println(
+             * String.join("\n", knownClients.values().stream()
+             * .map(c -> String.format("%s(%s) %s %s", c.getClientName(), c.getClientId(),
+             * c.isReady() ? "[R]" : "[ ]", c.didTakeTurn() ? "[T]" : "[ ]"))
+             * .toList()));
+             */
             System.out.println(
                     String.join("\n", knownClients.values().stream()
-                            .map(c -> String.format("%s(%s) %s %s", c.getClientName(), c.getClientId(),
-                                    c.isReady() ? "[R]" : "[ ]", c.didTakeTurn() ? "[T]" : "[ ]"))
+                            .map(c -> String.format("%s(%s) %s %s E: %s/%s", c.getClientName(), c.getClientId(),
+                                    c.isReady() ? "[R]" : "[ ]", c.didTakeTurn() ? "[T]" : "[ ]", c.getEnergy(),
+                                    c.getEnergyCap()))
                             .toList()));
             return true;
         } else { // logic previously from Room.java
@@ -266,6 +282,51 @@ public enum Client {
                         }
                         wasCommand = true;
                         break;
+                    case PLACE:
+                        try {
+                            String[] parts = commandValue.split(",");
+                            int x = Integer.parseInt(parts[0]);
+                            int y = Integer.parseInt(parts[1]);
+                            sendPlace(x, y);
+                        } catch (Exception e) {
+                            System.out.println(TextFX.colorize("Invalid command format, try /place #,#", Color.RED));
+                        }
+                        wasCommand = true;
+                        break;
+                    case ATTACK:
+                        try {
+                            String[] parts = commandValue.split(",", 2);
+                            int x = Integer.parseInt(parts[0]);
+                            int y = Integer.parseInt(parts[1].split(" ")[0]);
+                            String[] numberStrings = parts[1].split(" ")[1].split(",");
+
+                            // Convert the String array to a List<Long>
+                            List<Long> towerIds = Arrays.stream(numberStrings)
+                                    .map(Long::parseLong)
+                                    .collect(Collectors.toList());
+                            sendAttack(x, y, towerIds);
+                        } catch (Exception e) {
+                            System.out.println(TextFX.colorize("Invalid command format, try /attack #,# #", Color.RED));
+                        }
+                        wasCommand = true;
+                        break;
+                    case ALLOCATE:
+                        try {
+                            String[] parts = commandValue.split(",", 2);
+                            int x = Integer.parseInt(parts[0]);
+                            int y = Integer.parseInt(parts[1].split(" ")[0]);
+                            int energy = Integer.parseInt(parts[1].split(" ")[1]);
+                            sendAllocate(x, y, energy);
+                        } catch (Exception e) {
+                            System.out
+                                    .println(TextFX.colorize("Invalid command format, try /allocate #,# #", Color.RED));
+                        }
+                        wasCommand = true;
+                        break;
+                    case END:
+                        sendEndTurn();
+                        wasCommand = true;
+                        break;
                 }
                 return wasCommand;
             }
@@ -285,6 +346,40 @@ public enum Client {
     }
 
     // send methods to pass data to the ServerThread
+    private void sendEndTurn() {
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.END_TURN);
+        send(p);
+    }
+
+    private void sendAllocate(int x, int y, int energy) {
+        EnergyPayload ep = new EnergyPayload();
+        ep.setPayloadType(PayloadType.TOWER_ALLOCATE);
+        ep.setEnergy(energy);
+        ep.setX(x);
+        ep.setY(y);
+        send(ep);
+    }
+
+    private void sendAttack(int x, int y, List<Long> targets) {
+        TowerPayload tp = new TowerPayload(x, y);
+        tp.setPayloadType(PayloadType.TOWER_ATTACK);
+        tp.setTowerIds(targets);
+        send(tp);
+    }
+
+    private void sendPlace(int x, int y) {
+        // check local grid first
+        if (grid.getCell(x, y).isOccupied()) {
+            System.out
+                    .println(TextFX.colorize("That coordinate is already occupied, please try another", Color.YELLOW));
+            return;
+        }
+        XYPayload p = new XYPayload(x, y);
+        p.setPayloadType(PayloadType.TOWER_PLACE);
+        send(p);
+    }
+
     private void sendUseCard(Card c) {
         CardPayload cp = new CardPayload();
         cp.setCard(c);
@@ -298,7 +393,7 @@ public enum Client {
         cp.setPayloadType(PayloadType.REMOVE_CARD);
         send(cp);
     }
-
+    @Deprecated
     private void sendMove(int x, int y) {
         // check local grid first
         if (grid.getCell(x, y).isOccupied()) {
@@ -591,6 +686,15 @@ public enum Client {
                     CardPayload remove = (CardPayload) payload;
                     processRemoveCard(remove.getClientId(), remove.getCard());
                     break;
+                case PayloadType.TOWER_STATUS:
+                    TowerPayload towerStatus = (TowerPayload) payload;
+                    processTowerStatus(towerStatus.getClientId(), towerStatus.getX(), towerStatus.getY(),
+                            towerStatus.getTower());
+                    break;
+                case PayloadType.ENERGY:
+                    EnergyPayload userEnergy = (EnergyPayload) payload;
+                    processEnergy(userEnergy.getClientId(), userEnergy.getEnergy());
+                    break;
                 default:
                     break;
             }
@@ -600,6 +704,23 @@ public enum Client {
     }
 
     // payload processors
+    private void processEnergy(long clientId, int energy) {
+        ClientPlayer cp = knownClients.get(clientId);
+        cp.setEnergy(energy);
+    }
+
+    private void processTowerStatus(long clientId, int x, int y, Tower tower) {
+        ClientPlayer cp = knownClients.get(clientId);
+        if (grid.getCell(x, y).getTower() == null) {
+            System.out.println(
+                    TextFX.colorize(String.format("%s placed tower at %s,%s", cp.getClientName(), x, y), Color.CYAN));
+            grid.setCell(x, y, tower);
+        } else {
+            grid.getCell(x, y).updateTower(tower);
+        }
+        LoggerUtil.INSTANCE.info("Grid: " + grid);
+    }
+
     private void processRemoveCard(long clientId, Card card) {
         // Note: generally the player will only know their own hand
         // I chose to utilize clientId just in case there are future implementations
@@ -632,9 +753,10 @@ public enum Client {
         }
     }
 
+    @Deprecated
     private void processMove(long clientId, int x, int y) {
         ClientPlayer cp = knownClients.get(clientId);
-        grid.setCell(x, y, true);
+        // grid.setCell(x, y, true);
         System.out.println(TextFX.colorize(String.format("%s moved to %s,%s", cp.getClientName(), x, y), Color.CYAN));
         LoggerUtil.INSTANCE.info("Grid: " + grid);
     }
@@ -661,6 +783,11 @@ public enum Client {
             grid = new Grid(x, y);
         } else {
             grid.reset();
+            // added other cleanup
+            knownClients.values().forEach(c->{
+                c.clearTowers();
+                c.setEnergy(0);
+            });
         }
         LoggerUtil.INSTANCE.info("Grid: " + grid);
     }

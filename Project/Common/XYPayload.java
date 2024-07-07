@@ -3,6 +3,7 @@ package Project.Common;
 public class XYPayload extends Payload{
     private int x;
     private int y;
+    public XYPayload(){}
     public XYPayload(int x, int y){
         this.x = x;
         this.y = y;
