@@ -1,13 +1,14 @@
 #!/bin/bash
 # Convert input to lowercase
 input=$(echo "$2" | tr '[:upper:]' '[:lower:]')
-if [ "$input" = "server" ];
-then
-	java $1.Server.Server
-elif [ "$input" = "client" ];
-then
-	java $1.Client.Client
+port=${3:-3000}  # Default port to 3000 if not provided
+
+if [ "$input" = "server" ]; then
+    java $1.Server.Server $port
+elif [ "$input" = "client" ]; then
+    java $1.Client.Client
     # In Milestone3 changes Client to ClientUI
 else
-	echo "Must specify client or server"
+    echo "Must specify client or server"
 fi
+
