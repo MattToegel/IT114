@@ -14,8 +14,6 @@ import java.awt.event.ContainerListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.io.IOException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -34,13 +32,13 @@ import javax.swing.border.EmptyBorder;
 import Project.Client.CardView;
 import Project.Client.Client;
 import Project.Client.Interfaces.ICardControls;
+import Project.Common.LoggerUtil;
 
 /**
  * ChatPanel represents the main chat interface where messages can be sent and
  * received.
  */
 public class ChatPanel extends JPanel {
-    private static final Logger logger = Logger.getLogger(ChatPanel.class.getName());
     private JPanel chatArea = null;
     private UserListPanel userListPanel;
     private final float CHAT_SPLIT_PERCENT = 0.7f;
@@ -126,7 +124,7 @@ public class ChatPanel extends JPanel {
                         textValue.setText(""); // Clear the original text
                     }
                 } catch (NullPointerException | IOException e) {
-                    logger.log(Level.SEVERE, "Error sending message", e);
+                    LoggerUtil.INSTANCE.severe("Error sending message", e);
                 }
             });
         });

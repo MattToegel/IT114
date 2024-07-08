@@ -42,7 +42,7 @@ public class ClientUI extends JFrame implements IConnectionEvents, IMessageEvent
     private JPanel currentCardPanel;
     private CardView currentCard = CardView.CONNECT;
     private JMenuBar menu;
-    private ConnectionPanel csPanel;
+    private ConnectionPanel connectionPanel;
     private UserDetailsPanel userDetailsPanel;
     private ChatPanel chatPanel;
     private RoomsPanel roomsPanel;
@@ -93,7 +93,7 @@ public class ClientUI extends JFrame implements IConnectionEvents, IMessageEvent
         this.setJMenuBar(menu);
 
         // Initialize panels
-        csPanel = new ConnectionPanel(this);
+        connectionPanel = new ConnectionPanel(this);
         userDetailsPanel = new UserDetailsPanel(this);
         chatPanel = new ChatPanel(this);
         roomsPanel = new RoomsPanel(this);
@@ -164,8 +164,8 @@ public class ClientUI extends JFrame implements IConnectionEvents, IMessageEvent
     @Override
     public void connect() {
         String username = userDetailsPanel.getUsername();
-        String host = csPanel.getHost();
-        int port = csPanel.getPort();
+        String host = connectionPanel.getHost();
+        int port = connectionPanel.getPort();
         setTitle(originalTitle + " - " + username);
         Client.INSTANCE.connect(host, port, username, this);
     }
@@ -182,7 +182,7 @@ public class ClientUI extends JFrame implements IConnectionEvents, IMessageEvent
             chatPanel.removeUserListItem(clientId);
             boolean isMe = clientId == Client.INSTANCE.getMyClientId();
             String message = String.format("*%s disconnected*",
-                    isMe ? "You" : clientName);
+                    isMe ? "You" :  String.format("%s[%s]", clientName, clientId));
             chatPanel.addText(message);
             if (isMe) {
                 LoggerUtil.INSTANCE.info("I disconnected");
@@ -195,7 +195,7 @@ public class ClientUI extends JFrame implements IConnectionEvents, IMessageEvent
     public void onMessageReceive(long clientId, String message) {
         if (currentCard.ordinal() >= CardView.CHAT.ordinal()) {
             String clientName = Client.INSTANCE.getClientNameFromId(clientId);
-            chatPanel.addText(String.format("%s: %s", clientName, message));
+            chatPanel.addText(String.format("%s[%s]: %s", clientName, clientId, message));
         }
     }
 
