@@ -129,7 +129,8 @@ public class ClientUI extends JFrame implements IConnectionEvents, IMessageEvent
                 currentCardPanel = (JPanel) c;
                 currentCard = Enum.valueOf(CardView.class, currentCardPanel.getName());
                 // Ensure connection for specific views
-                if (Client.INSTANCE.getMyClientId() == ClientData.DEFAULT_CLIENT_ID && currentCard.ordinal() >= CardView.CHAT.ordinal()) {
+                if (Client.INSTANCE.getMyClientId() == ClientData.DEFAULT_CLIENT_ID
+                        && currentCard.ordinal() >= CardView.CHAT.ordinal()) {
                     show(CardView.CONNECT.name());
                 }
                 break;
@@ -182,7 +183,7 @@ public class ClientUI extends JFrame implements IConnectionEvents, IMessageEvent
             chatPanel.removeUserListItem(clientId);
             boolean isMe = clientId == Client.INSTANCE.getMyClientId();
             String message = String.format("*%s disconnected*",
-                    isMe ? "You" :  String.format("%s[%s]", clientName, clientId));
+                    isMe ? "You" : String.format("%s[%s]", clientName, clientId));
             chatPanel.addText(message);
             if (isMe) {
                 LoggerUtil.INSTANCE.info("I disconnected");
@@ -238,15 +239,15 @@ public class ClientUI extends JFrame implements IConnectionEvents, IMessageEvent
             String message = String.format("*%s %s the Room %s*",
                     /* 1st %s */ isMe ? "You" : String.format("%s[%s]", clientName, clientId),
                     /* 2nd %s */ isJoin ? "joined" : "left",
-                    /* 3rd %s */ roomName);
+                    /* 3rd %s */ roomName == null ? "" : roomName); // added handling of null after the demo video
             chatPanel.addText(message);
-            if(isJoin){
+            if (isJoin) {
                 roomLabel.setText("Room: " + roomName);
                 chatPanel.addUserListItem(clientId, String.format("%s (%s)", clientName, clientId));
-            }else{
+            } else {
                 chatPanel.removeUserListItem(clientId);
             }
-           
+
         }
     }
 
