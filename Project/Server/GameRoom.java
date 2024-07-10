@@ -51,8 +51,16 @@ public class GameRoom extends BaseGameRoom {
 
     /** {@inheritDoc} */
     @Override
-    protected void onClientRemoved(ServerPlayer sp) {
-
+    protected void onClientRemoved(ServerPlayer sp){
+        // added after Summer 2024 Demo
+        // Stops the timers so room can clean up
+        LoggerUtil.INSTANCE.info("Player Removed, remaining: " + playersInRoom.size());
+        if(playersInRoom.isEmpty()){
+            resetReadyStatus();
+            resetTurnTimer();
+            resetRoundTimer();
+            onSessionEnd();
+        }
     }
 
     // timer handlers
