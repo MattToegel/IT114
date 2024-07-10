@@ -82,6 +82,7 @@ public class Room implements AutoCloseable{
         
         // Improved logging with user data
         info(String.format("%s[%s] disconnected", client.getClientName(), id));
+        autoCleanup();
     }
 
     protected synchronized void disconnectAll() {
