@@ -11,3 +11,4 @@ elif [ "$input" = "client" ]; then
 else
     echo "Must specify client or server"
 fi
+
