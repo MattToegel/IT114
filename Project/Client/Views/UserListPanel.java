@@ -1,7 +1,6 @@
 package Project.Client.Views;
 
 import java.awt.BorderLayout;
-import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
@@ -13,7 +12,6 @@ import java.awt.event.ContainerListener;
 import java.util.HashMap;
 
 import javax.swing.Box;
-import javax.swing.BoxLayout;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.ScrollPaneConstants;
@@ -37,23 +35,16 @@ public class UserListPanel extends JPanel {
         super(new BorderLayout(10, 10));
         userItemsMap = new HashMap<>(); // Initialize the map
 
-        JPanel wrapper = new JPanel();
-        wrapper.setLayout(new BoxLayout(wrapper, BoxLayout.Y_AXIS));
-        wrapper.setBorder(new EmptyBorder(10, 10, 10, 10)); // Add padding
-
         JPanel content = new JPanel(new GridBagLayout());
-        content.setAlignmentY(Component.TOP_ALIGNMENT);
+        userListArea = content;
 
         // Wraps a viewport to provide scroll capabilities
-        JScrollPane scroll = new JScrollPane(content);
+        JScrollPane scroll = new JScrollPane(userListArea);
         scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         scroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
         scroll.setBorder(new EmptyBorder(0, 0, 0, 0)); // Remove border
 
-        userListArea = content;
-
-        wrapper.add(scroll);
-        this.add(wrapper, BorderLayout.CENTER);
+        this.add(scroll, BorderLayout.CENTER);
 
         userListArea.addContainerListener(new ContainerListener() {
             @Override
@@ -76,6 +67,14 @@ public class UserListPanel extends JPanel {
                 }
             }
         });
+
+        // Add vertical glue to push items to the top
+        lastConstraints = new GridBagConstraints();
+        lastConstraints.gridx = 0;
+        lastConstraints.gridy = GridBagConstraints.RELATIVE;
+        lastConstraints.weighty = 1.0;
+        lastConstraints.fill = GridBagConstraints.VERTICAL;
+        userListArea.add(Box.createVerticalGlue(), lastConstraints);
 
         // Listen for resize events to adjust user list items accordingly
         this.addComponentListener(new ComponentAdapter() {
@@ -106,7 +105,7 @@ public class UserListPanel extends JPanel {
             // GridBagConstraints settings for each user
             GridBagConstraints gbc = new GridBagConstraints();
             gbc.gridx = 0; // Column index 0
-            gbc.gridy = GridBagConstraints.RELATIVE; // Automatically move to the next row
+            gbc.gridy = userListArea.getComponentCount() - 1; // Place before the glue
             gbc.weightx = 1; // Let the component grow horizontally to fill the space
             gbc.anchor = GridBagConstraints.NORTH; // Anchor to the top
             gbc.fill = GridBagConstraints.HORIZONTAL; // Fill horizontally
@@ -123,11 +122,6 @@ public class UserListPanel extends JPanel {
             userListArea.add(userItem, gbc);
 
             // Add vertical glue to push items to the top
-            lastConstraints = new GridBagConstraints();
-            lastConstraints.gridx = 0;
-            lastConstraints.gridy = GridBagConstraints.RELATIVE;
-            lastConstraints.weighty = 1.0;
-            lastConstraints.fill = GridBagConstraints.VERTICAL;
             userListArea.add(Box.createVerticalGlue(), lastConstraints);
 
             userItemsMap.put(clientId, userItem); // Add to the map
