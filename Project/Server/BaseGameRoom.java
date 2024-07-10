@@ -97,15 +97,24 @@ public abstract class BaseGameRoom extends Room {
         }
         // remove client (ServerPlayer)
         ServerPlayer sp = playersInRoom.remove(client.getClientId());
+        LoggerUtil.INSTANCE.info("Players in room: " + playersInRoom.size());
         // do the base-class logic
         super.removedClient(client);
+        onClientRemoved(sp);
+    }
+
+    @Override
+    protected synchronized void disconnect(ServerThread client){
+        super.disconnect(client);
+        ServerPlayer sp = playersInRoom.remove(client.getClientId());
+        LoggerUtil.INSTANCE.info("Players in room: " + playersInRoom.size());
         onClientRemoved(sp);
     }
 
     /**
      * Cancels any in progress readyTimer
      */
-    private void resetReadyTimer() {
+    protected void resetReadyTimer() {
         if (readyTimer != null) {
             readyTimer.cancel();
             readyTimer = null;

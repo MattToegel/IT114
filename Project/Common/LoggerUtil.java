@@ -65,7 +65,7 @@ public enum LoggerUtil {
             if (record.getThrown() != null) {
                 throwable = "\n" +getStackTrace(record.getThrown());
             }
-            return String.format("%s [%s] (%s):\n\u001B[34m>\u001B[0m %s%s\n", date, source, level, message, throwable);
+            return String.format("%s [%s] (%s):\n> %s%s\n", date, source, level, message, throwable);
         }
 
         /**
@@ -124,16 +124,16 @@ public enum LoggerUtil {
     private synchronized void setupLogger() {
         if (isConfigured)
             return;
-    
+
         try {
             logger = Logger.getLogger("ApplicationLogger");
-    
+
             // Remove default console handlers
             Logger rootLogger = Logger.getLogger("");
             for (var handler : rootLogger.getHandlers()) {
                 rootLogger.removeHandler(handler);
             }
-    
+
             // Customize the file naming pattern
             String logPattern = config.getLogLocation().replace(".log", "-%g.log");
             // FileHandler writes log messages to a specified file, with support for
@@ -146,13 +146,13 @@ public enum LoggerUtil {
             fileHandler.setFormatter(new CustomFormatter());
             fileHandler.setLevel(config.getFileLogLevel());
             logger.addHandler(fileHandler);
-    
+
             // ConsoleHandler prints log messages to the console
             ConsoleHandler consoleHandler = new ConsoleHandler();
             consoleHandler.setFormatter(new CustomFormatter());
             consoleHandler.setLevel(config.getConsoleLogLevel());
             logger.addHandler(consoleHandler);
-    
+
             logger.setLevel(Level.ALL);
             isConfigured = true;
         } catch (IOException e) {
