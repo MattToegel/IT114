@@ -80,6 +80,8 @@ public class Room implements AutoCloseable{
         
         // Improved logging with user data
         info(String.format("%s[%s] disconnected", client.getClientName(), id));
+
+        autoCleanup();
     }
 
     protected synchronized void disconnectAll() {
@@ -159,7 +161,7 @@ public class Room implements AutoCloseable{
      * @param isConnect
      */
     protected synchronized void sendRoomStatus(long clientId, String clientName, boolean isConnect) {
-        info(String.format("sending room status to %s recipients", getName(), clientsInRoom.size()));
+        info(String.format("sending room %s status to %s recipients", getName(), clientsInRoom.size()));
         clientsInRoom.values().removeIf(client -> {
             boolean failedToSend = !client.sendRoomAction(clientId, clientName, getName(), isConnect);
             if (failedToSend) {
@@ -208,6 +210,7 @@ public class Room implements AutoCloseable{
     // end send data to client(s)
 
     // receive data from ServerThread
+    
     protected void handleCreateRoom(ServerThread sender, String room) {
         if (Server.INSTANCE.createRoom(room)) {
             Server.INSTANCE.joinRoom(room, sender);
