@@ -53,6 +53,7 @@ public class Room implements AutoCloseable{
         // happen before removal so leaving client gets the data
         sendRoomStatus(client.getClientId(), client.getClientName(), false);
         clientsInRoom.remove(client.getClientId());
+        LoggerUtil.INSTANCE.fine("Clients remaining in Room: " + clientsInRoom.size());
 
         info(String.format("%s[%s] left the room", client.getClientName(), client.getClientId(), getName()));
 
@@ -77,6 +78,7 @@ public class Room implements AutoCloseable{
         client.disconnect();
         // removedClient(client); // <-- use this just for normal room leaving
         clientsInRoom.remove(client.getClientId());
+        LoggerUtil.INSTANCE.fine("Clients remaining in Room: " + clientsInRoom.size());
         
         // Improved logging with user data
         info(String.format("%s[%s] disconnected", client.getClientName(), id));
