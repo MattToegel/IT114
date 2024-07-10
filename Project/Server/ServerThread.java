@@ -1,16 +1,24 @@
 package Project.Server;
 
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-import Project.Common.PayloadType;
-import Project.Common.RoomResultsPayload;
-import Project.Common.Payload;
-
+import Project.Common.Card;
+import Project.Common.CardPayload;
 import Project.Common.ConnectionPayload;
+import Project.Common.EnergyPayload;
 import Project.Common.LoggerUtil;
+import Project.Common.Payload;
+import Project.Common.PayloadType;
+import Project.Common.Phase;
+import Project.Common.ReadyPayload;
+import Project.Common.RoomResultsPayload;
+import Project.Common.Tower;
+import Project.Common.TowerPayload;
+import Project.Common.XYPayload;
 
 /**
  * A server-side representation of a single client.
@@ -115,15 +123,193 @@ public class ServerThread extends BaseServerThread {
                 case DISCONNECT:
                     currentRoom.disconnect(this);
                     break;
+                case READY:
+                    // no data needed as the intent will be used as the trigger
+                    try {
+                        // cast to GameRoom as the subclass will handle all Game logic
+                        ((GameRoom) currentRoom).handleReady(this);
+                    } catch (Exception e) {
+                        sendMessage("You must be in a GameRoom to do the ready check");
+                    }
+                    break;
+                case MOVE:
+                    try {
+                        // cast to GameRoom as the subclass will handle all Game logic
+                        XYPayload movePayload = (XYPayload) payload;
+                        ((GameRoom) currentRoom).handleMove(this, movePayload.getX(), movePayload.getY());
+                    } catch (Exception e) {
+                        sendMessage("You must be in a GameRoom to move");
+                    }
+                    break;
+                case USE_CARD:
+                    try {
+                        // cast to GameRoom as the subclass will handle all Game logic
+                        CardPayload cardPayload = (CardPayload) payload;
+                        ((GameRoom) currentRoom).handleUseCard(this, cardPayload.getCard());
+                    } catch (Exception e) {
+                        sendMessage("You must be in a GameRoom to use a card");
+                    }
+                    break;
+                case REMOVE_CARD:
+                    try {
+                        // cast to GameRoom as the subclass will handle all Game logic
+                        CardPayload cardPayload = (CardPayload) payload;
+                        ((GameRoom) currentRoom).handleDiscardCard(this, cardPayload.getCard());
+                    } catch (Exception e) {
+                        sendMessage("You must be in a GameRoom to discard a card");
+                    }
+                    break;
+                case TOWER_PLACE:
+                    try {
+                        // cast to GameRoom as the subclass will handle all Game logic
+                        XYPayload towerPlace = (XYPayload) payload;
+                        ((GameRoom) currentRoom).handlePlaceTower(this, towerPlace.getX(), towerPlace.getY());
+                    } catch (Exception e) {
+                        sendMessage("You must be in a GameRoom to place a tower");
+                    }
+                    break;
+                case TOWER_ATTACK:
+                    try {
+                        // cast to GameRoom as the subclass will handle all Game logic
+                        TowerPayload towerAttack = (TowerPayload) payload;
+                        ((GameRoom) currentRoom).handleAttack(this, towerAttack.getX(), towerAttack.getY(),
+                                towerAttack.getTowerIds());
+                    } catch (Exception e) {
+                        sendMessage("You must be in a GameRoom to attack");
+                    }
+                    break;
+                case TOWER_ALLOCATE:
+                    try {
+                        // cast to GameRoom as the subclass will handle all Game logic
+                        EnergyPayload epAllocate = (EnergyPayload) payload;
+                        ((GameRoom) currentRoom).handleAllocationChange(this, epAllocate.getX(), epAllocate.getY(),
+                                epAllocate.getEnergy());
+                    } catch (Exception e) {
+                        sendMessage("You must be in a GameRoom to allocate energy to a tower");
+                    }
+                    break;
+                case END_TURN:
+                    try {
+                        // cast to GameRoom as the subclass will handle all Game logic
+                        ((GameRoom) currentRoom).handleEndTurn(this);
+                    } catch (Exception e) {
+                        sendMessage("You must be in a GameRoom to end your turn");
+                    }
+                    break;
                 default:
                     break;
             }
         } catch (Exception e) {
-            LoggerUtil.INSTANCE.severe("Could not process Payload: " + payload,e);
-        
+            LoggerUtil.INSTANCE.severe("Could not process Payload: " + payload, e);
+
         }
     }
 
+    // send methods specific to non-chatroom projects
+    public boolean sendPlayerCurrentEnergy(long clientId, int energy) {
+        EnergyPayload ep = new EnergyPayload();
+        ep.setEnergy(energy);
+        ep.setClientId(clientId);
+        return send(ep);
+    }
+
+    public boolean sendTowerStatus(int x, int y, Tower tower) {
+        TowerPayload tp = new TowerPayload(x, y, tower);
+        tp.setClientId(tower.getClientId());
+        return send(tp);
+    }
+
+    public boolean sendRemoveCardFromHand(Card card) {
+        List<Card> cards = new ArrayList<>();
+        cards.add(card);
+        return sendRemoveCardsFromHand(cards);
+    }
+
+    public boolean sendRemoveCardsFromHand(List<Card> cards) {
+        CardPayload cp = new CardPayload();
+        cp.setPayloadType(PayloadType.REMOVE_CARD);
+        cp.setCards(cards);
+        cp.setClientId(clientId);
+        return send(cp);
+    }
+
+    public boolean sendAddCardToHand(Card card) {
+        List<Card> cards = new ArrayList<>();
+        cards.add(card);
+        return sendAddCardsToHand(cards);
+    }
+
+    public boolean sendAddCardsToHand(List<Card> cards) {
+        CardPayload cp = new CardPayload();
+        cp.setPayloadType(PayloadType.ADD_CARD);
+        cp.setCards(cards);
+        cp.setClientId(clientId);
+        return send(cp);
+    }
+
+    public boolean sendCardsInHand(List<Card> cards) {
+        CardPayload cp = new CardPayload();
+        cp.setPayloadType(PayloadType.CARDS_IN_HAND);
+        cp.setCards(cards);
+        cp.setClientId(clientId);
+        return send(cp);
+    }
+
+    public boolean sendMove(long clientId, int x, int y) {
+        XYPayload p = new XYPayload(x, y);
+        p.setPayloadType(PayloadType.MOVE);
+        p.setClientId(clientId);
+        return send(p);
+    }
+
+    public boolean sendTurnStatus(long clientId, boolean didTakeTurn) {
+        ReadyPayload rp = new ReadyPayload();
+        rp.setPayloadType(PayloadType.TURN);
+        rp.setReady(didTakeTurn);
+        rp.setClientId(clientId);
+        return send(rp);
+    }
+
+    public boolean sendGridDimensions(int x, int y) {
+        XYPayload p = new XYPayload(x, y);
+        p.setPayloadType(PayloadType.GRID_DIMENSION);
+        return send(p);
+    }
+
+    public boolean sendCurrentPhase(Phase phase) {
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.PHASE);
+        p.setMessage(phase.name());
+        return send(p);
+    }
+
+    public boolean sendResetReady() {
+        ReadyPayload rp = new ReadyPayload();
+        rp.setPayloadType(PayloadType.RESET_READY);
+        return send(rp);
+    }
+
+    public boolean sendReadyStatus(long clientId, boolean isReady) {
+        return sendReadyStatus(clientId, isReady, false);
+    }
+
+    /**
+     * Sync ready status of client id
+     * 
+     * @param clientId who
+     * @param isReady  ready or not
+     * @param quiet    silently mark ready
+     * @return
+     */
+    public boolean sendReadyStatus(long clientId, boolean isReady, boolean quiet) {
+        ReadyPayload rp = new ReadyPayload();
+        rp.setClientId(clientId);
+        rp.setReady(isReady);
+        if (quiet) {
+            rp.setPayloadType(PayloadType.SYNC_READY);
+        }
+        return send(rp);
+    }
     // send methods to pass data back to the Client
 
     public boolean sendRooms(List<String> rooms) {

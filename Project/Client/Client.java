@@ -5,23 +5,35 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import Project.Client.Interfaces.IConnectionEvents;
 import Project.Client.Interfaces.IClientEvents;
 import Project.Client.Interfaces.IMessageEvents;
 import Project.Client.Interfaces.IRoomEvents;
+import Project.Common.Card;
+import Project.Common.CardPayload;
 import Project.Common.ConnectionPayload;
+import Project.Common.EnergyPayload;
+import Project.Common.Grid;
 import Project.Common.LoggerUtil;
 import Project.Common.Payload;
 import Project.Common.PayloadType;
+import Project.Common.Phase;
+import Project.Common.ReadyPayload;
 import Project.Common.RoomResultsPayload;
 import Project.Common.TextFX;
+import Project.Common.Tower;
+import Project.Common.TowerPayload;
+import Project.Common.XYPayload;
 import Project.Common.TextFX.Color;
 
 /**
@@ -34,6 +46,7 @@ public enum Client {
     {
         // TODO moved to ClientUI (this repeat doesn't do anything since config is set
         // only once)
+
         // statically initialize the client-side LoggerUtil
         LoggerUtil.LoggerConfig config = new LoggerUtil.LoggerConfig();
         config.setFileSizeLimit(2048 * 1024); // 2MB
@@ -49,8 +62,9 @@ public enum Client {
             .compile("/connect\\s+(\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}:\\d{3,5})");
     final Pattern localhostPattern = Pattern.compile("/connect\\s+(localhost:\\d{3,5})");
     private volatile boolean isRunning = true; // volatile for thread-safe visibility
-    private ConcurrentHashMap<Long, ClientData> knownClients = new ConcurrentHashMap<>();
-    private ClientData myData;
+    private ConcurrentHashMap<Long, ClientPlayer> knownClients = new ConcurrentHashMap<>();
+    private ClientPlayer myData;
+    private Phase currentPhase = Phase.READY;
 
     // constants (used to reduce potential types when using them in code)
     private final String COMMAND_CHARACTER = "/";
@@ -61,6 +75,18 @@ public enum Client {
     private final String LOGOFF = "logoff";
     private final String LOGOUT = "logout";
     private final String SINGLE_SPACE = " ";
+    // other constants
+    private final String READY = "ready";
+    private final String MOVE = "move";
+    private final String HAND = "hand";
+    private final String USE = "use";
+    private final String DISCARD = "discard";
+    private final String PLACE = "place";
+    private final String ATTACK = "attack";
+    private final String ALLOCATE = "allocate";
+    private final String END = "end";
+
+    private Grid grid = null;
 
     // callback that updates the UI
     private static IClientEvents events;
@@ -68,7 +94,7 @@ public enum Client {
     // needs to be private now that the enum logic is handling this
     private Client() {
         LoggerUtil.INSTANCE.info("Client Created");
-        myData = new ClientData();
+        myData = new ClientPlayer();
     }
 
     public boolean isConnected() {
@@ -191,9 +217,35 @@ public enum Client {
             System.out.println(TextFX.colorize("Set client name to " + myData.getClientName(), Color.CYAN));
             return true;
         } else if (text.equalsIgnoreCase("/users")) {
+            // chatroom version
+            /*
+             * System.out.println(
+             * String.join("\n", knownClients.values().stream()
+             * .map(c -> String.format("%s(%s)", c.getClientName(),
+             * c.getClientId())).toList()));
+             */
+            // non-chatroom version
+            /**
+             * System.out.println(
+             * String.join("\n", knownClients.values().stream()
+             * .map(c -> String.format("%s(%s) %s", c.getClientName(), c.getClientId(),
+             * c.isReady() ? "[x]" : "[ ]"))
+             * .toList()));
+             */
+            // updated to show turn status
+            /*
+             * System.out.println(
+             * String.join("\n", knownClients.values().stream()
+             * .map(c -> String.format("%s(%s) %s %s", c.getClientName(), c.getClientId(),
+             * c.isReady() ? "[R]" : "[ ]", c.didTakeTurn() ? "[T]" : "[ ]"))
+             * .toList()));
+             */
             System.out.println(
                     String.join("\n", knownClients.values().stream()
-                            .map(c -> String.format("%s(%s)", c.getClientName(), c.getClientId())).toList()));
+                            .map(c -> String.format("%s(%s) %s %s E: %s/%s", c.getClientName(), c.getClientId(),
+                                    c.isReady() ? "[R]" : "[ ]", c.didTakeTurn() ? "[T]" : "[ ]", c.getEnergy(),
+                                    c.getEnergyCap()))
+                            .toList()));
             return true;
         } else { // logic previously from Room.java
             // decided to make this as separate block to separate the core client-side items
@@ -226,6 +278,96 @@ public enum Client {
                         sendDisconnect();
                         wasCommand = true;
                         break;
+                    // others
+                    case READY:
+                        sendReady();
+                        wasCommand = true;
+                        break;
+                    case MOVE:
+                        try {
+                            String[] parts = commandValue.split(",");
+                            int x = Integer.parseInt(parts[0]);
+                            int y = Integer.parseInt(parts[1]);
+                            sendMove(x, y);
+                        } catch (Exception e) {
+                            System.out.println(TextFX.colorize("Invalid command format, try /move #,#", Color.RED));
+                        }
+                        wasCommand = true;
+                        break;
+                    case HAND:
+                        showHand();
+                        wasCommand = true;
+                        break;
+                    case USE:
+                        try {
+                            int cardOffset = Integer.parseInt(commandValue) - 1;
+                            Card c = myData.getHand().get(cardOffset);
+                            sendUseCard(c);
+                        } catch (Exception e) {
+                            System.out.println(
+                                    TextFX.colorize("Invalid command format, try /use card_number (see /hand first)",
+                                            Color.RED));
+                        }
+                        wasCommand = true;
+                        break;
+                    case DISCARD:
+                        try {
+                            int cardOffset = Integer.parseInt(commandValue) - 1;
+                            Card c = myData.getHand().get(cardOffset);
+                            sendDiscardCard(c);
+                        } catch (Exception e) {
+                            System.out.println(
+                                    TextFX.colorize(
+                                            "Invalid command format, try /discard card_number (see /hand first)",
+                                            Color.RED));
+                        }
+                        wasCommand = true;
+                        break;
+                    case PLACE:
+                        try {
+                            String[] parts = commandValue.split(",");
+                            int x = Integer.parseInt(parts[0]);
+                            int y = Integer.parseInt(parts[1]);
+                            sendPlace(x, y);
+                        } catch (Exception e) {
+                            System.out.println(TextFX.colorize("Invalid command format, try /place #,#", Color.RED));
+                        }
+                        wasCommand = true;
+                        break;
+                    case ATTACK:
+                        try {
+                            String[] parts = commandValue.split(",", 2);
+                            int x = Integer.parseInt(parts[0]);
+                            int y = Integer.parseInt(parts[1].split(" ")[0]);
+                            String[] numberStrings = parts[1].split(" ")[1].split(",");
+
+                            // Convert the String array to a List<Long>
+                            List<Long> towerIds = Arrays.stream(numberStrings)
+                                    .map(Long::parseLong)
+                                    .collect(Collectors.toList());
+                            sendAttack(x, y, towerIds);
+                        } catch (Exception e) {
+                            System.out.println(TextFX.colorize("Invalid command format, try /attack #,# #", Color.RED));
+                        }
+                        wasCommand = true;
+                        break;
+                    case ALLOCATE:
+                        try {
+                            String[] parts = commandValue.split(",", 2);
+                            int x = Integer.parseInt(parts[0]);
+                            int y = Integer.parseInt(parts[1].split(" ")[0]);
+                            int energy = Integer.parseInt(parts[1].split(" ")[1]);
+                            sendAllocate(x, y, energy);
+                        } catch (Exception e) {
+                            System.out
+                                    .println(TextFX.colorize("Invalid command format, try /allocate #,# #", Color.RED));
+                        }
+                        wasCommand = true;
+                        break;
+                    case END:
+                        sendEndTurn();
+                        wasCommand = true;
+                        break;
                 }
                 return wasCommand;
             }
@@ -236,7 +378,88 @@ public enum Client {
     public long getMyClientId() {
         return myData.getClientId();
     }
+    private void showHand() {
+        System.out.println("Your hand:");
+
+        List<Card> hand = myData.getHand();
+        String result = IntStream.range(0, hand.size())
+                .mapToObj(i -> String.format("%d) %s", i + 1, hand.get(i)))
+                .collect(Collectors.joining("\n"));
+
+        System.out.println(result);
+    }
+
     // send methods to pass data to the ServerThread
+    private void sendEndTurn() throws IOException {
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.END_TURN);
+        send(p);
+    }
+
+    private void sendAllocate(int x, int y, int energy) throws IOException {
+        EnergyPayload ep = new EnergyPayload();
+        ep.setPayloadType(PayloadType.TOWER_ALLOCATE);
+        ep.setEnergy(energy);
+        ep.setX(x);
+        ep.setY(y);
+        send(ep);
+    }
+
+    private void sendAttack(int x, int y, List<Long> targets) throws IOException {
+        TowerPayload tp = new TowerPayload(x, y);
+        tp.setPayloadType(PayloadType.TOWER_ATTACK);
+        tp.setTowerIds(targets);
+        send(tp);
+    }
+
+    private void sendPlace(int x, int y) throws IOException {
+        // check local grid first
+        if (grid.getCell(x, y).isOccupied()) {
+            System.out
+                    .println(TextFX.colorize("That coordinate is already occupied, please try another", Color.YELLOW));
+            return;
+        }
+        XYPayload p = new XYPayload(x, y);
+        p.setPayloadType(PayloadType.TOWER_PLACE);
+        send(p);
+    }
+
+    private void sendUseCard(Card c) throws IOException {
+        CardPayload cp = new CardPayload();
+        cp.setCard(c);
+        cp.setPayloadType(PayloadType.USE_CARD);
+        send(cp);
+    }
+
+    private void sendDiscardCard(Card c) throws IOException {
+        CardPayload cp = new CardPayload();
+        cp.setCard(c);
+        cp.setPayloadType(PayloadType.REMOVE_CARD);
+        send(cp);
+    }
+    @Deprecated
+    private void sendMove(int x, int y) throws IOException {
+        // check local grid first
+        if (grid.getCell(x, y).isOccupied()) {
+            System.out
+                    .println(TextFX.colorize("That coordinate is already occupied, please try another", Color.YELLOW));
+            return;
+        }
+        XYPayload p = new XYPayload(x, y);
+        p.setPayloadType(PayloadType.MOVE);
+        send(p);
+    }
+
+    /**
+     * Sends the client's intent to be ready.
+     * Can also be used to toggle the ready state if coded on the server-side
+     * @throws IOException 
+     */
+    private void sendReady() throws IOException {
+        ReadyPayload rp = new ReadyPayload();
+        rp.setReady(true); // <- techically not needed as we'll use the payload type as a trigger
+        send(rp);
+    }
 
     /**
      * Sends a search to the server-side to get a list of potentially matching Rooms
@@ -485,6 +708,54 @@ public enum Client {
                 case PayloadType.MESSAGE: // displays a received message
                     processMessage(payload.getClientId(), payload.getMessage());
                     break;
+                case PayloadType.READY:
+                    ReadyPayload rp = (ReadyPayload) payload;
+                    processReadyStatus(rp.getClientId(), rp.isReady(), false);
+                    break;
+                case PayloadType.SYNC_READY:
+                    ReadyPayload qrp = (ReadyPayload) payload;
+                    processReadyStatus(qrp.getClientId(), qrp.isReady(), true);
+                    break;
+                case PayloadType.RESET_READY:
+                    // note no data necessary as this is just a trigger
+                    processResetReady();
+                    break;
+                case PayloadType.PHASE:
+                    processPhase(payload.getMessage());
+                    break;
+                case PayloadType.GRID_DIMENSION:
+                    XYPayload gd = (XYPayload) payload;
+                    processGridDimension(gd.getX(), gd.getY());
+                    break;
+                case PayloadType.MOVE:
+                    XYPayload mp = (XYPayload) payload;
+                    processMove(mp.getClientId(), mp.getX(), mp.getY());
+                    break;
+                case PayloadType.TURN:
+                    ReadyPayload tp = (ReadyPayload) payload;
+                    processTurnStatus(tp.getClientId(), tp.isReady());
+                    break;
+                case PayloadType.CARDS_IN_HAND:
+                    CardPayload hand = (CardPayload) payload;
+                    processHand(hand.getClientId(), hand.getCards());
+                    break;
+                case PayloadType.ADD_CARD:
+                    CardPayload add = (CardPayload) payload;
+                    processAddCard(add.getClientId(), add.getCard());
+                    break;
+                case PayloadType.REMOVE_CARD:
+                    CardPayload remove = (CardPayload) payload;
+                    processRemoveCard(remove.getClientId(), remove.getCard());
+                    break;
+                case PayloadType.TOWER_STATUS:
+                    TowerPayload towerStatus = (TowerPayload) payload;
+                    processTowerStatus(towerStatus.getClientId(), towerStatus.getX(), towerStatus.getY(),
+                            towerStatus.getTower());
+                    break;
+                case PayloadType.ENERGY:
+                    EnergyPayload userEnergy = (EnergyPayload) payload;
+                    processEnergy(userEnergy.getClientId(), userEnergy.getEnergy());
+                    break;
                 default:
                     break;
             }
@@ -500,7 +771,7 @@ public enum Client {
      * @return the name, or Room if id is -1, or [Unknown] if failed to find
      */
     public String getClientNameFromId(long id) {
-        if (id == ClientData.DEFAULT_CLIENT_ID) {
+        if (id == ClientPlayer.DEFAULT_CLIENT_ID) {
             return "Room";
         }
         if (knownClients.containsKey(id)) {
@@ -510,6 +781,119 @@ public enum Client {
     }
 
     // payload processors
+    private void processEnergy(long clientId, int energy) {
+        ClientPlayer cp = knownClients.get(clientId);
+        cp.setEnergy(energy);
+    }
+
+    private void processTowerStatus(long clientId, int x, int y, Tower tower) {
+        ClientPlayer cp = knownClients.get(clientId);
+        if (grid.getCell(x, y).getTower() == null) {
+            System.out.println(
+                    TextFX.colorize(String.format("%s placed tower at %s,%s", cp.getClientName(), x, y), Color.CYAN));
+            grid.setCell(x, y, tower);
+        } else {
+            grid.getCell(x, y).updateTower(tower);
+        }
+        LoggerUtil.INSTANCE.info("Grid: " + grid);
+    }
+
+    private void processRemoveCard(long clientId, Card card) {
+        // Note: generally the player will only know their own hand
+        // I chose to utilize clientId just in case there are future implementations
+        // where you can see info about other players
+        if (clientId == myData.getClientId()) {
+            myData.removeFromHand(card);
+            // Note: We may need to leverage an additional PayloadType
+            // to distinguish between Use/Discard; I didn't for this lesson
+            System.out.println("Used/Discarded Card " + card);
+        }
+    }
+
+    private void processAddCard(long clientId, Card card) {
+        // Note: generally the player will only know their own hand
+        // I chose to utilize clientId just in case there are future implementations
+        // where you can see info about other players
+        if (clientId == myData.getClientId()) {
+            myData.addToHand(card);
+            System.out.println("Received Card " + card);
+        }
+    }
+
+    private void processHand(long clientId, List<Card> cards) {
+        // Note: generally the player will only know their own hand
+        // I chose to utilize clientId just in case there are future implementations
+        // where you can see info about other players
+        if (clientId == myData.getClientId()) {
+            myData.setHand(cards);
+            showHand();
+        }
+    }
+
+    @Deprecated
+    private void processMove(long clientId, int x, int y) {
+        ClientPlayer cp = knownClients.get(clientId);
+        // grid.setCell(x, y, true);
+        System.out.println(TextFX.colorize(String.format("%s moved to %s,%s", cp.getClientName(), x, y), Color.CYAN));
+        LoggerUtil.INSTANCE.info("Grid: " + grid);
+    }
+
+    private void processResetTurns() {
+        knownClients.values().forEach(cp -> cp.setTakeTurn(false));
+    }
+
+    private void processTurnStatus(long clientId, boolean didTakeTurn) {
+        if (clientId < 1) {
+            processResetTurns();
+            return;
+        }
+        ClientPlayer cp = knownClients.get(clientId);
+        cp.setTakeTurn(didTakeTurn);
+        if (didTakeTurn) {
+            System.out
+                    .println(TextFX.colorize(String.format("%s finished their turn", cp.getClientName()), Color.CYAN));
+        }
+    }
+
+    private void processGridDimension(int x, int y) {
+        if (x > 0 && y > 0) {
+            grid = new Grid(x, y);
+        } else {
+            grid.reset();
+            // added other cleanup
+            knownClients.values().forEach(c->{
+                c.clearTowers();
+                c.setEnergy(0);
+            });
+        }
+        LoggerUtil.INSTANCE.info("Grid: " + grid);
+    }
+
+    private void processPhase(String phase) {
+        currentPhase = Enum.valueOf(Phase.class, phase);
+        System.out.println(TextFX.colorize("Current phase is " + currentPhase.name(), Color.YELLOW));
+    }
+
+    private void processResetReady() {
+        knownClients.values().forEach(cp -> cp.setReady(false));
+        System.out.println("Ready status reset for everyone");
+    }
+
+    private void processReadyStatus(long clientId, boolean isReady, boolean quiet) {
+        if (!knownClients.containsKey(clientId)) {
+            LoggerUtil.INSTANCE.severe(String.format("Received ready status [%s] for client id %s who is not known",
+                    isReady ? "ready" : "not ready", clientId));
+            return;
+        }
+        ClientPlayer cp = knownClients.get(clientId);
+        cp.setReady(isReady);
+        if (!quiet) {
+            System.out.println(
+                    String.format("%s[%s] is %s", cp.getClientName(), cp.getClientId(),
+                            isReady ? "ready" : "not ready"));
+        }
+    }
+
     private void processRoomsList(List<String> rooms, String message) {
         // invoke onReceiveRoomList callback
         ((IRoomEvents) events).onReceiveRoomList(rooms, message);
@@ -538,8 +922,7 @@ public enum Client {
     }
 
     private void processClientData(long clientId, String clientName) {
-
-        if (myData.getClientId() == ClientData.DEFAULT_CLIENT_ID) {
+        if (myData.getClientId() == ClientPlayer.DEFAULT_CLIENT_ID) {
             myData.setClientId(clientId);
             myData.setClientName(clientName);
             // invoke onReceiveClientId callback
@@ -558,7 +941,7 @@ public enum Client {
     private void processClientSync(long clientId, String clientName) {
 
         if (!knownClients.containsKey(clientId)) {
-            ClientData cd = new ClientData();
+            ClientPlayer cd = new ClientPlayer();
             cd.setClientId(clientId);
             cd.setClientName(clientName);
             knownClients.put(clientId, cd);
@@ -570,7 +953,7 @@ public enum Client {
     private void processRoomAction(long clientId, String clientName, String message, boolean isJoin) {
 
         if (isJoin && !knownClients.containsKey(clientId)) {
-            ClientData cd = new ClientData();
+            ClientPlayer cd = new ClientPlayer();
             cd.setClientId(clientId);
             cd.setClientName(clientName);
             knownClients.put(clientId, cd);
@@ -580,7 +963,7 @@ public enum Client {
             // invoke onRoomJoin callback
             ((IRoomEvents) events).onRoomAction(clientId, clientName, message, isJoin);
         } else if (!isJoin) {
-            ClientData removed = knownClients.remove(clientId);
+            ClientPlayer removed = knownClients.remove(clientId);
             if (removed != null) {
                 System.out.println(
                         TextFX.colorize(String.format("*%s[%s] left the Room %s*", clientName, clientId, message),

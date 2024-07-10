@@ -6,7 +6,7 @@ import Project.Common.LoggerUtil;
 
 public class Room implements AutoCloseable{
     private String name;// unique name of the Room
-    private volatile boolean isRunning = false;
+    protected volatile boolean isRunning = false;
     private ConcurrentHashMap<Long, ServerThread> clientsInRoom = new ConcurrentHashMap<Long, ServerThread>();
 
     public final static String LOBBY = "lobby";
@@ -208,6 +208,7 @@ public class Room implements AutoCloseable{
     // end send data to client(s)
 
     // receive data from ServerThread
+    
     protected void handleCreateRoom(ServerThread sender, String room) {
         if (Server.INSTANCE.createRoom(room)) {
             Server.INSTANCE.joinRoom(room, sender);

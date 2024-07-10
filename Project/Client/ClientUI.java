@@ -129,7 +129,7 @@ public class ClientUI extends JFrame implements IConnectionEvents, IMessageEvent
                 currentCardPanel = (JPanel) c;
                 currentCard = Enum.valueOf(CardView.class, currentCardPanel.getName());
                 // Ensure connection for specific views
-                if (Client.INSTANCE.getMyClientId() == ClientData.DEFAULT_CLIENT_ID
+                if (Client.INSTANCE.getMyClientId() == ClientPlayer.DEFAULT_CLIENT_ID
                         && currentCard.ordinal() >= CardView.CHAT.ordinal()) {
                     show(CardView.CONNECT.name());
                 }

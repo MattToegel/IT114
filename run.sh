@@ -14,4 +14,3 @@ elif [ "$input" = "ui" ]; then
 else
     echo "Must specify client or server"
 fi
-
