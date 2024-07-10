@@ -6,7 +6,7 @@ import Project.Common.LoggerUtil;
 
 public class Room implements AutoCloseable{
     private String name;// unique name of the Room
-    private volatile boolean isRunning = false;
+    protected volatile boolean isRunning = false;
     private ConcurrentHashMap<Long, ServerThread> clientsInRoom = new ConcurrentHashMap<Long, ServerThread>();
 
     public final static String LOBBY = "lobby";
@@ -94,6 +94,7 @@ public class Room implements AutoCloseable{
             return true;
         });
         info("Disconnect All finished");
+        autoCleanup();
     }
 
     /**
@@ -128,7 +129,7 @@ public class Room implements AutoCloseable{
      * @param client
      */
     protected synchronized void sendDisconnect(ServerThread client) {
-        info(String.format("sending disconnect status to %s recipients", getName(), clientsInRoom.size()));
+        info(String.format("sending disconnect status to %s recipients", clientsInRoom.size()));
         clientsInRoom.values().removeIf(clientInRoom -> {
             boolean failedToSend = !clientInRoom.sendDisconnect(client.getClientId(), client.getClientName());
             if (failedToSend) {
@@ -161,7 +162,7 @@ public class Room implements AutoCloseable{
      * @param isConnect
      */
     protected synchronized void sendRoomStatus(long clientId, String clientName, boolean isConnect) {
-        info(String.format("sending room %s status to %s recipients", getName(), clientsInRoom.size()));
+        info(String.format("sending room status to %s recipients", clientsInRoom.size()));
         clientsInRoom.values().removeIf(client -> {
             boolean failedToSend = !client.sendRoomAction(clientId, clientName, getName(), isConnect);
             if (failedToSend) {
@@ -197,7 +198,7 @@ public class Room implements AutoCloseable{
         // to be sent
         // Note: this uses a lambda expression for each item in the values() collection,
         // it's one way we can safely remove items during iteration
-        info(String.format("sending message to %s recipients: %s", getName(), clientsInRoom.size(), message));
+        info(String.format("sending message to %s recipients: %s", clientsInRoom.size(), message));
         clientsInRoom.values().removeIf(client -> {
             boolean failedToSend = !client.sendMessage(senderId, message);
             if (failedToSend) {
