@@ -51,7 +51,7 @@ public class GameRoom extends BaseGameRoom {
         // Stops the timers so room can clean up
         LoggerUtil.INSTANCE.info("Player Removed, remaining: " + playersInRoom.size());
         if(playersInRoom.isEmpty()){
-            resetReadyStatus();
+            resetReadyTimer();
             resetTurnTimer();
             resetRoundTimer();
             onSessionEnd();
