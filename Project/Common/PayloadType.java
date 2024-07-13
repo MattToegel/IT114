@@ -25,5 +25,7 @@ public enum PayloadType {
     TOWER_STATUS, // server-side to tell the Clients to sync Tower data
     TOWER_ALLOCATE, // client-side to tell the server-side to alloc/dealloc energy
     ENERGY, // server-side to update the Clients of their energy
-    END_TURN // client-side to tell the server-side that they're ending their turn
+    END_TURN, // client-side to tell the server-side that they're ending their turn
+    CURRENT_TURN, // server-side to tell the Clients whose turn it is
+    TIME,// server-side to sync a timer's time (note: very spammy in the terminal)
 }

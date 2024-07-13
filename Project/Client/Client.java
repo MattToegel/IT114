@@ -5,6 +5,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
@@ -16,12 +17,20 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import Project.Client.Interfaces.IConnectionEvents;
+import Project.Client.Interfaces.IEnergyEvents;
+import Project.Client.Interfaces.IGridEvents;
 import Project.Client.Interfaces.IClientEvents;
 import Project.Client.Interfaces.IMessageEvents;
+import Project.Client.Interfaces.IPhaseEvent;
+import Project.Client.Interfaces.IReadyEvent;
 import Project.Client.Interfaces.IRoomEvents;
+import Project.Client.Interfaces.ITimeEvents;
+import Project.Client.Interfaces.ITowerEvents;
+import Project.Client.Interfaces.ITurnEvents;
 import Project.Common.Card;
 import Project.Common.CardPayload;
 import Project.Common.ConnectionPayload;
+import Project.Common.Constants;
 import Project.Common.EnergyPayload;
 import Project.Common.Grid;
 import Project.Common.LoggerUtil;
@@ -31,6 +40,8 @@ import Project.Common.Phase;
 import Project.Common.ReadyPayload;
 import Project.Common.RoomResultsPayload;
 import Project.Common.TextFX;
+import Project.Common.TimerPayload;
+import Project.Common.TimerType;
 import Project.Common.Tower;
 import Project.Common.TowerPayload;
 import Project.Common.XYPayload;
@@ -77,7 +88,6 @@ public enum Client {
     private final String SINGLE_SPACE = " ";
     // other constants
     private final String READY = "ready";
-    private final String MOVE = "move";
     private final String HAND = "hand";
     private final String USE = "use";
     private final String DISCARD = "discard";
@@ -89,7 +99,11 @@ public enum Client {
     private Grid grid = null;
 
     // callback that updates the UI
-    private static IClientEvents events;
+    private static List<IClientEvents> events = new ArrayList<IClientEvents>();
+
+    public void addCallback(IClientEvents e) {
+        events.add(e);
+    }
 
     // needs to be private now that the enum logic is handling this
     private Client() {
@@ -145,7 +159,7 @@ public enum Client {
      */
     public boolean connect(String address, int port, String username, IClientEvents callback) {
         myData.setClientName(username);
-        Client.events = callback;
+        addCallback(callback);
         try {
             server = new Socket(address, port);
             // channel to send to server
@@ -283,17 +297,6 @@ public enum Client {
                         sendReady();
                         wasCommand = true;
                         break;
-                    case MOVE:
-                        try {
-                            String[] parts = commandValue.split(",");
-                            int x = Integer.parseInt(parts[0]);
-                            int y = Integer.parseInt(parts[1]);
-                            sendMove(x, y);
-                        } catch (Exception e) {
-                            System.out.println(TextFX.colorize("Invalid command format, try /move #,#", Color.RED));
-                        }
-                        wasCommand = true;
-                        break;
                     case HAND:
                         showHand();
                         wasCommand = true;
@@ -378,6 +381,7 @@ public enum Client {
     public long getMyClientId() {
         return myData.getClientId();
     }
+
     private void showHand() {
         System.out.println("Your hand:");
 
@@ -389,14 +393,23 @@ public enum Client {
         System.out.println(result);
     }
 
+    public void clientSideGameEvent(String str) {
+        events.forEach(event -> {
+            if (event instanceof IMessageEvents) {
+                // Note: using -2 to target GameEventPanel
+                ((IMessageEvents) event).onMessageReceive(Constants.GAME_EVENT_CHANNEL, str);
+            }
+        });
+    }
+
     // send methods to pass data to the ServerThread
-    private void sendEndTurn() throws IOException {
+    public void sendEndTurn() throws IOException {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.END_TURN);
         send(p);
     }
 
-    private void sendAllocate(int x, int y, int energy) throws IOException {
+    public void sendAllocate(int x, int y, int energy) throws IOException {
         EnergyPayload ep = new EnergyPayload();
         ep.setPayloadType(PayloadType.TOWER_ALLOCATE);
         ep.setEnergy(energy);
@@ -405,19 +418,19 @@ public enum Client {
         send(ep);
     }
 
-    private void sendAttack(int x, int y, List<Long> targets) throws IOException {
+    public void sendAttack(int x, int y, List<Long> targets) throws IOException {
         TowerPayload tp = new TowerPayload(x, y);
         tp.setPayloadType(PayloadType.TOWER_ATTACK);
         tp.setTowerIds(targets);
         send(tp);
     }
 
-    private void sendPlace(int x, int y) throws IOException {
+    public void sendPlace(int x, int y) throws Exception {
         // check local grid first
         if (grid.getCell(x, y).isOccupied()) {
             System.out
                     .println(TextFX.colorize("That coordinate is already occupied, please try another", Color.YELLOW));
-            return;
+            throw new Exception("That coordinate is already occupied, please try another");
         }
         XYPayload p = new XYPayload(x, y);
         p.setPayloadType(PayloadType.TOWER_PLACE);
@@ -437,25 +450,14 @@ public enum Client {
         cp.setPayloadType(PayloadType.REMOVE_CARD);
         send(cp);
     }
-    @Deprecated
-    private void sendMove(int x, int y) throws IOException {
-        // check local grid first
-        if (grid.getCell(x, y).isOccupied()) {
-            System.out
-                    .println(TextFX.colorize("That coordinate is already occupied, please try another", Color.YELLOW));
-            return;
-        }
-        XYPayload p = new XYPayload(x, y);
-        p.setPayloadType(PayloadType.MOVE);
-        send(p);
-    }
 
     /**
      * Sends the client's intent to be ready.
      * Can also be used to toggle the ready state if coded on the server-side
-     * @throws IOException 
+     * 
+     * @throws IOException
      */
-    private void sendReady() throws IOException {
+    public void sendReady() throws IOException {
         ReadyPayload rp = new ReadyPayload();
         rp.setReady(true); // <- techically not needed as we'll use the payload type as a trigger
         send(rp);
@@ -756,6 +758,13 @@ public enum Client {
                     EnergyPayload userEnergy = (EnergyPayload) payload;
                     processEnergy(userEnergy.getClientId(), userEnergy.getEnergy());
                     break;
+                case PayloadType.CURRENT_TURN:
+                    processCurrentTurn(payload.getClientId());
+                    break;
+                case PayloadType.TIME:
+                    TimerPayload timerPayload = (TimerPayload) payload;
+                    processCurrentTimer(timerPayload.getTimerType(), timerPayload.getTime());
+                    break;
                 default:
                     break;
             }
@@ -781,9 +790,38 @@ public enum Client {
     }
 
     // payload processors
+    private void processCurrentTimer(TimerType timerType, int time) {
+        events.forEach(event -> {
+            if (event instanceof ITimeEvents) {
+                ((ITimeEvents) event).onTimerUpdate(timerType, time);
+            }
+        });
+    }
+
+    private void processCurrentTurn(long clientId) {
+        ClientPlayer cp = knownClients.get(clientId);
+        if (cp != null) {
+            System.out.println(String.format("It's %s[%s]'s turn", cp.getClientName(), cp.getClientId()));
+            events.forEach(event -> {
+                if (event instanceof ITurnEvents) {
+                    ((ITurnEvents) event).onCurrentTurn(clientId);
+                }
+                if (event instanceof IMessageEvents) {
+                    ((IMessageEvents) event).onMessageReceive(Constants.GAME_EVENT_CHANNEL,
+                            String.format("It's %s[%s]'s turn", cp.getClientName(), cp.getClientId()));
+                }
+            });
+        }
+    }
+
     private void processEnergy(long clientId, int energy) {
         ClientPlayer cp = knownClients.get(clientId);
         cp.setEnergy(energy);
+        events.forEach(event -> {
+            if (event instanceof IEnergyEvents) {
+                ((IEnergyEvents) event).onUpdateEnergy(clientId, energy);
+            }
+        });
     }
 
     private void processTowerStatus(long clientId, int x, int y, Tower tower) {
@@ -793,8 +831,17 @@ public enum Client {
                     TextFX.colorize(String.format("%s placed tower at %s,%s", cp.getClientName(), x, y), Color.CYAN));
             grid.setCell(x, y, tower);
         } else {
-            grid.getCell(x, y).updateTower(tower);
+            if (tower.getHealth() > 0) {
+                grid.getCell(x, y).updateTower(tower);
+            } else {
+                grid.getCell(x, y).removeTower();
+            }
         }
+        events.forEach(event -> {
+            if (event instanceof ITowerEvents) {
+                ((ITowerEvents) event).onReceiveTowerStatus(x, y, tower);
+            }
+        });
         LoggerUtil.INSTANCE.info("Grid: " + grid);
     }
 
@@ -861,22 +908,33 @@ public enum Client {
         } else {
             grid.reset();
             // added other cleanup
-            knownClients.values().forEach(c->{
+            knownClients.values().forEach(c -> {
                 c.clearTowers();
                 c.setEnergy(0);
             });
         }
         LoggerUtil.INSTANCE.info("Grid: " + grid);
+        events.forEach(event -> {
+            if (event instanceof IGridEvents) {
+                ((IGridEvents) event).onReceiveGrid(x, y);
+            }
+        });
     }
 
     private void processPhase(String phase) {
         currentPhase = Enum.valueOf(Phase.class, phase);
         System.out.println(TextFX.colorize("Current phase is " + currentPhase.name(), Color.YELLOW));
+        events.forEach(event -> {
+            if (event instanceof IPhaseEvent) {
+                ((IPhaseEvent) event).onReceivePhase(currentPhase);
+            }
+        });
     }
 
     private void processResetReady() {
         knownClients.values().forEach(cp -> cp.setReady(false));
         System.out.println("Ready status reset for everyone");
+
     }
 
     private void processReadyStatus(long clientId, boolean isReady, boolean quiet) {
@@ -891,12 +949,22 @@ public enum Client {
             System.out.println(
                     String.format("%s[%s] is %s", cp.getClientName(), cp.getClientId(),
                             isReady ? "ready" : "not ready"));
+            events.forEach(event -> {
+                if (event instanceof IReadyEvent) {
+                    ((IReadyEvent) event).onReceiveReady(clientId, isReady);
+                }
+            });
         }
     }
 
     private void processRoomsList(List<String> rooms, String message) {
         // invoke onReceiveRoomList callback
-        ((IRoomEvents) events).onReceiveRoomList(rooms, message);
+        events.forEach(event -> {
+            if (event instanceof IRoomEvents) {
+                ((IRoomEvents) event).onReceiveRoomList(rooms, message);
+            }
+        });
+
         if (rooms == null || rooms.size() == 0) {
             System.out.println(
                     TextFX.colorize("No rooms found matching your query",
@@ -911,7 +979,11 @@ public enum Client {
 
     private void processDisconnect(long clientId, String clientName) {
         // invoke onClientDisconnect callback
-        ((IConnectionEvents) events).onClientDisconnect(clientId, clientName);
+        events.forEach(event -> {
+            if (event instanceof IConnectionEvents) {
+                ((IConnectionEvents) event).onClientDisconnect(clientId, clientName);
+            }
+        });
         System.out.println(
                 TextFX.colorize(String.format("*%s disconnected*",
                         clientId == myData.getClientId() ? "You" : clientName),
@@ -926,7 +998,11 @@ public enum Client {
             myData.setClientId(clientId);
             myData.setClientName(clientName);
             // invoke onReceiveClientId callback
-            ((IConnectionEvents) events).onReceiveClientId(clientId);
+            events.forEach(event -> {
+                if (event instanceof IConnectionEvents) {
+                    ((IConnectionEvents) event).onReceiveClientId(clientId);
+                }
+            });
             // knownClients.put(cp.getClientId(), myData);// <-- this is handled later
         }
     }
@@ -935,7 +1011,11 @@ public enum Client {
         String name = knownClients.containsKey(clientId) ? knownClients.get(clientId).getClientName() : "Room";
         System.out.println(TextFX.colorize(String.format("%s: %s", name, message), Color.BLUE));
         // invoke onMessageReceive callback
-        ((IMessageEvents) events).onMessageReceive(clientId, message);
+        events.forEach(event -> {
+            if (event instanceof IMessageEvents) {
+                ((IMessageEvents) event).onMessageReceive(clientId, message);
+            }
+        });
     }
 
     private void processClientSync(long clientId, String clientName) {
@@ -946,7 +1026,11 @@ public enum Client {
             cd.setClientName(clientName);
             knownClients.put(clientId, cd);
             // invoke onSyncClient callback
-            ((IConnectionEvents) events).onSyncClient(clientId, clientName);
+            events.forEach(event -> {
+                if (event instanceof IConnectionEvents) {
+                    ((IConnectionEvents) event).onSyncClient(clientId, clientName);
+                }
+            });
         }
     }
 
@@ -961,7 +1045,11 @@ public enum Client {
                     .colorize(String.format("*%s[%s] joined the Room %s*", clientName, clientId, message),
                             Color.GREEN));
             // invoke onRoomJoin callback
-            ((IRoomEvents) events).onRoomAction(clientId, clientName, message, isJoin);
+            events.forEach(event -> {
+                if (event instanceof IRoomEvents) {
+                    ((IRoomEvents) event).onRoomAction(clientId, clientName, message, isJoin);
+                }
+            });
         } else if (!isJoin) {
             ClientPlayer removed = knownClients.remove(clientId);
             if (removed != null) {
@@ -969,13 +1057,21 @@ public enum Client {
                         TextFX.colorize(String.format("*%s[%s] left the Room %s*", clientName, clientId, message),
                                 Color.YELLOW));
                 // invoke onRoomJoin callback
-                ((IRoomEvents) events).onRoomAction(clientId, clientName, message, isJoin);
+                events.forEach(event -> {
+                    if (event instanceof IRoomEvents) {
+                        ((IRoomEvents) event).onRoomAction(clientId, clientName, message, isJoin);
+                    }
+                });
             }
             // clear our list
             if (clientId == myData.getClientId()) {
                 knownClients.clear();
                 // invoke onResetUserList()
-                ((IConnectionEvents) events).onResetUserList();
+                events.forEach(event -> {
+                    if (event instanceof IConnectionEvents) {
+                        ((IConnectionEvents) event).onResetUserList();
+                    }
+                });
             }
         }
     }

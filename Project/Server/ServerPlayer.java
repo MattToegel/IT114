@@ -5,6 +5,7 @@ import java.util.List;
 import Project.Common.Card;
 import Project.Common.Phase;
 import Project.Common.Player;
+import Project.Common.TimerType;
 import Project.Common.Tower;
 
 /**
@@ -40,9 +41,18 @@ public class ServerPlayer extends Player {
 
     // add any wrapper methods to call on the ServerThread
     // don't used the exposed full ServerThread object
-    public boolean sendPlayerCurrentEnergy(long clientId, int energy){
+    public boolean sendCurrentTime(TimerType timerType, int time) {
+        return client.sendCurrentTime(timerType, time);
+    }
+
+    public boolean sendCurrentTurn(long clientId) {
+        return client.sendCurrentTurn(clientId);
+    }
+
+    public boolean sendPlayerCurrentEnergy(long clientId, int energy) {
         return client.sendPlayerCurrentEnergy(clientId, energy);
     }
+
     public boolean sendTowerStatus(int x, int y, Tower t) {
         return client.sendTowerStatus(x, y, t);
     }

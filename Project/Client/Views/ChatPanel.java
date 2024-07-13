@@ -7,6 +7,7 @@ import java.awt.Dimension;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
+import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
 import java.awt.event.ContainerEvent;
@@ -73,15 +74,18 @@ public class ChatPanel extends JPanel {
             @Override
             public void componentResized(ComponentEvent e) {
                 SwingUtilities.invokeLater(() -> splitPane.setDividerLocation(CHAT_SPLIT_PERCENT));
+                resizeEditorPanes();
             }
 
             @Override
             public void componentMoved(ComponentEvent e) {
+                resizeEditorPanes();
             }
 
             @Override
             public void componentShown(ComponentEvent e) {
                 SwingUtilities.invokeLater(() -> splitPane.setDividerLocation(CHAT_SPLIT_PERCENT));
+                resizeEditorPanes();
             }
 
             @Override
@@ -166,6 +170,14 @@ public class ChatPanel extends JPanel {
         gbc.weighty = 1.0; // Give extra space vertically to this component
         gbc.fill = GridBagConstraints.BOTH; // Fill both horizontally and vertically
         chatArea.add(Box.createVerticalGlue(), gbc);
+
+        // Ensure editor panes resize when the scroll pane viewport changes
+        scroll.getViewport().addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentResized(ComponentEvent e) {
+                resizeEditorPanes();
+            }
+        });
     }
 
     /**
@@ -232,10 +244,26 @@ public class ChatPanel extends JPanel {
             chatArea.repaint();
 
             // Scroll down on new message
-            SwingUtilities.invokeLater(() -> {
-                JScrollBar vertical = parentScrollPane.getVerticalScrollBar();
-                vertical.setValue(vertical.getMaximum());
-            });
+            if (parentScrollPane != null) {
+                SwingUtilities.invokeLater(() -> {
+                    JScrollBar vertical = parentScrollPane.getVerticalScrollBar();
+                    vertical.setValue(vertical.getMaximum());
+                });
+            }
         });
+    }
+
+    private void resizeEditorPanes() {
+        int width = chatArea.getParent().getWidth();
+        for (Component comp : chatArea.getComponents()) {
+            if (comp instanceof JEditorPane) {
+                JEditorPane editorPane = (JEditorPane) comp;
+                editorPane.setSize(new Dimension(width, Integer.MAX_VALUE));
+                Dimension d = editorPane.getPreferredSize();
+                editorPane.setPreferredSize(new Dimension(width, d.height));
+            }
+        }
+        chatArea.revalidate();
+        chatArea.repaint();
     }
 }

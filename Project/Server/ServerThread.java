@@ -9,6 +9,7 @@ import java.util.function.Consumer;
 import Project.Common.Card;
 import Project.Common.CardPayload;
 import Project.Common.ConnectionPayload;
+import Project.Common.Constants;
 import Project.Common.EnergyPayload;
 import Project.Common.LoggerUtil;
 import Project.Common.Payload;
@@ -16,6 +17,8 @@ import Project.Common.PayloadType;
 import Project.Common.Phase;
 import Project.Common.ReadyPayload;
 import Project.Common.RoomResultsPayload;
+import Project.Common.TimerPayload;
+import Project.Common.TimerType;
 import Project.Common.Tower;
 import Project.Common.TowerPayload;
 import Project.Common.XYPayload;
@@ -132,15 +135,7 @@ public class ServerThread extends BaseServerThread {
                         sendMessage("You must be in a GameRoom to do the ready check");
                     }
                     break;
-                case MOVE:
-                    try {
-                        // cast to GameRoom as the subclass will handle all Game logic
-                        XYPayload movePayload = (XYPayload) payload;
-                        ((GameRoom) currentRoom).handleMove(this, movePayload.getX(), movePayload.getY());
-                    } catch (Exception e) {
-                        sendMessage("You must be in a GameRoom to move");
-                    }
-                    break;
+
                 case USE_CARD:
                     try {
                         // cast to GameRoom as the subclass will handle all Game logic
@@ -206,6 +201,24 @@ public class ServerThread extends BaseServerThread {
     }
 
     // send methods specific to non-chatroom projects
+    public boolean sendCurrentTime(TimerType timerType, int time) {
+        TimerPayload tp = new TimerPayload();
+        tp.setTime(time);
+        tp.setTimerType(timerType);
+        return send(tp);
+    }
+
+    public boolean sendCurrentTurn(long clientId) {
+        Payload p = new Payload();
+        p.setClientId(clientId);
+        p.setPayloadType(PayloadType.CURRENT_TURN);
+        return send(p);
+    }
+
+    public boolean sendGameEvent(String str) {
+        return sendMessage(Constants.GAME_EVENT_CHANNEL, str);
+    }
+
     public boolean sendPlayerCurrentEnergy(long clientId, int energy) {
         EnergyPayload ep = new EnergyPayload();
         ep.setEnergy(energy);

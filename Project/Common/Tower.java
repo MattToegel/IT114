@@ -28,18 +28,19 @@ public class Tower implements Serializable {
     private boolean attacked = false;
     private boolean allocated = false;
 
-    public void setDidAllocate(boolean alloc){
+    public void setDidAllocate(boolean alloc) {
         allocated = alloc;
     }
 
-    public boolean didAllocate(){
+    public boolean didAllocate() {
         return allocated;
     }
 
-    public void setDidAttack(boolean attacked){
+    public void setDidAttack(boolean attacked) {
         this.attacked = attacked;
     }
-    public boolean didAttack(){
+
+    public boolean didAttack() {
         return attacked;
     }
 
@@ -84,19 +85,21 @@ public class Tower implements Serializable {
      * @param range    the range of the tower.
      * @param health   the health of the tower.
      */
-    public Tower(long clientId, long towerId, int attack, int defense, int range, int health) {
+    public Tower(long clientId, long towerId, int attack, int defense, int range, int health, int allocatedEnergy) {
         this.id = towerId;
         this.clientId = clientId;
         this.attack = attack;
         this.defense = defense;
         this.range = range;
         this.health = health;
-        this.allocatedEnergy = 0;
+        this.allocatedEnergy = allocatedEnergy;
     }
-    public void refresh(){
+
+    public void refresh() {
         attacked = false;
         allocated = false;
     }
+
     // Getters and Setters
     public long getId() {
         return id;
