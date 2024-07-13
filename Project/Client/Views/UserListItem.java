@@ -51,6 +51,7 @@ public class UserListItem extends JPanel {
 
     public void setCurrentTurn(boolean isMyTurn) {
         turnIndicator.setBackground(isMyTurn ? Color.GREEN : new Color(0, 0, 0, 0));
+        repaint();
     }
 
     public void setEnergy(int energy) {
@@ -61,5 +62,6 @@ public class UserListItem extends JPanel {
             energyPanel.setText(energy + "");
             energyPanel.setVisible(true);
         }
+        repaint();
     }
 }

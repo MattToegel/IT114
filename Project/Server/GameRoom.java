@@ -231,6 +231,7 @@ public class GameRoom extends BaseGameRoom {
             p.setEnergy(0);
         });
         sendPlayerCurrentEnergy(null);
+        sendCurrentTurn(null);
         sendResetHands();
         sendGridDimensions();
         sendResetTurnStatus();
@@ -669,7 +670,8 @@ public class GameRoom extends BaseGameRoom {
 
                 // rule for first tower placement
                 if (sp.getTotalTowers() == 0) {
-                    if (x != 0 && y != 0) {
+                    // fixed logic after demo
+                    if ((x > 0 && x < grid.getCols() - 1) && (y > 0 && y < grid.getRows() - 1)) {
                         st.sendGameEvent("Your first tower must start at the edge");
                         return;
                     }

@@ -94,6 +94,7 @@ public class GamePanel extends JPanel implements ITowerEvents, IRoomEvents, IPha
         });
 
         this.add(splitPane, BorderLayout.CENTER);
+        controls.addPanel(CardView.CHAT_GAME_SCREEN.name(), this);
         setVisible(false);
     }
 
@@ -319,6 +320,7 @@ public class GamePanel extends JPanel implements ITowerEvents, IRoomEvents, IPha
             target.setTower(tower);
         } else {
             System.err.println("Invalid cell coordinates: (" + x + ", " + y + ")");
+            Client.INSTANCE.clientSideGameEvent("Invalid cell coordinates: (\" + x + \", \" + y + \")");
         }
     }
 

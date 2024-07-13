@@ -77,10 +77,6 @@ public class ServerPlayer extends Player {
         return client.sendCardsInHand(cards);
     }
 
-    public boolean sendMove(long clientId, int x, int y) {
-        return client.sendMove(clientId, x, y);
-    }
-
     public boolean sendTurnStatus(long clientId, boolean didTakeTurn) {
         return client.sendTurnStatus(clientId, didTakeTurn);
     }

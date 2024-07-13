@@ -18,6 +18,7 @@ import Project.Common.Tower;
 public class CellPanel extends JPanel {
     private static final List<CellPanel> allCells = new ArrayList<>();
     private boolean selected = false;
+    
     private int cx, cy;
     private JLabel label;
     private Tower tower;

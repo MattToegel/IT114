@@ -268,13 +268,6 @@ public class ServerThread extends BaseServerThread {
         return send(cp);
     }
 
-    public boolean sendMove(long clientId, int x, int y) {
-        XYPayload p = new XYPayload(x, y);
-        p.setPayloadType(PayloadType.MOVE);
-        p.setClientId(clientId);
-        return send(p);
-    }
-
     public boolean sendTurnStatus(long clientId, boolean didTakeTurn) {
         ReadyPayload rp = new ReadyPayload();
         rp.setPayloadType(PayloadType.TURN);

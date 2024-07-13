@@ -158,6 +158,7 @@ public class UserListPanel extends JPanel implements ITurnEvents, IEnergyEvents 
 
     @Override
     public void onCurrentTurn(long clientId) {
+        LoggerUtil.INSTANCE.fine("Current turn: " + clientId);
         SwingUtilities.invokeLater(() -> {
             userItemsMap.forEach((id, panel) -> {
                 panel.setCurrentTurn(id == clientId);
@@ -168,15 +169,17 @@ public class UserListPanel extends JPanel implements ITurnEvents, IEnergyEvents 
 
     @Override
     public void onUpdateEnergy(long clientId, int energy) {
-        if (clientId > ClientPlayer.DEFAULT_CLIENT_ID) {
-            SwingUtilities.invokeLater(() -> {
+        // adjusted after demo
+        SwingUtilities.invokeLater(() -> {
+            if (clientId > ClientPlayer.DEFAULT_CLIENT_ID) {
                 UserListItem u = userItemsMap.get(clientId);
                 if (u != null) {
                     u.setEnergy(energy);
                 }
-            });
-        } else {
-            userItemsMap.values().forEach(u -> u.setEnergy(-1));// reset all
-        }
+            } else {
+                userItemsMap.values().forEach(u -> u.setEnergy(-1));// reset all
+            }
+            userListArea.repaint();
+        });
     }
 }

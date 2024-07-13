@@ -729,10 +729,6 @@ public enum Client {
                     XYPayload gd = (XYPayload) payload;
                     processGridDimension(gd.getX(), gd.getY());
                     break;
-                case PayloadType.MOVE:
-                    XYPayload mp = (XYPayload) payload;
-                    processMove(mp.getClientId(), mp.getX(), mp.getY());
-                    break;
                 case PayloadType.TURN:
                     ReadyPayload tp = (ReadyPayload) payload;
                     processTurnStatus(tp.getClientId(), tp.isReady());
@@ -799,24 +795,31 @@ public enum Client {
     }
 
     private void processCurrentTurn(long clientId) {
+        // fixed after demo, needed to adjust the null checks
         ClientPlayer cp = knownClients.get(clientId);
         if (cp != null) {
             System.out.println(String.format("It's %s[%s]'s turn", cp.getClientName(), cp.getClientId()));
-            events.forEach(event -> {
-                if (event instanceof ITurnEvents) {
-                    ((ITurnEvents) event).onCurrentTurn(clientId);
-                }
-                if (event instanceof IMessageEvents) {
-                    ((IMessageEvents) event).onMessageReceive(Constants.GAME_EVENT_CHANNEL,
-                            String.format("It's %s[%s]'s turn", cp.getClientName(), cp.getClientId()));
-                }
-            });
         }
+        events.forEach(event -> {
+            if (event instanceof ITurnEvents) {
+                ((ITurnEvents) event).onCurrentTurn(clientId);
+            }
+            if (event instanceof IMessageEvents && cp != null) {
+                ((IMessageEvents) event).onMessageReceive(Constants.GAME_EVENT_CHANNEL,
+                        String.format("It's %s[%s]'s turn", cp.getClientName(), cp.getClientId()));
+            }
+        });
     }
 
     private void processEnergy(long clientId, int energy) {
         ClientPlayer cp = knownClients.get(clientId);
-        cp.setEnergy(energy);
+        if (cp != null) {
+            cp.setEnergy(energy);
+        } else {
+            // added after demo
+            knownClients.values().forEach(c -> c.setEnergy(0));
+        }
+
         events.forEach(event -> {
             if (event instanceof IEnergyEvents) {
                 ((IEnergyEvents) event).onUpdateEnergy(clientId, energy);
@@ -877,14 +880,6 @@ public enum Client {
         }
     }
 
-    @Deprecated
-    private void processMove(long clientId, int x, int y) {
-        ClientPlayer cp = knownClients.get(clientId);
-        // grid.setCell(x, y, true);
-        System.out.println(TextFX.colorize(String.format("%s moved to %s,%s", cp.getClientName(), x, y), Color.CYAN));
-        LoggerUtil.INSTANCE.info("Grid: " + grid);
-    }
-
     private void processResetTurns() {
         knownClients.values().forEach(cp -> cp.setTakeTurn(false));
     }
@@ -899,6 +894,12 @@ public enum Client {
         if (didTakeTurn) {
             System.out
                     .println(TextFX.colorize(String.format("%s finished their turn", cp.getClientName()), Color.CYAN));
+            events.forEach(event -> {
+                if (event instanceof IMessageEvents) {
+                    ((IMessageEvents) event).onMessageReceive(Constants.GAME_EVENT_CHANNEL,
+                            String.format("%s[%s] finished their turn", cp.getClientName(), cp.getClientId()));
+                }
+            });
         }
     }
 
