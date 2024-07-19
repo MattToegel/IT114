@@ -4,9 +4,13 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Random;
 import java.util.stream.Collectors;
 
+import Project.Common.BuffDebuff;
 import Project.Common.Card;
+import Project.Common.Card.CardName;
+import Project.Common.Card.CardType;
 import Project.Common.Cell;
 import Project.Common.Deck;
 import Project.Common.Grid;
@@ -56,7 +60,7 @@ public class GameRoom extends BaseGameRoom {
         // added after Summer 2024 Demo
         // Stops the timers so room can clean up
         LoggerUtil.INSTANCE.info("Player Removed, remaining: " + playersInRoom.size());
-        if(playersInRoom.isEmpty()){
+        if (playersInRoom.isEmpty()) {
             resetReadyTimer();
             resetTurnTimer();
             resetRoundTimer();
@@ -113,6 +117,7 @@ public class GameRoom extends BaseGameRoom {
             deck = new Deck("Project/cards.txt");
             deck.shuffle();
         } catch (IOException e) {
+            LoggerUtil.INSTANCE.severe("Error loading deck", e);
             e.printStackTrace();
             onSessionEnd();
             return;
@@ -168,7 +173,7 @@ public class GameRoom extends BaseGameRoom {
         drawCard();
         sp.incrementEnergy(ENERGY_PER_ROUND);
         sendPlayerCurrentEnergy(sp);
-        sp.refreshTowers();
+        // sp.refreshTowers(); // moved to turn end
         LoggerUtil.INSTANCE.info("onTurnStart() end");
     }
 
@@ -190,11 +195,31 @@ public class GameRoom extends BaseGameRoom {
             sendPlayerCurrentEnergy(sp);
             sendGameEvent(String.format("%s(%s) burned %s energy", sp.getClientName(), sp.getClientId(), diff));
         }
+        int handSize = sp.getHand().size();
+        if (handSize > 7) {
+            Random rand = new Random();
+            int diff = handSize - 7;
+            sendGameEvent(String.format("%s(%s) was forced to discard %s random cards", sp.getClientName(),
+                    sp.getClientId(), diff));
+            for (int i = 0; i < diff; i++) {
+                int randomIndex = rand.nextInt(handSize);
+                Card card = sp.getHand().get(randomIndex);
+                if (sp.removeFromHand(card) == null) {
+                    // This shouldn't happen here
+                    LoggerUtil.INSTANCE.severe("User doesn't have this card in hand: " + card);
+                    continue;
+                }
+                syncRemoveCard(sp, card);
+                handSize = sp.getHand().size();
+            }
+
+        }
         LoggerUtil.INSTANCE.info("onTurnEnd() end");
         if (isWinConditionMet()) {
             onSessionEnd();
             return;
         }
+        sp.refreshTowers();
         if (isRoundOver()) {
             onRoundEnd(); // next round
         } else {
@@ -309,9 +334,11 @@ public class GameRoom extends BaseGameRoom {
      * @throws Exception
      */
     protected void checkCost(ServerPlayer sp, int cost) throws Exception {
-        if (sp.getEnergy() - cost <= 0) {
+        // fixed cost to allow full expense (i.e., 0 remaining)
+        if (sp.getEnergy() - cost < 0) {
             sp.getServerThread().sendGameEvent("You can't afford to do that");
-            LoggerUtil.INSTANCE.info("Player can't afford action");
+            LoggerUtil.INSTANCE
+                    .info(String.format("Player can't afford action. Cost %s Available %s", sp.getEnergy(), cost));
             throw new Exception("Player can't afford action");
         }
     }
@@ -321,6 +348,54 @@ public class GameRoom extends BaseGameRoom {
             sp.getServerThread().sendGameEvent("You already completed your turn");
             LoggerUtil.INSTANCE.info("Player already completed their turn");
             throw new Exception("Player already completed their turn");
+        }
+    }
+
+    private void placeTower(ServerPlayer sp, int x, int y, int cost) throws Exception {
+        if (grid.getCell(x, y).isOccupied()) {
+            sp.getServerThread().sendGameEvent("This cell is already occupied");
+            return;
+        }
+
+        checkCost(sp, cost);
+        Tower newTower = null;
+        try {
+            // create a new tower for this player
+            newTower = new Tower(sp.getClientId());
+
+            // rule for first tower placement
+            if (sp.getTotalTowers() == 0) {
+                // fixed logic after demo
+                if ((x > 0 && x < grid.getCols() - 1) && (y > 0 && y < grid.getRows() - 1)) {
+                    sp.getServerThread().sendGameEvent("Your first tower must start at the edge");
+                    return;
+                }
+            } else { // rule for subsequent tower placement
+                List<Cell> validCells = grid.getValidCellsWithinRange(x, y, 1);
+                Cell target = validCells.stream()
+                        .filter(c -> c.getTower() != null && c.getTower().getClientId() == sp.getClientId())
+                        .findFirst().orElse(null);
+                if (target == null) {
+                    sp.getServerThread().sendGameEvent("Towers must be placed adjacent to your own towers");
+                    return;
+                }
+            }
+
+            // attempt to allocate tower to cell
+            grid.setCell(x, y, newTower);
+            // assign tower
+            sp.setTower(newTower);
+            // send update
+            sendTowerStatus(x, y, newTower);
+            // decrease energy
+            if (cost > 0) {
+                sp.decrementEnergy(cost);
+                // send energy update
+                sendPlayerCurrentEnergy(sp);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return;
         }
     }
     // misc end
@@ -363,6 +438,317 @@ public class GameRoom extends BaseGameRoom {
         return sp.getTotalTowers() > 0 && sp.getTowersAlive() == 0;
     }
     // turn helpers end
+
+    // card helpers start
+
+    private List<Cell> getAllOwnedTargets(int x, int y, int range, long clientId) {
+        return grid.getValidCellsWithinRange(x, y, range).stream()
+                .filter(c -> c.getTower() != null && c.getTower().getClientId() == clientId)
+                .collect(Collectors.toList());
+    }
+
+    private List<Cell> getAllUnownedTargets(int x, int y, int range, long clientId) {
+        return grid.getValidCellsWithinRange(x, y, range).stream()
+                .filter(c -> c.getTower() != null && c.getTower().getClientId() != clientId)
+                .collect(Collectors.toList());
+    }
+
+    private void applyBuffDebuff(int cardNumber, List<Cell> cells, String emptyMessage) {
+        cells.forEach(c -> {
+            Tower t = c.getTower();
+            BuffDebuff bd = Card.createBuffDebuff(cardNumber);
+            t.addBuffDebuff(bd);
+            sendTowerStatus(c.getX(), c.getY(), t);
+        });
+        if (cells.size() == 0) {
+            sendGameEvent(emptyMessage);
+        }
+    }
+
+    private ServerPlayer getRandomPlayerWithHand(ServerPlayer sp) {
+        List<ServerPlayer> targets = playersInRoom.values().stream()
+                .filter(p -> p.isReady() && p.getHand().size() > 0 && p.getClientId() != sp.getClientId())
+                .collect(Collectors.toList());
+        return targets.get(new Random().nextInt(targets.size()));
+    }
+
+    private void processBuffDebuff(ServerPlayer sp, Card card, int x, int y, Tower tower) {
+        CardName cardName = card.getCardNameEnum();
+        switch (cardName) {
+            case FORTIFY:
+                // Card Number: 12, Cost: 4, Copies: 2
+                // Effect: Increase the defense of all towers by 50% for this turn.
+                sendGameEvent(String.format("%s[%s] increasing the defense of their Towers by 50% for 1 turn with %s",
+                        sp.getClientName(), sp.getClientId(), card.getName()));
+                applyBuffDebuff(card.getCardNumber(), getAllOwnedTargets(x, y, 1, sp.getClientId()),
+                        "Fortify failed to apply to any Towers");
+                break;
+            case RESOURCE_DENIAL:
+                // Card Number: 13, Cost: 3, Copies: 2
+                // Effect: Prevent allocation/deallocation of energy to all towers for a turn.
+                sendGameEvent(
+                        String.format("%s[%s] is blocking energy allocation to all enemy Towers for 1 turn with %s",
+                                sp.getClientName(), sp.getClientId(), card.getName()));
+                // top left and max dimension
+                try {
+                    applyBuffDebuff(card.getCardNumber(), getAllUnownedTargets(0, 0, grid.getRows(), sp.getClientId()),
+                            "Resource Denial failed to apply to any Towers");
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+
+                break;
+            case EMP_BLAST:
+                // Card Number: 19, Cost: 4, Copies: 2
+                // Effect: Reduce the attack of all enemy towers by 50% (rounded down) for this
+                // turn.
+                sendGameEvent(
+                        String.format("%s[%s] is reducing the attack of nearby enemy Towers by 50% for 1 turn with %s",
+                                sp.getClientName(), sp.getClientId(), card.getName()));
+                applyBuffDebuff(card.getCardNumber(), getAllUnownedTargets(x, y, 1, sp.getClientId()),
+                        "EMP Blast failed to affect any Towers");
+                break;
+            case ENHANCED_RANGE:
+                // Card Number: 2, Cost: 2, Copies: 3
+                // Effect: Increase the range of one tower by 1 tile for this turn.
+                sendGameEvent(String.format("%s[%s] is increasing the range of Tower[%s] for 1 turn with %s",
+                        sp.getClientName(), sp.getClientId(), tower.getId(), card.getName()));
+                if (tower != null) {
+                    BuffDebuff bd = Card.createBuffDebuff(card.getCardNumber());
+                    tower.addBuffDebuff(bd);
+                    sendTowerStatus(x, y, tower);
+                }
+                break;
+            case DEFENSE_BOOST:
+                // Card Number: 3, Cost: 3, Copies: 3
+                // Effect: Increase a tower's defense by 50% for this turn.
+                sendGameEvent(String.format("%s[%s] is increasing Tower[%s]'s defense by 50% for 1 turn with %s",
+                        sp.getClientName(), sp.getClientId(), tower.getId(), card.getName()));
+                if (tower != null) {
+                    BuffDebuff bd = Card.createBuffDebuff(card.getCardNumber());
+                    tower.addBuffDebuff(bd);
+                    sendTowerStatus(x, y, tower);
+                }
+                break;
+            case POWER_STRIKE:
+                // Card Number: 4, Cost: 3, Copies: 3
+                // Effect: Increase a tower's attack by 50% for this turn.
+                sendGameEvent(String.format("%s[%s] is increasing Tower[%s]'s attack by 50% for 1 turn with %s",
+                        sp.getClientName(), sp.getClientId(), tower.getId(), card.getName()));
+                if (tower != null) {
+                    BuffDebuff bd = Card.createBuffDebuff(card.getCardNumber());
+                    tower.addBuffDebuff(bd);
+                    sendTowerStatus(x, y, tower);
+                }
+                break;
+            case SHIELD_GENERATOR:
+                // Card Number: 8, Cost: 3, Copies: 2
+                // Effect: Prevent one tower from being attacked for this turn.
+                sendGameEvent(String.format("%s[%s] is blocking attacks to Tower[%s] for 1 turn with %s",
+                        sp.getClientName(), sp.getClientId(), tower.getId(), card.getName()));
+                if (tower != null) {
+                    BuffDebuff bd = Card.createBuffDebuff(card.getCardNumber());
+                    tower.addBuffDebuff(bd);
+                    sendTowerStatus(x, y, tower);
+                }
+                break;
+            case OVERCHARGE:
+                // Card Number: 10, Cost: 4, Copies: 2
+                // Effect: Double the attack power of one tower for its next attack this turn.
+                sendGameEvent(String.format("%s[%s] is doubling Tower[%s]'s attack with for 1 turn %s",
+                        sp.getClientName(), sp.getClientId(), tower.getId(), card.getName()));
+                if (tower != null) {
+                    BuffDebuff bd = Card.createBuffDebuff(card.getCardNumber());
+                    tower.addBuffDebuff(bd);
+                    sendTowerStatus(x, y, tower);
+                }
+                break;
+            case ENERGY_SHIELD:
+                // Card Number: 15, Cost: 3, Copies: 2
+                // Effect: Absorb the next 3 damage to a tower.
+                sendGameEvent(String.format("%s[%s] is protecting Tower[%s] for 1 turn with %s",
+                        sp.getClientName(), sp.getClientId(), tower.getId(), card.getName()));
+                if (tower != null) {
+                    BuffDebuff bd = Card.createBuffDebuff(card.getCardNumber());
+                    tower.addBuffDebuff(bd);
+                    sendTowerStatus(x, y, tower);
+                }
+                break;
+            case FORCEFIELD:
+                // Card Number: 25, Cost: 4, Copies: 2
+                // Effect: Prevent all damage to one tower for this turn.
+                sendGameEvent(String.format("%s[%s] is protecting Tower[%s] for 1 turn with %s",
+                        sp.getClientName(), sp.getClientId(), tower.getId(), card.getName()));
+                if (tower != null) {
+                    BuffDebuff bd = Card.createBuffDebuff(card.getCardNumber());
+                    tower.addBuffDebuff(bd);
+                    sendTowerStatus(x, y, tower);
+                }
+                break;
+            default:
+                // Handle other buffs and debuffs
+                if (tower != null) {
+                    BuffDebuff bd = Card.createBuffDebuff(card.getCardNumber());
+                    tower.addBuffDebuff(bd);
+                    sendTowerStatus(x, y, tower);
+                }
+                break;
+        }
+    }
+
+    private void processInstantCard(ServerPlayer sp, Card card, int x, int y, Tower tower) {
+        CardName cardName = card.getCardNameEnum();
+        switch (cardName) {
+            case RAPID_CONSTRUCTION:
+                try {
+                    placeTower(sp, x, y, 0);
+                } catch (Exception e) {
+                    sp.getServerThread().sendGameEvent("Card effect fizzed: " + e.getMessage());
+                }
+                break;
+            case RESOURCE_BOOST:
+                // Card Number: 1, Cost: 2, Copies: 3
+                // Effect: Instantly gain 5 additional energy points.
+                sendGameEvent(String.format("%s[%s] gained 5 energy with %s", sp.getClientName(), sp.getClientId(),
+                        card.getName()));
+                sp.incrementEnergy(5);
+                sendPlayerCurrentEnergy(sp);
+                break;
+            case REPAIR:
+                // Card Number: 5, Cost: 2, Copies: 3
+                // Effect: Restore 3 health to a damaged tower.
+                if (tower != null) {
+                    sendGameEvent(String.format("%s[%s] repaired Tower[%s]'s health by 3 with %s",
+                            sp.getClientName(), sp.getClientId(), tower.getId(),
+                            card.getName()));
+                    tower.setHealth(tower.getHealth() + 3);
+                    sendTowerStatus(x, y, tower);
+                }
+                break;
+            case SABOTAGE:
+                // Card Number: 6, Cost: 3, Copies: 3
+                // Effect: Reduce allocated energy of an opponent's tower by 50%.
+                if (tower != null) {
+                    try {
+                        tower.allocateEnergy((int) (tower.getAllocatedEnergy() * .5));
+                        sendGameEvent(String.format("%s[%s] reduced Tower[%s]'s allocated energy by 50% with %s",
+                                sp.getClientName(), sp.getClientId(), tower.getId(), card.getName()));
+                    } catch (Exception e) {
+                        sendGameEvent(String.format(
+                                "%s[%s] failed to reduced Tower[%s]'s allocated energy by 50% with %s due to %s",
+                                sp.getClientName(), sp.getClientId(), tower.getId(), card.getName(), e.getMessage()));
+                    }
+                    sendTowerStatus(x, y, tower);
+                }
+                break;
+            case ENERGY_SURGE:
+                // Card Number: 7, Cost: 2, Copies: 3
+                // Effect: Gain 3 additional energy points for this turn.
+                sendGameEvent(String.format("%s[%s] gained 3 energy with %s", sp.getClientName(), sp.getClientId(),
+                        card.getName()));
+                sp.incrementEnergy(3);
+                sendPlayerCurrentEnergy(sp);
+                break;
+            case TELEPORT:
+                // Card Number: 9, Cost: 3, Copies: 2
+                // Effect: Move a tower to any unoccupied tile within range.
+                // Implement teleport logic here
+                break;
+            case RECON_DRONE:
+                // Card Number: 16, Cost: 3, Copies: 2
+                // Effect: Reveal a random card in your opponent's hand.
+                ServerPlayer reconTarget = getRandomPlayerWithHand(sp);
+                Card reveal = reconTarget.getRandomCard();
+                sendGameEvent(String.format("%s[%s] peeking at a random card in a random player's hand with %s",
+                        sp.getClientName(), sp.getClientId(), card.getName()));
+                sp.getServerThread()
+                        .sendGameEvent(String.format("Card from %s[%s]'s hand: \n%s", reconTarget.getClientName(),
+                                reconTarget.getClientId(), reveal));
+                break;
+            case SUPPLY_DROP:
+                // Card Number: 17, Cost: 4, Copies: 2
+                // Effect: Instantly gain 2 cards.
+                sendGameEvent(String.format("%s[%s] drew 2 cards with %s", sp.getClientName(),
+                        sp.getClientId(), card.getName()));
+                drawCard();
+                drawCard();
+                break;
+            case ARTILLERY_STRIKE:
+                // Card Number: 18, Cost: 5, Copies: 2
+                // Effect: Deal 2 damage to all enemy towers in range of one of your towers.
+                sendGameEvent(String.format("%s[%s] is damaging nearby Towers with %s", sp.getClientName(),
+                        sp.getClientId(), card.getName()));
+                List<Cell> artillery = getAllUnownedTargets(x, y, 1, sp.getClientId());
+                artillery.forEach(c -> {
+                    Tower t = c.getTower();
+                    int damage = t.takeDamage(2);
+                    sendGameEvent(
+                            String.format("Artillery Strike hit Tower[%s] for %s damage", t.getId(), damage));
+                    sendTowerStatus(c.getX(), c.getY(), t);
+
+                });
+                if (artillery.size() == 0) {
+                    sendGameEvent("Artillery Strike didn't hit any targets");
+                }
+                break;
+            case COMMAND_CENTER:
+                // Card Number: 20, Cost: 5, Copies: 2
+                // Effect: Increase your maximum energy cap by 5.
+                sendGameEvent(String.format("%s[%s] increased their energy cap by 5 with %s",
+                        sp.getClientName(), sp.getClientId(), card.getName()));
+                sp.setEnergyCap(sp.getEnergyCap() + 5);
+                break;
+            case TERRAFORMING:
+                // Card Number: 21, Cost: 3, Copies: 2
+                // Effect: Change the terrain type of one tile you control.
+                // Implement terraforming logic here
+                break;
+            case COUNTERMEASURES:
+                // Card Number: 22, Cost: 4, Copies: 2
+                // Effect: Remove all buffs from a target tower.
+                if (tower != null) {
+                    sendGameEvent(String.format("%s[%s] is removing buffs from Tower[%s] with %s",
+                            sp.getClientName(), sp.getClientId(), tower.getId(),
+                            card.getName()));
+                    tower.removeAllBuffs();
+                    sendTowerStatus(x, y, tower);
+                    sendGameEvent(String.format("Remove all buffs from Tower[%s]", tower.getId()));
+                }
+                break;
+            case RESOURCE_THEFT:
+                // Card Number: 23, Cost: 3, Copies: 2
+                // Effect: Steal a random card from an opponent’s hand.
+                sendGameEvent(String.format("%s[%s] is stealing a random card from a random Player with %s",
+                        sp.getClientName(), sp.getClientId(), card.getName()));
+                ServerPlayer resourceTarget = getRandomPlayerWithHand(sp);
+                Card steal = resourceTarget.getRandomCard();
+                sp.getServerThread()
+                        .sendGameEvent(String.format("Card from %s[%s]'s hand: \n%s", resourceTarget.getClientName(),
+                                resourceTarget.getClientId(), steal));
+                break;
+            case BACKUP_SYSTEMS:
+                // Card Number: 24, Cost: 3, Copies: 2
+                // Effect: Remove all debuffs from your towers.
+                sendGameEvent(String.format("%s[%s] is cleansing their Towers with %s",
+                        sp.getClientName(), sp.getClientId(), card.getName()));
+                List<Cell> owned = getAllOwnedTargets(x, y, grid.getCols(), sp.getClientId());
+                owned.forEach(c -> {
+                    Tower t = c.getTower();
+                    t.removeAllDebuffs();
+                    sendTowerStatus(c.getX(), c.getY(), t);
+
+                });
+                if (owned.size() == 0) {
+                    sendGameEvent("Backup Systems failed to find targets to repair");
+                }
+                break;
+            default:
+                // Handle all other cases
+                break;
+        }
+    }
+
+    // card helpers end
 
     // send/sync data to ServerPlayer(s)
 
@@ -546,7 +932,15 @@ public class GameRoom extends BaseGameRoom {
             LoggerUtil.INSTANCE.info(String.format("Player's current energy %s", sp.getEnergy()));
             if (energy > 0) {
                 if (sp.decrementEnergy(absEnergy)) {
-                    playersTower.allocateEnergy(absEnergy); // adds
+
+                    try {
+                        playersTower.allocateEnergy(absEnergy); // adds
+
+                    } catch (Exception e) {
+                        sendGameEvent(String.format(
+                                "%s[%s] failed to allocate energy to Tower[%s] due to %s",
+                                sp.getClientName(), sp.getClientId(), playersTower.getId(), e.getMessage()));
+                    }
                     LoggerUtil.INSTANCE
                             .info(String.format("Allocated %s energy to tower %s", absEnergy, playersTower.getId()));
                 } else {
@@ -562,7 +956,14 @@ public class GameRoom extends BaseGameRoom {
                     st.sendGameEvent("You can't deallocate more energy than the tower has");
                     return;
                 }
-                playersTower.allocateEnergy(energy); // removes
+                try {
+                    playersTower.allocateEnergy(absEnergy); // removes
+
+                } catch (Exception e) {
+                    sendGameEvent(String.format(
+                            "%s[%s] failed to deallocate energy to Tower[%s] due to %s",
+                            sp.getClientName(), sp.getClientId(), playersTower.getId(), e.getMessage()));
+                }
                 LoggerUtil.INSTANCE
                         .info(String.format("Deallocated %s energy to tower %s", absEnergy, playersTower.getId()));
                 sp.incrementEnergy(absEnergy);
@@ -662,44 +1063,7 @@ public class GameRoom extends BaseGameRoom {
                 return;
             }
             int tempCost = 1; // TODO: adjust this based on game rules later
-            checkCost(sp, tempCost);
-            Tower newTower = null;
-            try {
-                // create a new tower for this player
-                newTower = new Tower(sp.getClientId());
-
-                // rule for first tower placement
-                if (sp.getTotalTowers() == 0) {
-                    // fixed logic after demo
-                    if ((x > 0 && x < grid.getCols() - 1) && (y > 0 && y < grid.getRows() - 1)) {
-                        st.sendGameEvent("Your first tower must start at the edge");
-                        return;
-                    }
-                } else { // rule for subsequent tower placement
-                    List<Cell> validCells = grid.getValidCellsWithinRange(x, y, 1);
-                    Cell target = validCells.stream()
-                            .filter(c -> c.getTower() != null && c.getTower().getClientId() == sp.getClientId())
-                            .findFirst().orElse(null);
-                    if (target == null) {
-                        st.sendGameEvent("Towers must be placed adjacent to your own towers");
-                        return;
-                    }
-                }
-
-                // attempt to allocate tower to cell
-                grid.setCell(x, y, newTower);
-                // assign tower
-                sp.setTower(newTower);
-                // send update
-                sendTowerStatus(x, y, newTower);
-                // decrease energy
-                sp.decrementEnergy(tempCost);
-                // send energy update
-                sendPlayerCurrentEnergy(sp);
-            } catch (Exception e) {
-                e.printStackTrace();
-                return;
-            }
+            placeTower(sp, x, y, tempCost);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -710,7 +1074,7 @@ public class GameRoom extends BaseGameRoom {
             checkCurrentPhase(st, Phase.TURN);
             checkPlayerInRoom(st);
             checkCurrentPlayer(st);
-            // TODO finish this
+
             ServerPlayer sp = playersInRoom.get(st.getClientId());
             if (sp.removeFromHand(card) == null) {
                 LoggerUtil.INSTANCE.severe("User doesn't have this card in hand: " + card);
@@ -718,28 +1082,55 @@ public class GameRoom extends BaseGameRoom {
             }
             syncRemoveCard(sp, card);
             sendGameEvent(String.format("%s discarded %s", st.getClientName(), card));
-            // example turn end condition
-            onTurnEnd();
+
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    protected void handleUseCard(ServerThread st, Card card) {
+    protected void handleUseCard(ServerThread st, int x, int y, Card _card) {
         try {
             checkCurrentPhase(st, Phase.TURN);
             checkPlayerInRoom(st);
             checkCurrentPlayer(st);
-            // TODO finish this
             ServerPlayer sp = playersInRoom.get(st.getClientId());
+            Card card = sp.getHand().stream()
+                    .filter(c -> c.getId() == _card.getId())
+                    .findFirst()
+                    .orElse(null);
+            if (card == null) {
+                st.sendGameEvent("Error using card");
+                LoggerUtil.INSTANCE.severe("Error using card: " + _card);
+                return;
+            }
+            checkCost(sp, card.getEnergy());
+
+            // eager fetch of cell/tower
+            Cell cell = null;
+            Tower tower = null;
+            try {
+                cell = grid.getCell(x, y);
+                if (cell != null) {
+                    tower = cell.getTower();
+                }
+            } catch (Exception e) {
+                LoggerUtil.INSTANCE.warning("Couldn't get Cell or Tower, probably invalid coordinates");
+            }
+
+            if (card.getType() == CardType.BUFF || card.getType() == CardType.DEBUFF) {
+                processBuffDebuff(sp, card, x, y, tower);
+            } else {
+                processInstantCard(sp, card, x, y, tower);
+            }
+
             if (sp.removeFromHand(card) == null) {
                 LoggerUtil.INSTANCE.severe("User doesn't have this card in hand: " + card);
                 return;
             }
+            sp.decrementEnergy(card.getEnergy());
+            sendPlayerCurrentEnergy(sp);
             syncRemoveCard(sp, card);
             sendGameEvent(String.format("%s used %s", st.getClientName(), card));
-            // example turn end condition
-            onTurnEnd();
         } catch (Exception e) {
             e.printStackTrace();
         }

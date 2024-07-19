@@ -2,6 +2,8 @@ package Project.Client.Views;
 
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
+import java.awt.Component;
+import java.awt.Frame;
 import java.awt.GridLayout;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
@@ -18,13 +20,21 @@ import javax.swing.SwingUtilities;
 
 import Project.Client.CardView;
 import Project.Client.Client;
-import Project.Client.Interfaces.*;
+import Project.Client.Interfaces.ICardControls;
+import Project.Client.Interfaces.ICardEvents;
+import Project.Client.Interfaces.IGridEvents;
+import Project.Client.Interfaces.IPhaseEvent;
+import Project.Client.Interfaces.IReadyEvent;
+import Project.Client.Interfaces.IRoomEvents;
+import Project.Client.Interfaces.ITowerEvents;
+import Project.Common.Card;
 import Project.Common.Constants;
 import Project.Common.LoggerUtil;
 import Project.Common.Phase;
 import Project.Common.Tower;
 
-public class GamePanel extends JPanel implements ITowerEvents, IRoomEvents, IPhaseEvent, IGridEvents, IReadyEvent {
+public class GamePanel extends JPanel
+        implements ITowerEvents, IRoomEvents, IPhaseEvent, IGridEvents, IReadyEvent, ICardEvents {
     private CellPanel[][] cells;
     private JPanel gridPanel;
     private CardLayout cardLayout;
@@ -34,13 +44,19 @@ public class GamePanel extends JPanel implements ITowerEvents, IRoomEvents, IPha
     private Tower selectedTower = null;
     private CellPanel selectedCell = null;
     private List<Tower> defenderTowers = new ArrayList<>();
-    JPanel buttonPanel = new JPanel();
+    private List<Card> cards = new ArrayList<>();
+    private Card selectedCard = null;
+    private JPanel buttonPanel = new JPanel();
+    private JButton cardSelectButton;
+    private JButton cancelButton;
 
     public enum TurnAction {
         NONE,
         PLACE,
         ALLOCATE,
-        ATTACK
+        ATTACK,
+        SELECT,
+        INSPECT
     }
 
     public GamePanel(ICardControls controls) {
@@ -50,12 +66,22 @@ public class GamePanel extends JPanel implements ITowerEvents, IRoomEvents, IPha
         JButton placeButton = createActionButton("Place", TurnAction.PLACE);
         JButton allocateButton = createActionButton("Allocate", TurnAction.ALLOCATE);
         JButton attackButton = createActionButton("Attack", TurnAction.ATTACK);
+        cancelButton = new JButton("Cancel");
+        cancelButton.setVisible(false);
+        cancelButton.addActionListener((event) -> {
+            enableButtons();
+            selectedCard = null;
+        });
         JButton endButton = createActionButton("End", TurnAction.NONE);
+        cardSelectButton = createCardSelectButton();
 
         buttonPanel.add(placeButton);
         buttonPanel.add(allocateButton);
         buttonPanel.add(attackButton);
+        buttonPanel.add(cardSelectButton);
+        buttonPanel.add(cancelButton);
         buttonPanel.add(endButton);
+
         buttonPanel.setVisible(false);
 
         // Add the button panel to the top of the GamePanel
@@ -98,6 +124,47 @@ public class GamePanel extends JPanel implements ITowerEvents, IRoomEvents, IPha
         setVisible(false);
     }
 
+    private void useCard(Card card, int x, int y) {
+        if (card.getEnergy() > Client.INSTANCE.getMyEnergy()) {
+            Client.INSTANCE.clientSideGameEvent("You can't afford to use this card");
+            return;
+        }
+        try {
+            Client.INSTANCE.sendUseCard(card, x, y);
+        } catch (IOException e) {
+            Client.INSTANCE.clientSideGameEvent("There was a network error during use card");
+        }
+    }
+
+    private void handleTargetSelection(int x, int y) {
+        if (selectedCard != null) {
+            useCard(selectedCard, x, y);
+            selectedCard = null;
+            currentAction = TurnAction.NONE;
+            enableButtons();
+        }
+    }
+
+    private void enableButtons() {
+        for (Component component : buttonPanel.getComponents()) {
+            component.setEnabled(true);
+        }
+        cancelButton.setVisible(false);
+        buttonPanel.revalidate();
+        buttonPanel.repaint();
+    }
+
+    private void disableButtonsExceptCancel() {
+        for (Component component : buttonPanel.getComponents()) {
+            if (component instanceof JButton && !((JButton) component).equals(cancelButton)) {
+                component.setEnabled(false);
+            }
+        }
+        cancelButton.setVisible(true);
+        buttonPanel.revalidate();
+        buttonPanel.repaint();
+    }
+
     private JButton createActionButton(String text, TurnAction action) {
         JButton button = new JButton(text);
         button.addActionListener((event) -> {
@@ -111,6 +178,44 @@ public class GamePanel extends JPanel implements ITowerEvents, IRoomEvents, IPha
                 } catch (IOException e) {
                     Client.INSTANCE.clientSideGameEvent("Connection issue during End action");
                 }
+            }
+        });
+        return button;
+    }
+
+    private JButton createCardSelectButton() {
+        JButton button = new JButton("Select Card");
+        button.addActionListener((event) -> {
+            if (cards.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "No cards available", "Info", JOptionPane.INFORMATION_MESSAGE);
+                return;
+            }
+            Frame parentFrame = (Frame) SwingUtilities.getWindowAncestor(this);
+            CardSelectionDialog dialog = new CardSelectionDialog(parentFrame, cards);
+            dialog.setVisible(true);
+            selectedCard = dialog.getSelectedCard();
+            if (selectedCard != null) {
+                if (dialog.isDiscarded()) {
+                    // Handle discard card
+                    System.out.println("Discarded card: " + selectedCard);
+                    try {
+                        Client.INSTANCE.sendDiscardCard(selectedCard);
+                    } catch (IOException e) {
+                        Client.INSTANCE.clientSideGameEvent("There was a network error during discard");
+                    }
+                } else {
+                    // Handle use card
+                    System.out.println("Used card: " + selectedCard);
+                    // Check if the card requires a target
+                    if (selectedCard.requiresTarget()) {
+                        disableButtonsExceptCancel();
+                        currentAction = TurnAction.SELECT;
+                    } else {
+                        useCard(selectedCard, -1, -1);
+                    }
+                }
+            } else {
+                System.out.println("No card selected");
             }
         });
         return button;
@@ -153,7 +258,8 @@ public class GamePanel extends JPanel implements ITowerEvents, IRoomEvents, IPha
 
     private void showDialog(CellPanel cellPanel, Tower tower) {
         List<String> options = new ArrayList<>();
-
+        LoggerUtil.INSTANCE.info(String.format("Selected Tower: %s, Tower: %s, My ID %s",
+        selectedTower==null?"null":selectedTower, tower==null?"null":tower, Client.INSTANCE.getMyClientId()));
         switch (currentAction) {
             case PLACE:
                 options.add("Place");
@@ -170,6 +276,9 @@ public class GamePanel extends JPanel implements ITowerEvents, IRoomEvents, IPha
                         && tower.getClientId() != Client.INSTANCE.getMyClientId()) {
                     options.add("Select Defender");
                 }
+                break;
+            case SELECT:
+                options.add("Select");
                 break;
             default:
                 if (tower != null) {
@@ -190,29 +299,45 @@ public class GamePanel extends JPanel implements ITowerEvents, IRoomEvents, IPha
                     optionArray[0]);
 
             if (selectedOption != null) {
-                handleAction(selectedOption, cellPanel, tower);
+                try {
+                    selectedOption = selectedOption.toLowerCase();
+                    if(selectedOption.contains("attacker") || selectedOption.contains("defender")){
+                        selectedOption = TurnAction.ATTACK.name();
+                    }
+                    TurnAction selectedAction = TurnAction.valueOf(selectedOption.toUpperCase());
+                    handleAction(selectedAction, cellPanel, tower);
+                } catch (IllegalArgumentException e) {
+                    System.out.println("Invalid action selected");
+                }
             }
         }
     }
 
-    private void handleAction(String action, CellPanel cellPanel, Tower tower) {
+    private void handleAction(TurnAction action, CellPanel cellPanel, Tower tower) {
         switch (action) {
-            case "Place":
+            case PLACE:
                 handlePlaceAction(cellPanel);
                 break;
-            case "Allocate":
+            case ALLOCATE:
                 handleAllocateAction(cellPanel, tower);
                 break;
-            case "Select Attacker":
-                selectedTower = tower;
-                selectedCell = cellPanel;
-                System.out.println("Attacker tower selected");
+            case ATTACK:
+                if (selectedTower == null) {
+                    selectedTower = tower;
+                    selectedCell = cellPanel;
+                    System.out.println("Attacker tower selected");
+                } else {
+                    handleAttackAction(cellPanel, tower);
+                }
                 break;
-            case "Select Defender":
-                handleAttackAction(cellPanel, tower);
+            case SELECT:
+                handleTargetSelection(cellPanel.getCellX(), cellPanel.getCellY());
                 break;
-            case "Inspect":
+            case INSPECT:
+            case NONE:
                 inspectTower(tower);
+                break;
+            default:
                 break;
         }
     }
@@ -296,6 +421,8 @@ public class GamePanel extends JPanel implements ITowerEvents, IRoomEvents, IPha
         } else if (phase == Phase.TURN) {
             cardLayout.show(gridPanel.getParent(), GRID_PANEL);
             buttonPanel.setVisible(true);
+            buttonPanel.revalidate();
+            buttonPanel.repaint();
         }
     }
 
@@ -327,5 +454,35 @@ public class GamePanel extends JPanel implements ITowerEvents, IRoomEvents, IPha
     @Override
     public void onReceiveRoomList(List<String> rooms, String message) {
         // Not used here, but needs to be defined due to interface
+    }
+
+    public void clearCards() {
+        cards.clear();
+    }
+
+    @Override
+    public void onAddCard(Card card) {
+        LoggerUtil.INSTANCE.fine(String.format("Added card: %s", card));
+        cards.add(card);
+        cardSelectButton.setText(String.format("Hand: %s", this.cards.size()));
+    }
+
+    @Override
+    public void onRemoveCard(Card card) {
+        LoggerUtil.INSTANCE.fine(String.format("Removed card: %s", card));
+        cards.removeIf(c -> c.getId() == card.getId());
+        cardSelectButton.setText(String.format("Hand: %s", this.cards.size()));
+    }
+
+    @Override
+    public void onSetCards(List<Card> cards) {
+        LoggerUtil.INSTANCE.fine(String.format("Set Cards: %s", cards == null ? "null" : cards.size()));
+        if (cards == null) {
+            clearCards();
+        } else {
+            // make a copy of the passed in list to avoid reference issues
+            this.cards = cards.stream().map(c -> c).collect(Collectors.toList());
+        }
+        cardSelectButton.setText(String.format("Hand: %s", this.cards == null ? 0 : this.cards.size()));
     }
 }

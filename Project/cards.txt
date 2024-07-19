@@ -1,20 +1,26 @@
-Card1,Description of card 1,10
-Card2,Description of card 2,20
-Card3,Description of card 3,30
-Card4,Description of card 4,40
-Card5,Description of card 5,50
-Card6,Description of card 6,60
-Card7,Description of card 7,70
-Card8,Description of card 8,80
-Card9,Description of card 9,90
-Card10,Description of card 10,100
-Card11,Description of card 11,110
-Card12,Description of card 12,120
-Card13,Description of card 13,130
-Card14,Description of card 14,140
-Card15,Description of card 15,150
-Card16,Description of card 16,160
-Card17,Description of card 17,170
-Card18,Description of card 18,180
-Card19,Description of card 19,190
-Card20,Description of card 20,200
+Number,Card Name,Effect,Copies,Energy Cost,Type
+1,Resource Boost,Instantly gain 5 additional energy points.,3,2,Instant
+2,Enhanced Range,Increase the range of one tower by 1 tile for this turn.,3,2,Buff
+3,Defense Boost,Increase a tower's defense by 50% for this turn.,3,3,Buff
+4,Power Strike,Increase a tower's attack by 50% for this turn.,3,3,Buff
+5,Repair,Restore 3 health to a damaged tower.,3,2,Instant
+6,Sabotage,Reduce allocated energy of an opponent's tower by 50%.,3,3,Instant
+7,Energy Surge,Gain 3 additional energy points for this turn.,3,2,Instant
+8,Shield Generator,Prevent one tower from being attacked for this turn.,2,3,Buff
+9,Teleport,Move a tower to any unoccupied tile within range.,2,3,Instant
+10,Overcharge,Double the attack power of one tower for its next attack this turn.,2,4,Buff
+11,Energy Drain,Drain 50% of energy points from a random opponent.,3,3,Instant
+12,Fortify,Increase the defense of all towers by 50% for this turn.,2,4,Buff
+13,Resource Denial,Prevent allocation/deallocation of energy to all towers for a turn.,2,3,Debuff
+14,Rapid Construction,Build an additional tower this turn at no energy cost.,2,0,Instant
+15,Energy Shield,Absorb the next 3 damage to a tower.,2,3,Buff
+16,Recon Drone,Reveal a random card in your opponent's hand.,2,3,Instant
+17,Supply Drop,Instantly gain 2 cards.,2,4,Instant
+18,Artillery Strike,Deal 2 damage to all enemy towers in range of one of your towers.,2,5,Instant
+19,EMP Blast,Reduce the attack of all enemy towers by 50% (rounded down) for this turn.,2,4,Debuff
+20,Command Center,Increase your maximum energy cap by 5.,2,5,Instant
+21,Terraforming,Change the terrain type of one tile you control.,2,3,Instant
+22,Countermeasures,Remove all buffs from a target tower.,2,4,Instant
+23,Resource Theft,Steal a random card from an opponent’s hand.,2,3,Instant
+24,Backup Systems,Remove all debuffs from your towers.,2,3,Instant
+25,Forcefield,Prevent all damage to one tower for this turn.,2,4,Buff

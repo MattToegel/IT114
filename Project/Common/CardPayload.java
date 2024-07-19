@@ -2,8 +2,9 @@ package Project.Common;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
-public class CardPayload extends Payload {
+public class CardPayload extends XYPayload {
     private List<Card> cards;
 
     public List<Card> getCards() {
@@ -17,11 +18,11 @@ public class CardPayload extends Payload {
     public void setCard(Card card) {
         cards = new ArrayList<Card>();
 
-        cards.add(card);
+        cards.add(Card.copy(card));
     }
 
     public void setCards(List<Card> cards) {
-        this.cards = cards;
+        this.cards = cards.stream().map(c->Card.copy(c)).collect(Collectors.toList());
     }
 
     @Override

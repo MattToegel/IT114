@@ -12,6 +12,7 @@ import javax.swing.BorderFactory;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 
+import Project.Client.Client;
 import Project.Common.LoggerUtil;
 import Project.Common.Tower;
 
@@ -101,6 +102,7 @@ public class CellPanel extends JPanel {
                     tower.getId(), tower.getHealth(), tower.getAllocatedEnergy(), tower.didAllocate() ? "Y" : "N",
                     tower.didAttack() ? "Y" : "N");
             label.setText(text);
+            label.setForeground(tower.getClientId() == Client.INSTANCE.getMyClientId()?Color.BLUE:Color.RED);
         } else {
             label.setText("");
         }

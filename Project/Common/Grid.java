@@ -137,6 +137,8 @@ public class Grid {
                 }
             }
         }
+        rows = 0;
+        cols = 0;
     }
 
     /**

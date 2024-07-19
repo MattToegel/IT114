@@ -2,6 +2,7 @@ package Project.Common;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -70,6 +71,11 @@ public class Player {
         return new ArrayList<>(hand);
     }
 
+    public Card getRandomCard(){
+        List<Card> cards = getHand();
+        return cards.get(new Random().nextInt(cards.size()));
+    }
+
     public void setHand(List<Card> cards) {
         if (cards == null) {
             hand.clear();
@@ -107,7 +113,11 @@ public class Player {
                 existingTower.setRange(tower.getRange());
                 existingTower.setHealth(tower.getHealth());
                 existingTower.clearAllocatedEnergy();
-                existingTower.allocateEnergy(tower.getAllocatedEnergy());
+                try {
+                    existingTower.allocateEnergy(tower.getAllocatedEnergy());
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
                 return existingTower;
             }
         });

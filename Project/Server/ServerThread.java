@@ -140,7 +140,8 @@ public class ServerThread extends BaseServerThread {
                     try {
                         // cast to GameRoom as the subclass will handle all Game logic
                         CardPayload cardPayload = (CardPayload) payload;
-                        ((GameRoom) currentRoom).handleUseCard(this, cardPayload.getCard());
+                        
+                        ((GameRoom) currentRoom).handleUseCard(this,cardPayload.getX(), cardPayload.getY(), cardPayload.getCard());
                     } catch (Exception e) {
                         sendMessage("You must be in a GameRoom to use a card");
                     }

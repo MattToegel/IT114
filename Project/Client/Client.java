@@ -19,6 +19,7 @@ import java.util.stream.IntStream;
 import Project.Client.Interfaces.IConnectionEvents;
 import Project.Client.Interfaces.IEnergyEvents;
 import Project.Client.Interfaces.IGridEvents;
+import Project.Client.Interfaces.ICardEvents;
 import Project.Client.Interfaces.IClientEvents;
 import Project.Client.Interfaces.IMessageEvents;
 import Project.Client.Interfaces.IPhaseEvent;
@@ -303,12 +304,24 @@ public enum Client {
                         break;
                     case USE:
                         try {
-                            int cardOffset = Integer.parseInt(commandValue) - 1;
+                            String[] parts = commandValue.split(" ");
+                            int cardOffset = Integer.parseInt(parts[0]) - 1;
                             Card c = myData.getHand().get(cardOffset);
-                            sendUseCard(c);
+
+                            int x = -1;
+                            int y = -1;
+
+                            if (parts.length == 2) {// handle new format /card <number> <x>,<y>
+                                String[] coordinates = parts[1].split(",");
+                                x = Integer.parseInt(coordinates[0]);
+                                y = Integer.parseInt(coordinates[1]);
+                            }
+
+                            sendUseCard(c, x, y);
                         } catch (Exception e) {
                             System.out.println(
-                                    TextFX.colorize("Invalid command format, try /use card_number (see /hand first)",
+                                    TextFX.colorize(
+                                            "Invalid command format, try /card card_number or /card card_number x,y (see /hand first)",
                                             Color.RED));
                         }
                         wasCommand = true;
@@ -378,6 +391,11 @@ public enum Client {
         return false;
     }
 
+    public int getMyEnergy() {
+        LoggerUtil.INSTANCE.info("My Energy: " + myData.getEnergy());
+        return myData.getEnergy();
+    }
+
     public long getMyClientId() {
         return myData.getClientId();
     }
@@ -437,14 +455,24 @@ public enum Client {
         send(p);
     }
 
-    private void sendUseCard(Card c) throws IOException {
+    /**
+     * Passes the desired card data and a potential target x,y for the effect
+     * 
+     * @param c
+     * @param x
+     * @param y
+     * @throws IOException
+     */
+    public void sendUseCard(Card c, int x, int y) throws IOException {
         CardPayload cp = new CardPayload();
         cp.setCard(c);
+        cp.setX(x);
+        cp.setY(y);
         cp.setPayloadType(PayloadType.USE_CARD);
         send(cp);
     }
 
-    private void sendDiscardCard(Card c) throws IOException {
+    public void sendDiscardCard(Card c) throws IOException {
         CardPayload cp = new CardPayload();
         cp.setCard(c);
         cp.setPayloadType(PayloadType.REMOVE_CARD);
@@ -684,7 +712,9 @@ public enum Client {
      */
     private void processPayload(Payload payload) {
         try {
-            LoggerUtil.INSTANCE.info("Received Payload: " + payload);
+            if (payload.getPayloadType() != PayloadType.TIME) {
+                LoggerUtil.INSTANCE.info("Received Payload: " + payload);
+            }
             switch (payload.getPayloadType()) {
                 case PayloadType.CLIENT_ID: // get id assigned
                     ConnectionPayload cp = (ConnectionPayload) payload;
@@ -857,6 +887,11 @@ public enum Client {
             // Note: We may need to leverage an additional PayloadType
             // to distinguish between Use/Discard; I didn't for this lesson
             System.out.println("Used/Discarded Card " + card);
+            events.forEach(event -> {
+                if (event instanceof ICardEvents) {
+                    ((ICardEvents) event).onRemoveCard(card);
+                }
+            });
         }
     }
 
@@ -867,6 +902,11 @@ public enum Client {
         if (clientId == myData.getClientId()) {
             myData.addToHand(card);
             System.out.println("Received Card " + card);
+            events.forEach(event -> {
+                if (event instanceof ICardEvents) {
+                    ((ICardEvents) event).onAddCard(card);
+                }
+            });
         }
     }
 
@@ -877,6 +917,11 @@ public enum Client {
         if (clientId == myData.getClientId()) {
             myData.setHand(cards);
             showHand();
+            events.forEach(event -> {
+                if (event instanceof ICardEvents) {
+                    ((ICardEvents) event).onSetCards(cards);
+                }
+            });
         }
     }
 
@@ -1022,10 +1067,16 @@ public enum Client {
     private void processClientSync(long clientId, String clientName) {
 
         if (!knownClients.containsKey(clientId)) {
-            ClientPlayer cd = new ClientPlayer();
-            cd.setClientId(clientId);
-            cd.setClientName(clientName);
-            knownClients.put(clientId, cd);
+            // fix to have the correct reference set in knownClients
+            if (clientId == myData.getClientId()) {
+                knownClients.put(clientId, myData);
+            } else {
+                ClientPlayer cd = new ClientPlayer();
+                cd.setClientId(clientId);
+                cd.setClientName(clientName);
+                knownClients.put(clientId, cd);
+            }
+
             // invoke onSyncClient callback
             events.forEach(event -> {
                 if (event instanceof IConnectionEvents) {
@@ -1038,10 +1089,15 @@ public enum Client {
     private void processRoomAction(long clientId, String clientName, String message, boolean isJoin) {
 
         if (isJoin && !knownClients.containsKey(clientId)) {
-            ClientPlayer cd = new ClientPlayer();
-            cd.setClientId(clientId);
-            cd.setClientName(clientName);
-            knownClients.put(clientId, cd);
+            // fix to have the correct reference set in knownClients
+            if (clientId == myData.getClientId()) {
+                knownClients.put(clientId, myData);
+            } else {
+                ClientPlayer cd = new ClientPlayer();
+                cd.setClientId(clientId);
+                cd.setClientName(clientName);
+                knownClients.put(clientId, cd);
+            }
             System.out.println(TextFX
                     .colorize(String.format("*%s[%s] joined the Room %s*", clientName, clientId, message),
                             Color.GREEN));

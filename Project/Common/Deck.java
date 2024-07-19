@@ -38,22 +38,42 @@ public class Deck {
      * @param filePath the path to the file containing card information
      * @throws IOException if an I/O error occurs reading from the file
      */
-    private synchronized void loadCardsFromFile(String filePath) throws IOException {
+    public synchronized void loadCardsFromFile(String filePath) throws IOException {
         // Construct absolute path to the file
         Path fullPath = Paths.get(System.getProperty("user.dir"), filePath);
         if (!Files.exists(fullPath)) {
             throw new IOException("File not found: " + fullPath);
         }
+
+        List<Integer> unimplementedCards = List.of(9, 21); // Example card numbers to exclude
+
         try (BufferedReader br = Files.newBufferedReader(fullPath)) {
             defaultCards = br.lines()
+                    .skip(1) // skip the header row
                     .map(line -> line.split(","))
-                    .filter(cardDetails -> cardDetails.length == 3)
-                    .map(cardDetails -> new Card(
-                            generateID(),
-                            cardDetails[0].trim(),
-                            cardDetails[1].trim(),
-                            Integer.parseInt(cardDetails[2].trim())))
+                    .filter(cardDetails -> cardDetails.length == 6)
+                    .flatMap(cardDetails -> {
+                        int cardNumber = Integer.parseInt(cardDetails[0].trim()); // card number
+                        if (unimplementedCards.contains(cardNumber)) {
+                            return new ArrayList<Card>().stream(); // Skip this card
+                        }
+                        int copies = Integer.parseInt(cardDetails[3].trim()); // copies
+                        List<Card> cards = new ArrayList<>();
+                        for (int i = 0; i < copies; i++) {
+                            cards.add(new Card(
+                                    generateID(),
+                                    cardDetails[1].trim(), // title
+                                    cardDetails[2].trim(), // description
+                                    Integer.parseInt(cardDetails[4].trim()), // energy cost
+                                    Card.CardType.valueOf(cardDetails[5].trim().toUpperCase()), // card type
+                                    cardNumber // card number
+                            ));
+                        }
+                        return cards.stream();
+                    })
                     .collect(Collectors.toList());
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
