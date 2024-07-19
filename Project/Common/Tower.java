@@ -191,6 +191,8 @@ public class Tower implements Serializable {
     public void allocateEnergy(int energy) throws Exception {
         if (!isAllocationBlocked()) {
             this.allocatedEnergy += energy;
+        }
+        else{
             throw new Exception("Allocation blocked by Resource Denial");
         }
     }

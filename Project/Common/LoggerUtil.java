@@ -151,6 +151,7 @@ public enum LoggerUtil {
             ConsoleHandler consoleHandler = new ConsoleHandler();
             consoleHandler.setFormatter(new CustomFormatter());
             consoleHandler.setLevel(config.getConsoleLogLevel());
+            
             logger.addHandler(consoleHandler);
 
             logger.setLevel(Level.ALL);

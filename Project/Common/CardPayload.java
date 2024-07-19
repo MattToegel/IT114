@@ -22,6 +22,11 @@ public class CardPayload extends XYPayload {
     }
 
     public void setCards(List<Card> cards) {
+        // avoid null reference exception
+        if(cards == null){
+            this.cards = null;
+            return;
+        }
         this.cards = cards.stream().map(c->Card.copy(c)).collect(Collectors.toList());
     }
 

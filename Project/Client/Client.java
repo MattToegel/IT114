@@ -390,7 +390,9 @@ public enum Client {
         }
         return false;
     }
-
+    public List<Card> getMyHand(){
+        return myData.getHand();
+    }
     public int getMyEnergy() {
         LoggerUtil.INSTANCE.info("My Energy: " + myData.getEnergy());
         return myData.getEnergy();

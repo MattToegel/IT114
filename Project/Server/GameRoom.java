@@ -251,16 +251,23 @@ public class GameRoom extends BaseGameRoom {
         resetTurnTimer(); // just in case it's still active if we forgot to end it sooner
         resetRoundTimer(); // just in case it's still active if we forgot to end it sooner
         // clear towers and energy
+        LoggerUtil.INSTANCE.info("Resetting Towers and Energy");
         playersInRoom.values().forEach(p -> {
             p.clearTowers();
             p.setEnergy(0);
         });
         sendPlayerCurrentEnergy(null);
+        LoggerUtil.INSTANCE.fine("Resetting current turn");
         sendCurrentTurn(null);
+        LoggerUtil.INSTANCE.fine("Resetting hands");
         sendResetHands();
+        LoggerUtil.INSTANCE.fine("Retting Grid");
         sendGridDimensions();
+        LoggerUtil.INSTANCE.fine("Resetting Turn Status");
         sendResetTurnStatus();
+        LoggerUtil.INSTANCE.fine("Resetting Ready Status");
         resetReadyStatus();
+        LoggerUtil.INSTANCE.fine("Changing Phase to READY");
         changePhase(Phase.READY);
         LoggerUtil.INSTANCE.info("onSessionEnd() end");
     }
@@ -478,8 +485,8 @@ public class GameRoom extends BaseGameRoom {
             case FORTIFY:
                 // Card Number: 12, Cost: 4, Copies: 2
                 // Effect: Increase the defense of all towers by 50% for this turn.
-                sendGameEvent(String.format("%s[%s] increasing the defense of their Towers by 50% for 1 turn with %s",
-                        sp.getClientName(), sp.getClientId(), card.getName()));
+                sendGameEvent(String.format("%s[%s] increasing the defense of their Towers by %s for 1 turn with %s",
+                        sp.getClientName(), sp.getClientId(), "50%", card.getName()));
                 applyBuffDebuff(card.getCardNumber(), getAllOwnedTargets(x, y, 1, sp.getClientId()),
                         "Fortify failed to apply to any Towers");
                 break;
@@ -503,8 +510,8 @@ public class GameRoom extends BaseGameRoom {
                 // Effect: Reduce the attack of all enemy towers by 50% (rounded down) for this
                 // turn.
                 sendGameEvent(
-                        String.format("%s[%s] is reducing the attack of nearby enemy Towers by 50% for 1 turn with %s",
-                                sp.getClientName(), sp.getClientId(), card.getName()));
+                        String.format("%s[%s] is reducing the attack of nearby enemy Towers by %s for 1 turn with %s",
+                                sp.getClientName(), sp.getClientId(), "50%", card.getName()));
                 applyBuffDebuff(card.getCardNumber(), getAllUnownedTargets(x, y, 1, sp.getClientId()),
                         "EMP Blast failed to affect any Towers");
                 break;
@@ -522,8 +529,8 @@ public class GameRoom extends BaseGameRoom {
             case DEFENSE_BOOST:
                 // Card Number: 3, Cost: 3, Copies: 3
                 // Effect: Increase a tower's defense by 50% for this turn.
-                sendGameEvent(String.format("%s[%s] is increasing Tower[%s]'s defense by 50% for 1 turn with %s",
-                        sp.getClientName(), sp.getClientId(), tower.getId(), card.getName()));
+                sendGameEvent(String.format("%s[%s] is increasing Tower[%s]'s defense by %s for 1 turn with %s",
+                        sp.getClientName(), sp.getClientId(), tower.getId(), "50%", card.getName()));
                 if (tower != null) {
                     BuffDebuff bd = Card.createBuffDebuff(card.getCardNumber());
                     tower.addBuffDebuff(bd);
@@ -533,8 +540,8 @@ public class GameRoom extends BaseGameRoom {
             case POWER_STRIKE:
                 // Card Number: 4, Cost: 3, Copies: 3
                 // Effect: Increase a tower's attack by 50% for this turn.
-                sendGameEvent(String.format("%s[%s] is increasing Tower[%s]'s attack by 50% for 1 turn with %s",
-                        sp.getClientName(), sp.getClientId(), tower.getId(), card.getName()));
+                sendGameEvent(String.format("%s[%s] is increasing Tower[%s]'s attack by %s for 1 turn with %s",
+                        sp.getClientName(), sp.getClientId(), tower.getId(), "50%", card.getName()));
                 if (tower != null) {
                     BuffDebuff bd = Card.createBuffDebuff(card.getCardNumber());
                     tower.addBuffDebuff(bd);
@@ -631,12 +638,12 @@ public class GameRoom extends BaseGameRoom {
                 if (tower != null) {
                     try {
                         tower.allocateEnergy((int) (tower.getAllocatedEnergy() * .5));
-                        sendGameEvent(String.format("%s[%s] reduced Tower[%s]'s allocated energy by 50% with %s",
-                                sp.getClientName(), sp.getClientId(), tower.getId(), card.getName()));
+                        sendGameEvent(String.format("%s[%s] reduced Tower[%s]'s allocated energy by %s with %s",
+                                sp.getClientName(), sp.getClientId(), tower.getId(),"50%", card.getName()));
                     } catch (Exception e) {
                         sendGameEvent(String.format(
-                                "%s[%s] failed to reduced Tower[%s]'s allocated energy by 50% with %s due to %s",
-                                sp.getClientName(), sp.getClientId(), tower.getId(), card.getName(), e.getMessage()));
+                                "%s[%s] failed to reduced Tower[%s]'s allocated energy by %s with %s due to %s",
+                                sp.getClientName(), sp.getClientId(), tower.getId(), "50%", card.getName(), e.getMessage()));
                     }
                     sendTowerStatus(x, y, tower);
                 }
@@ -722,6 +729,10 @@ public class GameRoom extends BaseGameRoom {
                         sp.getClientName(), sp.getClientId(), card.getName()));
                 ServerPlayer resourceTarget = getRandomPlayerWithHand(sp);
                 Card steal = resourceTarget.getRandomCard();
+                resourceTarget.removeFromHand(steal);
+                syncRemoveCard(resourceTarget, steal);
+                sp.addToHand(steal);
+                syncAddCard(sp, steal);
                 sp.getServerThread()
                         .sendGameEvent(String.format("Card from %s[%s]'s hand: \n%s", resourceTarget.getClientName(),
                                 resourceTarget.getClientId(), steal));

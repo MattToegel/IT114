@@ -32,7 +32,9 @@ public class BuffDebuff implements Serializable {
     private double modifier;
 
     public BuffDebuff(EffectType effectType, double modifier) {
-        this(effectType, modifier, 1);
+        // temporary "fix" to prevent losing benefits early
+        // is super imbalanced because some effects get a 2 turn duration, this is a TODO fix item
+        this(effectType, modifier, 2);
     }
 
     public BuffDebuff(EffectType effectType, double modifier, int duration) {

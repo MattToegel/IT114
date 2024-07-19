@@ -44,7 +44,7 @@ public class GamePanel extends JPanel
     private Tower selectedTower = null;
     private CellPanel selectedCell = null;
     private List<Tower> defenderTowers = new ArrayList<>();
-    private List<Card> cards = new ArrayList<>();
+    private List<Card> cards = new ArrayList<>(); //TODO replace with Client.INSTANCE.getHand();
     private Card selectedCard = null;
     private JPanel buttonPanel = new JPanel();
     private JButton cardSelectButton;
