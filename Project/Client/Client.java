@@ -759,7 +759,9 @@ public enum Client {
                     break;
                 case PayloadType.GRID_DIMENSION:
                     XYPayload gd = (XYPayload) payload;
-                    processGridDimension(gd.getX(), gd.getY());
+                    // clientId is holding the seed value which makes sure the Random class produces the same set of random values
+                    long seed = gd.getClientId();
+                    processGridDimension(gd.getX(), gd.getY(), seed);
                     break;
                 case PayloadType.TURN:
                     ReadyPayload tp = (ReadyPayload) payload;
@@ -949,10 +951,15 @@ public enum Client {
             });
         }
     }
-
-    private void processGridDimension(int x, int y) {
+    /**
+     * 
+     * @param x rows
+     * @param y cols
+     * @param seed random seed to ensure same random numbers occur
+     */
+    private void processGridDimension(int x, int y, long seed) {
         if (x > 0 && y > 0) {
-            grid = new Grid(x, y);
+            grid = new Grid(x, y, seed);
         } else {
             grid.reset();
             // added other cleanup
@@ -964,7 +971,7 @@ public enum Client {
         LoggerUtil.INSTANCE.info("Grid: " + grid);
         events.forEach(event -> {
             if (event instanceof IGridEvents) {
-                ((IGridEvents) event).onReceiveGrid(x, y);
+                ((IGridEvents) event).onReceiveGrid(grid);
             }
         });
     }

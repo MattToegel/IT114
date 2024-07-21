@@ -81,8 +81,8 @@ public class ServerPlayer extends Player {
         return client.sendTurnStatus(clientId, didTakeTurn);
     }
 
-    public boolean sendGridDimensions(int x, int y) {
-        return client.sendGridDimensions(x, y);
+    public boolean sendGridDimensions(int x, int y, long seed) {
+        return client.sendGridDimensions(x, y, seed);
     }
 
     public boolean sendReadyStatus(long clientId, boolean isReady, boolean quiet) {

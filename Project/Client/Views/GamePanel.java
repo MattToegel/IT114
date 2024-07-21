@@ -28,7 +28,9 @@ import Project.Client.Interfaces.IReadyEvent;
 import Project.Client.Interfaces.IRoomEvents;
 import Project.Client.Interfaces.ITowerEvents;
 import Project.Common.Card;
+import Project.Common.Cell;
 import Project.Common.Constants;
+import Project.Common.Grid;
 import Project.Common.LoggerUtil;
 import Project.Common.Phase;
 import Project.Common.Tower;
@@ -44,7 +46,7 @@ public class GamePanel extends JPanel
     private Tower selectedTower = null;
     private CellPanel selectedCell = null;
     private List<Tower> defenderTowers = new ArrayList<>();
-    private List<Card> cards = new ArrayList<>(); //TODO replace with Client.INSTANCE.getHand();
+    private List<Card> cards = new ArrayList<>(); // TODO replace with Client.INSTANCE.getHand();
     private Card selectedCard = null;
     private JPanel buttonPanel = new JPanel();
     private JButton cardSelectButton;
@@ -233,15 +235,20 @@ public class GamePanel extends JPanel
         }
     }
 
-    private void makeGrid(int rows, int columns) {
+    private void makeGrid(Grid grid) {
         SwingUtilities.invokeLater(() -> {
+            int rows = grid.getRows();
+            int columns = grid.getCols();
             resetView();
             LoggerUtil.INSTANCE.fine("Create CellPanels Grid");
             cells = new CellPanel[rows][columns];
             gridPanel.setLayout(new GridLayout(rows, columns));
             for (int i = 0; i < rows; i++) {
                 for (int j = 0; j < columns; j++) {
-                    cells[i][j] = new CellPanel(i, j, this::handleSelection);
+
+                    Cell cell = grid.getCell(i, j);
+                    // map Cell Terrain Info
+                    cells[i][j] = new CellPanel(i, j, cell.getCost(), cell.getTerrainType(), this::handleSelection);
                     gridPanel.add(cells[i][j]);
                 }
             }
@@ -259,7 +266,8 @@ public class GamePanel extends JPanel
     private void showDialog(CellPanel cellPanel, Tower tower) {
         List<String> options = new ArrayList<>();
         LoggerUtil.INSTANCE.info(String.format("Selected Tower: %s, Tower: %s, My ID %s",
-        selectedTower==null?"null":selectedTower, tower==null?"null":tower, Client.INSTANCE.getMyClientId()));
+                selectedTower == null ? "null" : selectedTower, tower == null ? "null" : tower,
+                Client.INSTANCE.getMyClientId()));
         switch (currentAction) {
             case PLACE:
                 options.add("Place");
@@ -301,7 +309,7 @@ public class GamePanel extends JPanel
             if (selectedOption != null) {
                 try {
                     selectedOption = selectedOption.toLowerCase();
-                    if(selectedOption.contains("attacker") || selectedOption.contains("defender")){
+                    if (selectedOption.contains("attacker") || selectedOption.contains("defender")) {
                         selectedOption = TurnAction.ATTACK.name();
                     }
                     TurnAction selectedAction = TurnAction.valueOf(selectedOption.toUpperCase());
@@ -350,6 +358,11 @@ public class GamePanel extends JPanel
 
     private void handlePlaceAction(CellPanel cellPanel) {
         try {
+            // Added cost of cells in Terrain feature
+            if (Client.INSTANCE.getMyEnergy() < cellPanel.getCost()) {
+                throw new Exception(String.format("You can't afford to place a Tower in this cell, cost is %s",
+                        cellPanel.getCost()));
+            }
             Client.INSTANCE.sendPlace(cellPanel.getCellX(), cellPanel.getCellY());
             cellPanel.setSelected(false);
         } catch (IOException e) {
@@ -432,9 +445,9 @@ public class GamePanel extends JPanel
     }
 
     @Override
-    public void onReceiveGrid(int rows, int columns) {
-        if (rows > 0 && columns > 0) {
-            makeGrid(rows, columns);
+    public void onReceiveGrid(Grid grid) {
+        if (grid.getRows() > 0 && grid.getCols() > 0) {
+            makeGrid(grid);
         } else {
             resetView();
         }

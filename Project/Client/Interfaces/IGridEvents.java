@@ -1,10 +1,11 @@
 package Project.Client.Interfaces;
 
+import Project.Common.Grid;
+
 public interface IGridEvents extends IGameEvents {
     /**
      * Receives grid dimensions (-1,-1 is used to reset)
-     * @param rows
-     * @param columns
+     * @param grid 
      */
-    void onReceiveGrid(int rows, int columns);
+    void onReceiveGrid(Grid grid);
 }

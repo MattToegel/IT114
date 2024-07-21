@@ -10,6 +10,9 @@ import java.util.Map;
 import java.util.Random;
 import java.util.function.BiConsumer;
 
+import Project.Common.Cell.Terrain;
+import Project.Common.Cell.TerrainBonusType;
+
 /**
  * Represents a Tower that can be placed on a Cell.
  * Towers have attributes like attack power, defense, range, and health.
@@ -28,6 +31,7 @@ public class Tower implements Serializable {
     private int defense;
     private int range;
     private int health;
+    private static final int MAX_HEALTH = 5;
     private int allocatedEnergy;
     private static final Random random = new Random();
     private boolean attacked = false;
@@ -48,6 +52,28 @@ public class Tower implements Serializable {
 
     private static final List<BuffDebuff.EffectType> FORCEFIELD_EFFECTS = Collections.singletonList(
             BuffDebuff.EffectType.FORCEFIELD);
+
+    /**
+     * Transient indicates this field should not be serialized
+     */
+    private transient Cell cell;
+
+    protected void setCell(Cell cell) {
+        this.cell = cell;
+    }
+
+    /**
+     * Returns a reference of the Cell the Tower is sitting on
+     * 
+     * @return
+     */
+    public Cell getCell() {
+        return cell;
+    }
+
+    public boolean isOnEnergyCell() {
+        return cell != null && cell.getTerrainType() == Terrain.ENERGY;
+    }
 
     public void setDidAllocate(boolean alloc) {
         allocated = alloc;
@@ -80,43 +106,6 @@ public class Tower implements Serializable {
         this.allocatedEnergy = 0;
     }
 
-    /**
-     * Constructs a Tower with default attributes, using the specified tower ID.
-     *
-     * @param clientId the ID of the player who owns this tower.
-     * @param towerId  the ID of the tower being set.
-     */
-    public Tower(long clientId, long towerId) {
-        this.id = towerId;
-        this.clientId = clientId;
-        this.attack = 1;
-        this.defense = 1;
-        this.range = 1;
-        this.health = 5;
-        this.allocatedEnergy = 0;
-    }
-
-    /**
-     * Constructs a Tower with specified attributes.
-     *
-     * @param clientId        the ID of the player who owns this tower.
-     * @param towerId         the ID of the tower being set.
-     * @param attack          the attack power of the tower.
-     * @param defense         the defense power of the tower.
-     * @param range           the range of the tower.
-     * @param health          the health of the tower.
-     * @param allocatedEnergy the energy allocated to the tower.
-     */
-    public Tower(long clientId, long towerId, int attack, int defense, int range, int health, int allocatedEnergy) {
-        this.id = towerId;
-        this.clientId = clientId;
-        this.attack = attack;
-        this.defense = defense;
-        this.range = range;
-        this.health = health;
-        this.allocatedEnergy = allocatedEnergy;
-    }
-
     public void refresh() {
         attacked = false;
         allocated = false;
@@ -127,6 +116,17 @@ public class Tower implements Serializable {
             buffDebuff.reduceDuration();
             if (buffDebuff.getDuration() <= 0) {
                 iterator.remove();
+            }
+        }
+        // healing terrain (allows overheal if not at or exceeding max health)
+        if (health < MAX_HEALTH) {
+            // cell properties
+            if (cell != null && cell.getTerrainType() == Terrain.HEALING) {
+                if (cell.getTerrainBonusType() == TerrainBonusType.FLAT) {
+                    health += cell.getTerrainBonus();
+                } else {
+                    health += health * (1 + cell.getTerrainBonus());
+                }
             }
         }
     }
@@ -141,11 +141,23 @@ public class Tower implements Serializable {
     }
 
     public int getAttack() {
+        int calcAttack = attack;
+        // buff/debuff
         double percentModifier = activeBuffsDebuffs.values().stream()
                 .filter(buff -> ATTACK_EFFECTS.contains(buff.getEffectType()))
                 .mapToDouble(BuffDebuff::getModifier)
                 .sum();
-        return (int) Math.round(attack * (1 + percentModifier));
+
+        // cell properties
+        if (cell != null && cell.getTerrainType() == Terrain.ATTACK) {
+            if (cell.getTerrainBonusType() == TerrainBonusType.FLAT) {
+                calcAttack += cell.getTerrainBonus();
+            } else {
+                calcAttack += Math.ceil(calcAttack * (1 + cell.getTerrainBonus()));
+            }
+        }
+        calcAttack *= Math.ceil(1 + percentModifier);// buff/debuff bonus
+        return (int) Math.round(calcAttack);
     }
 
     public void setAttack(int attack) {
@@ -153,11 +165,24 @@ public class Tower implements Serializable {
     }
 
     public int getDefense() {
+        int calcDefense = defense;
+        // buff/debuff
         double percentModifier = activeBuffsDebuffs.values().stream()
                 .filter(buff -> DEFENSE_EFFECTS.contains(buff.getEffectType()))
                 .mapToDouble(BuffDebuff::getModifier)
                 .sum();
-        return (int) Math.round(defense * (1 + percentModifier));
+
+        // cell properties
+        if (cell != null && cell.getTerrainType() == Terrain.DEFENSE) {
+            if (cell.getTerrainBonusType() == TerrainBonusType.FLAT) {
+                calcDefense += cell.getTerrainBonus();
+            } else {
+                calcDefense += Math.ceil(calcDefense * (1 + cell.getTerrainBonus()));
+            }
+        }
+        calcDefense *= Math.ceil(1 + percentModifier);// buff/debuff bonus
+
+        return (int) Math.round(calcDefense);
     }
 
     public void setDefense(int defense) {
@@ -165,11 +190,24 @@ public class Tower implements Serializable {
     }
 
     public int getRange() {
+        int calcRange = range;
+        // buff/debuff
         double percentModifier = activeBuffsDebuffs.values().stream()
                 .filter(buff -> RANGE_EFFECTS.contains(buff.getEffectType()))
                 .mapToDouble(BuffDebuff::getModifier)
                 .sum();
-        return (int) Math.round(range * (1 + percentModifier));
+
+        // cell properties
+        if (cell != null && cell.getTerrainType() == Terrain.RANGE) {
+            if (cell.getTerrainBonusType() == TerrainBonusType.FLAT) {
+                calcRange += cell.getTerrainBonus();
+            } else {
+                calcRange += Math.ceil(calcRange * (1 + cell.getTerrainBonus()));
+            }
+        }
+        calcRange *= Math.ceil(1 + percentModifier);// buff/debuff bonus
+
+        return (int) Math.round(calcRange);
     }
 
     public void setRange(int range) {
@@ -191,8 +229,7 @@ public class Tower implements Serializable {
     public void allocateEnergy(int energy) throws Exception {
         if (!isAllocationBlocked()) {
             this.allocatedEnergy += energy;
-        }
-        else{
+        } else {
             throw new Exception("Allocation blocked by Resource Denial");
         }
     }

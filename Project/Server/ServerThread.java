@@ -277,9 +277,10 @@ public class ServerThread extends BaseServerThread {
         return send(rp);
     }
 
-    public boolean sendGridDimensions(int x, int y) {
+    public boolean sendGridDimensions(int x, int y, long seed) {
         XYPayload p = new XYPayload(x, y);
         p.setPayloadType(PayloadType.GRID_DIMENSION);
+        p.setClientId(seed);// leveraging clientId as the seed holder since it's the only long
         return send(p);
     }
 

@@ -5,6 +5,9 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 
+import Project.Common.Cell.Terrain;
+import Project.Common.Cell.TerrainBonusType;
+
 /**
  * Common Player data shared between Client and Server
  */
@@ -71,7 +74,7 @@ public class Player {
         return new ArrayList<>(hand);
     }
 
-    public Card getRandomCard(){
+    public Card getRandomCard() {
         List<Card> cards = getHand();
         return cards.get(new Random().nextInt(cards.size()));
     }
@@ -172,6 +175,32 @@ public class Player {
                 .sum();
     }
 
+    public int getTotalBonusCards(){
+        return towers.values().stream()
+                .filter(t->t.getCell().getTerrainType() == Terrain.CARDS)
+                .map(Tower::getCell)
+                .filter(c -> c.getTerrainBonusType() == TerrainBonusType.FLAT)
+                .mapToInt(c -> (int) c.getTerrainBonus())
+                .sum();
+    }
+
+    /**
+     * Returns the total bonus energy acquired per round for occupying Cells with an
+     * Energy bonus
+     * 
+     * @return
+     */
+    public int getTotalBonusEnergy() {
+        // Note: For sake of ease, just assuming Energy bonuses will be FLAT instead of
+        // PERCENT
+        return towers.values().stream()
+                .filter(Tower::isOnEnergyCell)
+                .map(Tower::getCell)
+                .filter(c -> c.getTerrainBonusType() == TerrainBonusType.FLAT)
+                .mapToInt(c -> (int) c.getTerrainBonus())
+                .sum();
+    }
+
     public void refreshTowers() {
         towers.values().forEach(t -> t.refresh());
     }
@@ -188,7 +217,7 @@ public class Player {
      * Conditionally caps the energy at the defined energy cap.
      *
      * @param amount the amount to increment.
-     * @param cap true caps it, false doesn't
+     * @param cap    true caps it, false doesn't
      */
     public void incrementEnergy(int amount, boolean cap) {
         if (cap) {
@@ -197,13 +226,14 @@ public class Player {
             this.energy += amount;
         }
     }
+
     /**
      * Increments the player's energy by the specified amount.
      * Uncapped.
      *
      * @param amount the amount to increment.
      */
-    public void incrementEnergy(int amount){
+    public void incrementEnergy(int amount) {
         incrementEnergy(amount, false);
     }
 

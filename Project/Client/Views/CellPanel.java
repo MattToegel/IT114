@@ -2,6 +2,7 @@ package Project.Client.Views;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Font;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
@@ -13,22 +14,63 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 
 import Project.Client.Client;
+import Project.Common.Cell.Terrain;
 import Project.Common.LoggerUtil;
 import Project.Common.Tower;
 
 public class CellPanel extends JPanel {
     private static final List<CellPanel> allCells = new ArrayList<>();
     private boolean selected = false;
-    
+
     private int cx, cy;
     private JLabel label;
     private Tower tower;
+    private Color color = Color.WHITE;
+    private int cost = 1;
+    private Terrain terrain;
 
-    public CellPanel(int x, int y, Consumer<CellPanel> selectCallback) {
+    public int getCost() {
+        return cost;
+    }
+
+    /**
+     * 
+     * @param x
+     * @param y
+     * @param terrain
+     * @param selectCallback
+     */
+    public CellPanel(int x, int y, int cost, Terrain terrain, Consumer<CellPanel> selectCallback) {
         this.cx = x;
         this.cy = y;
         allCells.add(this); // Add this instance to the list of all cells
-        setBackground(Color.WHITE);
+
+        this.terrain = terrain;
+        switch (terrain) {
+            case ATTACK:
+                color = new Color(210, 180, 140);
+                break;
+            case DEFENSE:
+                color = new Color(139, 69, 19);
+                break;
+            case ENERGY:
+                color = new Color(0, 100, 0);
+                break;
+            case HEALING:
+                color = new Color(0, 191, 255);
+                break;
+            case RANGE:
+                color = new Color(144, 238, 144);
+                break;
+            case CARDS:
+                color = new Color(169, 169, 169);
+                break;
+            case NONE:
+            default:
+                break;
+        }
+        this.cost = cost;
+        setBackground(this.color);
         setBorder(BorderFactory.createLineBorder(Color.BLACK));
         setLayout(new BorderLayout());
 
@@ -47,6 +89,7 @@ public class CellPanel extends JPanel {
         label.setHorizontalAlignment(JLabel.CENTER);
         label.setVerticalAlignment(JLabel.CENTER);
         add(label, BorderLayout.CENTER);
+        setTower(null);
     }
 
     public void setSelected(boolean isSelected) {
@@ -98,13 +141,16 @@ public class CellPanel extends JPanel {
         this.tower = tower;
         if (tower != null) {
             String text = String.format(
-                    "<html>Id: %d<br>Health: %s/5<br>Energy: %s<br>Allocated: %s<br>Attacked: %s</html>",
-                    tower.getId(), tower.getHealth(), tower.getAllocatedEnergy(), tower.didAllocate() ? "Y" : "N",
+                    "<html>Id: %d<br>Health: %s/5<br>Attack: %s<br>Defense: %s<br>Range: %s<br>Energy: %s<br>Allocated: %s<br>Attacked: %s</html>",
+                    tower.getId(), tower.getHealth(), tower.getAttack(), tower.getDefense(), tower.getRange(),
+                    tower.getAllocatedEnergy(), tower.didAllocate() ? "Y" : "N",
                     tower.didAttack() ? "Y" : "N");
+            Font font = label.getFont().deriveFont(8f); // be careful of int vs float, two different methods
+            label.setFont(font);
             label.setText(text);
-            label.setForeground(tower.getClientId() == Client.INSTANCE.getMyClientId()?Color.BLUE:Color.RED);
+            label.setForeground(tower.getClientId() == Client.INSTANCE.getMyClientId() ? Color.BLUE : Color.RED);
         } else {
-            label.setText("");
+            label.setText(String.format("<html>Cost: %s<br>Terrain: %s</html>", cost, terrain.name()));
         }
     }
 

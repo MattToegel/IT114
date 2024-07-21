@@ -2,6 +2,10 @@ package Project.Common;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
+
+import Project.Common.Cell.Terrain;
+import Project.Common.Cell.TerrainBonusType;
 
 /**
  * Represents a grid of cells.
@@ -11,21 +15,34 @@ public class Grid {
     private int rows;
     private int cols;
     private Cell[][] cells;
+    private Random random;
+    private long seed;
 
     /**
      * Constructs a Grid with the specified number of rows and columns.
      *
      * @param rows the number of rows in the grid.
      * @param cols the number of columns in the grid.
+     * @params seed for the Random class to use to produce the same "random" results
      */
-    public Grid(int rows, int cols) {
+    public Grid(int rows, int cols, long randomSeed) {
         if (rows <= 0 || cols <= 0) {
             throw new IllegalArgumentException("Rows and columns must be positive integers.");
         }
         this.rows = rows;
         this.cols = cols;
         this.cells = new Cell[rows][cols];
+        // Important: using seed syncing to avoid having to sync individual Cells
+        // setting a seed is like a Minecraft world seed, having the same value will
+        // have the randomizer
+        // produce the same "random" results
+        this.seed = randomSeed;
+        this.random = new Random(randomSeed);
         initializeCells();
+    }
+
+    public long getSeed() {
+        return seed;
     }
 
     /**
@@ -34,7 +51,28 @@ public class Grid {
     private void initializeCells() {
         for (int row = 0; row < rows; row++) {
             for (int col = 0; col < cols; col++) {
-                cells[row][col] = new Cell(row, col);
+                Cell c = new Cell(row, col);
+                // set random Terrain
+                Terrain terrainType = Terrain.values()[random.nextInt(Terrain.values().length)];
+                TerrainBonusType terrainBonusType = TerrainBonusType.FLAT;
+                double bonusValue = 0;
+                c.setTerrainType(terrainType);
+                if (terrainType != Terrain.NONE) {
+                    if (terrainType != Terrain.ENERGY && terrainType != Terrain.CARDS) {
+                        // set random bonus type
+                        terrainBonusType = TerrainBonusType.values()[random.nextInt(TerrainBonusType.values().length)];
+                        c.setTerrainBonusType(terrainBonusType);
+                    }
+                    if (terrainBonusType == TerrainBonusType.FLAT) {
+                        // set random bonus value based on Terrain
+                        int max = terrainType == Terrain.CARDS?3:5;
+                        bonusValue = random.nextInt(max) + 1; // 1-3 or 1-5
+                    } else {
+                        bonusValue = 0.25 + (random.nextDouble() * 0.5); // .25 - .75
+                    }
+                    c.setTerrainBonus(bonusValue);
+                }
+                cells[row][col] = c;
             }
         }
     }
@@ -152,7 +190,13 @@ public class Grid {
         sb.append("Grid (").append(rows).append(" x ").append(cols).append("):\n");
         for (int row = 0; row < rows; row++) {
             for (int col = 0; col < cols; col++) {
-                sb.append(cells[row][col].isOccupied() ? "[x]" : "[ ]");
+                // sb.append(cells[row][col].isOccupied() ? "[x]" : "[ ]");
+                Cell c = cells[row][col];
+                // use the first letter of the Terrain as a visual
+                String terrainType = c.getTerrainType().name().substring(0, 1);
+                // use () or [] to show occupied status
+                String text = c.isOccupied() ? String.format("(%s)", terrainType) : String.format("[%s]", terrainType);
+                sb.append(text);
             }
             sb.append("\n");
         }
@@ -160,11 +204,12 @@ public class Grid {
     }
 
     /**
-     * Returns a list of all valid cells within a given range from a specified coordinate.
+     * Returns a list of all valid cells within a given range from a specified
+     * coordinate.
      *
      * @param centerX the x-coordinate of the center cell.
      * @param centerY the y-coordinate of the center cell.
-     * @param range the range (in units) to look for valid cells.
+     * @param range   the range (in units) to look for valid cells.
      * @return a list of all valid cells within the specified range.
      */
     public List<Cell> getValidCellsWithinRange(int centerX, int centerY, int range) {
@@ -185,7 +230,7 @@ public class Grid {
      * @param args command-line arguments (not used).
      */
     public static void main(String[] args) {
-        Grid grid = new Grid(3, 3);
+        Grid grid = new Grid(3, 3, new Random().nextLong());
         grid.setCell(1, 1, new Tower(-1));
         grid.setCell(0, 2, new Tower(-1));
         System.out.println(grid);

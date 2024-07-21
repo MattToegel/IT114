@@ -112,7 +112,9 @@ public class GameRoom extends BaseGameRoom {
     protected void onSessionStart() {
         LoggerUtil.INSTANCE.info("onSessionStart() start");
         changePhase(Phase.TURN);
-        grid = new Grid(4, 4);
+        // using a seed to keep client/server grids "in sync"
+        long seed = new Random().nextLong();
+        grid = new Grid(4, 4, seed);
         try {
             deck = new Deck("Project/cards.txt");
             deck.shuffle();
@@ -172,7 +174,23 @@ public class GameRoom extends BaseGameRoom {
         sendCurrentTurn(getCurrentPlayer());
         drawCard();
         sp.incrementEnergy(ENERGY_PER_ROUND);
+        // check for Energy Cells
+        int bonus = sp.getTotalBonusEnergy();
+        if (bonus > 0) {
+            sp.incrementEnergy(bonus);
+            sendGameEvent(String.format("%s[%s] gain %s bonus energy from occupied Cells", sp.getClientName(),
+                    sp.getClientId(), bonus));
+        }
         sendPlayerCurrentEnergy(sp);
+        // check for bonus cards
+        int bonusCards = sp.getTotalBonusCards();
+        if (bonusCards > 0) {
+            sendGameEvent(String.format("%s[%s] drawing %s extra cards from occupied Cells", sp.getClientName(),
+                    sp.getClientId(), bonusCards));
+            for (int i = 0; i < bonusCards; i++) {
+                drawCard();
+            }
+        }
         // sp.refreshTowers(); // moved to turn end
         LoggerUtil.INSTANCE.info("onTurnStart() end");
     }
@@ -639,11 +657,12 @@ public class GameRoom extends BaseGameRoom {
                     try {
                         tower.allocateEnergy((int) (tower.getAllocatedEnergy() * .5));
                         sendGameEvent(String.format("%s[%s] reduced Tower[%s]'s allocated energy by %s with %s",
-                                sp.getClientName(), sp.getClientId(), tower.getId(),"50%", card.getName()));
+                                sp.getClientName(), sp.getClientId(), tower.getId(), "50%", card.getName()));
                     } catch (Exception e) {
                         sendGameEvent(String.format(
                                 "%s[%s] failed to reduced Tower[%s]'s allocated energy by %s with %s due to %s",
-                                sp.getClientName(), sp.getClientId(), tower.getId(), "50%", card.getName(), e.getMessage()));
+                                sp.getClientName(), sp.getClientId(), tower.getId(), "50%", card.getName(),
+                                e.getMessage()));
                     }
                     sendTowerStatus(x, y, tower);
                 }
@@ -878,14 +897,14 @@ public class GameRoom extends BaseGameRoom {
     }
 
     private void syncGridDimensions(ServerPlayer sp) {
-        sp.sendGridDimensions(grid.getRows(), grid.getCols());
+        sp.sendGridDimensions(grid.getRows(), grid.getCols(), grid.getSeed());
     }
 
     private void sendGridDimensions() {
         playersInRoom.values().removeIf(spInRoom -> {
 
             boolean failedToSend = !spInRoom.sendGridDimensions(grid == null ? 0 : grid.getRows(),
-                    grid == null ? 0 : grid.getCols());
+                    grid == null ? 0 : grid.getCols(), grid == null ? 0 : grid.getSeed());
             if (failedToSend) {
                 removedClient(spInRoom.getServerThread());
             }
@@ -1073,7 +1092,7 @@ public class GameRoom extends BaseGameRoom {
                 st.sendGameEvent("This cell is already occupied");
                 return;
             }
-            int tempCost = 1; // TODO: adjust this based on game rules later
+            int tempCost = grid.getCell(x, y).getCost();
             placeTower(sp, x, y, tempCost);
         } catch (Exception e) {
             e.printStackTrace();

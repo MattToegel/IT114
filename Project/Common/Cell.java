@@ -9,6 +9,82 @@ public class Cell {
     private int y;
     private Tower tower;
 
+    // Terrain bonus start
+    private int cost = 1;
+
+    public int getCost() {
+        return cost;
+    }
+
+    private double terrainBonus = 0;
+    private TerrainBonusType bonusType = TerrainBonusType.FLAT;
+    private Terrain terrainType = Terrain.NONE;
+
+    public void setTerrainBonus(double terrainBonus) {
+        this.terrainBonus = terrainBonus;
+    }
+
+    public double getTerrainBonus() {
+        return terrainBonus;
+    }
+
+    public void setTerrainBonusType(TerrainBonusType terrainBonusType) {
+        this.bonusType = terrainBonusType;
+    }
+
+    public TerrainBonusType getTerrainBonusType() {
+        return bonusType;
+    }
+
+    public void setTerrainType(Terrain terrain) {
+        this.terrainType = terrain;
+        switch (terrainType) {
+            case ATTACK:
+                cost = 2;
+                break;
+            case CARDS:
+                cost = 4;
+                break;
+            case DEFENSE:
+                cost = 2;
+                break;
+            case ENERGY:
+                cost = 3;
+                break;
+            case HEALING:
+                cost = 2;
+                break;
+            case RANGE:
+                cost = 2;
+                break;
+            case NONE:
+            default:
+                cost = 1;
+                break;
+
+        }
+    }
+
+    public Terrain getTerrainType() {
+        return terrainType;
+    }
+
+    public enum TerrainBonusType {
+        FLAT,
+        PERCENT
+    }
+
+    public enum Terrain {
+        NONE, // Plains
+        ENERGY, // Forest
+        ATTACK, // Desert
+        DEFENSE, // Mountains
+        RANGE, // Field
+        HEALING, // Springs
+        CARDS, // Factory
+    }
+    // terrain bonus end
+
     /**
      * Constructs a Cell with specified coordinates.
      *
@@ -67,6 +143,7 @@ public class Cell {
             throw new IllegalStateException("Cell is already occupied by a tower.");
         }
         this.tower = tower;
+        this.tower.setCell(this); // added for Terrain bonus feature
     }
 
     public void updateTower(Tower tower) {
@@ -74,6 +151,7 @@ public class Cell {
             throw new IllegalStateException("No tower is assigned to this Cell.");
         }
         this.tower = tower;
+        this.tower.setCell(this); // added for Terrain bonus feature
     }
 
     /**
@@ -100,6 +178,7 @@ public class Cell {
         return "Cell{" +
                 "x=" + x +
                 ", y=" + y +
+                ", Terrain=" + terrainType.name() +
                 ", tower=" + tower +
                 '}';
     }
