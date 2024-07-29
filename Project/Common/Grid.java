@@ -9,7 +9,7 @@ import Project.Common.Cell.TerrainBonusType;
 
 /**
  * Represents a grid of cells.
- * The grid is defined by its number of rows and columns.
+ * The grid is defined by its number of columns and rows.
  */
 public class Grid {
     private int rows;
@@ -19,15 +19,16 @@ public class Grid {
     private long seed;
 
     /**
-     * Constructs a Grid with the specified number of rows and columns.
+     * Constructs a Grid with the specified number of columns and rows.
      *
-     * @param rows the number of rows in the grid.
-     * @param cols the number of columns in the grid.
-     * @params seed for the Random class to use to produce the same "random" results
+     * @param cols       the number of columns in the grid.
+     * @param rows       the number of rows in the grid.
+     * @param randomSeed seed for the Random class to use to produce the same
+     *                   "random" results.
      */
-    public Grid(int rows, int cols, long randomSeed) {
-        if (rows <= 0 || cols <= 0) {
-            throw new IllegalArgumentException("Rows and columns must be positive integers.");
+    public Grid(int cols, int rows, long randomSeed) {
+        if (cols <= 0 || rows <= 0) {
+            throw new IllegalArgumentException("Columns and rows must be positive integers.");
         }
         this.rows = rows;
         this.cols = cols;
@@ -49,9 +50,9 @@ public class Grid {
      * Initializes the cells in the grid.
      */
     private void initializeCells() {
-        for (int row = 0; row < rows; row++) {
-            for (int col = 0; col < cols; col++) {
-                Cell c = new Cell(row, col);
+        for (int col = 0; col < cols; col++) {
+            for (int row = 0; row < rows; row++) {
+                Cell c = new Cell(col, row);
                 // set random Terrain
                 Terrain terrainType = Terrain.values()[random.nextInt(Terrain.values().length)];
                 TerrainBonusType terrainBonusType = TerrainBonusType.FLAT;
@@ -65,14 +66,14 @@ public class Grid {
                     }
                     if (terrainBonusType == TerrainBonusType.FLAT) {
                         // set random bonus value based on Terrain
-                        int max = terrainType == Terrain.CARDS?3:5;
+                        int max = terrainType == Terrain.CARDS ? 3 : 5;
                         bonusValue = random.nextInt(max) + 1; // 1-3 or 1-5
                     } else {
                         bonusValue = 0.25 + (random.nextDouble() * 0.5); // .25 - .75
                     }
                     c.setTerrainBonus(bonusValue);
                 }
-                cells[row][col] = c;
+                cells[col][row] = c;
             }
         }
     }
@@ -96,50 +97,50 @@ public class Grid {
     }
 
     /**
-     * Gets the cell at the specified row and column.
+     * Gets the cell at the specified column and row.
      *
-     * @param row the row index of the cell.
      * @param col the column index of the cell.
+     * @param row the row index of the cell.
      * @return the cell at the specified position.
      * @throws IndexOutOfBoundsException if the position is out of bounds.
      */
-    public Cell getCell(int row, int col) {
-        if (row < 0 || row >= rows || col < 0 || col >= cols) {
+    public Cell getCell(int col, int row) {
+        if (col < 0 || col >= cols || row < 0 || row >= rows) {
             throw new IndexOutOfBoundsException("Cell position out of bounds");
         }
-        return cells[row][col];
+        return cells[col][row];
     }
 
     /**
      * Sets the occupied status of the cell at the specified position.
      *
-     * @param row      the row index of the cell.
-     * @param col      the column index of the cell.
-     * @param occupied true to mark the cell as occupied, false to mark it as
-     *                 unoccupied.
+     * @param col   the column index of the cell.
+     * @param row   the row index of the cell.
+     * @param tower the tower to be placed in the cell.
      * @throws IndexOutOfBoundsException if the position is out of bounds.
      */
-    public void setCell(int row, int col, Tower tower) {
-        if (row < 0 || row >= rows || col < 0 || col >= cols) {
+    public void setCell(int col, int row, Tower tower) {
+        if (col < 0 || col >= cols || row < 0 || row >= rows) {
             throw new IndexOutOfBoundsException("Cell position out of bounds");
         }
-        cells[row][col].placeTower(tower);
+        cells[col][row].placeTower(tower);
     }
 
     /**
      * Attempts to mark the cell at the specified position as occupied.
      *
-     * @param row the row index of the cell.
-     * @param col the column index of the cell.
+     * @param col   the column index of the cell.
+     * @param row   the row index of the cell.
+     * @param tower the tower to be placed in the cell.
      * @return true if the cell was successfully marked as occupied, false if it was
      *         already occupied.
      * @throws IndexOutOfBoundsException if the position is out of bounds.
      */
-    public boolean tryOccupyCell(int row, int col, Tower tower) {
-        if (row < 0 || row >= rows || col < 0 || col >= cols) {
+    public boolean tryOccupyCell(int col, int row, Tower tower) {
+        if (col < 0 || col >= cols || row < 0 || row >= rows) {
             throw new IndexOutOfBoundsException("Cell position out of bounds");
         }
-        Cell cell = cells[row][col];
+        Cell cell = cells[col][row];
         if (cell.isOccupied()) {
             return false;
         } else {
@@ -154,9 +155,9 @@ public class Grid {
      * @return true if all cells are occupied, false otherwise.
      */
     public boolean areAllCellsOccupied() {
-        for (int row = 0; row < rows; row++) {
-            for (int col = 0; col < cols; col++) {
-                if (!cells[row][col].isOccupied()) {
+        for (int col = 0; col < cols; col++) {
+            for (int row = 0; row < rows; row++) {
+                if (!cells[col][row].isOccupied()) {
                     return false;
                 }
             }
@@ -168,10 +169,10 @@ public class Grid {
      * Resets the grid by resetting all cells.
      */
     public void reset() {
-        for (int row = 0; row < rows; row++) {
-            for (int col = 0; col < cols; col++) {
-                if (cells[row][col] != null) {
-                    cells[row][col].reset();
+        for (int col = 0; col < cols; col++) {
+            for (int row = 0; row < rows; row++) {
+                if (cells[col][row] != null) {
+                    cells[col][row].reset();
                 }
             }
         }
@@ -187,11 +188,10 @@ public class Grid {
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        sb.append("Grid (").append(rows).append(" x ").append(cols).append("):\n");
+        sb.append("Grid (").append(cols).append(" x ").append(rows).append("):\n");
         for (int row = 0; row < rows; row++) {
             for (int col = 0; col < cols; col++) {
-                // sb.append(cells[row][col].isOccupied() ? "[x]" : "[ ]");
-                Cell c = cells[row][col];
+                Cell c = cells[col][row];
                 // use the first letter of the Terrain as a visual
                 String terrainType = c.getTerrainType().name().substring(0, 1);
                 // use () or [] to show occupied status
@@ -205,20 +205,53 @@ public class Grid {
 
     /**
      * Returns a list of all valid cells within a given range from a specified
-     * coordinate.
+     * coordinate. Manhattan (doesn't include diagonals)
      *
      * @param centerX the x-coordinate of the center cell.
      * @param centerY the y-coordinate of the center cell.
      * @param range   the range (in units) to look for valid cells.
      * @return a list of all valid cells within the specified range.
      */
-    public List<Cell> getValidCellsWithinRange(int centerX, int centerY, int range) {
+    public List<Cell> getValidCellsWithinRangeManhattenDistance(int centerX, int centerY, int range) {
         List<Cell> validCells = new ArrayList<>();
-        for (int row = Math.max(0, centerX - range); row <= Math.min(rows - 1, centerX + range); row++) {
-            for (int col = Math.max(0, centerY - range); col <= Math.min(cols - 1, centerY + range); col++) {
-                if (Math.abs(row - centerX) + Math.abs(col - centerY) <= range) {
-                    validCells.add(cells[row][col]);
+        for (int col = Math.max(0, centerX - range); col <= Math.min(cols - 1, centerX + range); col++) {
+            for (int row = Math.max(0, centerY - range); row <= Math.min(rows - 1, centerY + range); row++) {
+                if (Math.abs(col - centerX) + Math.abs(row - centerY) <= range) {
+                    validCells.add(cells[col][row]);
+                    System.out.println(String.format("Valid cell: (%d, %d) %s", col, row,
+                            cells[col][row].getTerrainType().name().substring(0, 1)));
                 }
+            }
+        }
+        return validCells;
+    }
+
+    /**
+     * Returns a list of all valid cells within a given range from a specified
+     * coordinate. Bounding Box (diagonals)
+     *  This method selects all cells within a square area (bounding box) centered on a given point, extending outwards by the specified range in all directions.
+     *  Unlike Manhattan distance, this method includes diagonal cells, meaning it considers cells in all directions, not just vertically and horizontally.
+     * 
+     * @param centerX the x-coordinate of the center cell.
+     * @param centerY the y-coordinate of the center cell.
+     * @param range   the range (in units) to look for valid cells.
+     * @return a list of all valid cells within the specified range.
+     */
+    public List<Cell> getValidCellsWithinRangeBoundingBox(int centerX, int centerY, int range) {
+        List<Cell> validCells = new ArrayList<>();
+
+        // Iterate over the bounding box defined by the range
+        int rowMin = Math.max(0, centerY - range);
+        int rowMax = Math.min(rows - 1, centerY + range);
+        int colMin = Math.max(0, centerX - range);
+        int colMax = Math.min(cols - 1, centerX + range);
+
+        for (int row = rowMin; row <= rowMax; row++) {
+            for (int col = colMin; col <= colMax; col++) {
+                Cell c = cells[col][row];
+                validCells.add(c);
+                System.out.println(
+                        String.format("Valid cell: (%d, %d) %s", col, row, c.getTerrainType().name().substring(0, 1)));
             }
         }
         return validCells;
@@ -232,17 +265,23 @@ public class Grid {
     public static void main(String[] args) {
         Grid grid = new Grid(3, 3, new Random().nextLong());
         grid.setCell(1, 1, new Tower(-1));
-        grid.setCell(0, 2, new Tower(-1));
+        grid.setCell(2, 0, new Tower(-1));
         System.out.println(grid);
 
         System.out.println("Trying to occupy cell (1, 1): " + grid.tryOccupyCell(1, 1, new Tower(-1)));
         System.out.println("Trying to occupy cell (2, 2): " + grid.tryOccupyCell(2, 2, new Tower(-1)));
         System.out.println("All cells occupied: " + grid.areAllCellsOccupied());
 
+        System.out.println("Valid cells within range 1 of (0, 0): ");
+        List<Cell> validCells = grid.getValidCellsWithinRangeBoundingBox(2, 2, 1);
+        System.out.println("______________________________________");
+        for (Cell cell : validCells) {
+            System.out.println(String.format("Valid cell: (%d, %d) %s", cell.getX(), cell.getY(),
+                    cell.getTerrainType().name().substring(0, 1)));
+        }
+
         grid.reset();
         System.out.println("After reset:");
         System.out.println(grid);
-
-        System.out.println("Valid cells within range 1 of (1, 1): " + grid.getValidCellsWithinRange(1, 1, 1));
     }
 }

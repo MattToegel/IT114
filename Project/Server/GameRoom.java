@@ -238,6 +238,8 @@ public class GameRoom extends BaseGameRoom {
             return;
         }
         sp.refreshTowers();
+        syncPlayersTowers(sp);
+
         if (isRoundOver()) {
             onRoundEnd(); // next round
         } else {
@@ -396,7 +398,10 @@ public class GameRoom extends BaseGameRoom {
                     return;
                 }
             } else { // rule for subsequent tower placement
-                List<Cell> validCells = grid.getValidCellsWithinRange(x, y, 1);
+                List<Cell> validCells = grid.getValidCellsWithinRangeBoundingBox(x, y, 1);
+                for (Cell cell : validCells) {
+                    System.out.println(String.format("Valid cell: (%d, %d) %s Tower %s", cell.getX(), cell.getY(), cell.getTerrainType().name().substring(0, 1), cell.getTower()));
+                }
                 Cell target = validCells.stream()
                         .filter(c -> c.getTower() != null && c.getTower().getClientId() == sp.getClientId())
                         .findFirst().orElse(null);
@@ -467,13 +472,13 @@ public class GameRoom extends BaseGameRoom {
     // card helpers start
 
     private List<Cell> getAllOwnedTargets(int x, int y, int range, long clientId) {
-        return grid.getValidCellsWithinRange(x, y, range).stream()
+        return grid.getValidCellsWithinRangeBoundingBox(x, y, range).stream()
                 .filter(c -> c.getTower() != null && c.getTower().getClientId() == clientId)
                 .collect(Collectors.toList());
     }
 
     private List<Cell> getAllUnownedTargets(int x, int y, int range, long clientId) {
-        return grid.getValidCellsWithinRange(x, y, range).stream()
+        return grid.getValidCellsWithinRangeBoundingBox(x, y, range).stream()
                 .filter(c -> c.getTower() != null && c.getTower().getClientId() != clientId)
                 .collect(Collectors.toList());
     }
@@ -781,6 +786,15 @@ public class GameRoom extends BaseGameRoom {
     // card helpers end
 
     // send/sync data to ServerPlayer(s)
+    private synchronized void syncPlayersTowers(ServerPlayer current){
+        playersInRoom.values().removeIf(spInRoom -> {
+            boolean failedToSend = !current.syncMyTowersToPlayer(spInRoom);
+            if (failedToSend) {
+                removedClient(spInRoom.getServerThread());
+            }
+            return failedToSend;
+        });
+    }
 
     private void sendCurrentTurn(ServerPlayer sp) {
         playersInRoom.values().removeIf(spInRoom -> {
@@ -1033,7 +1047,7 @@ public class GameRoom extends BaseGameRoom {
                 return;
             }
             // validate range and targets
-            final List<Cell> cellsInRange = grid.getValidCellsWithinRange(x, y, playersTower.getRange())
+            final List<Cell> cellsInRange = grid.getValidCellsWithinRangeBoundingBox(x, y, playersTower.getRange())
                     .stream().filter(c -> c.isOccupied() // only consider occupied cells
                             && targets.contains(c.getTower().getId()) // filter out targets that match the ids the
                                                                       // client sent
@@ -1088,10 +1102,6 @@ public class GameRoom extends BaseGameRoom {
             checkCurrentPlayer(st);
             ServerPlayer sp = playersInRoom.get(st.getClientId());
             checkFinishedTurn(sp);
-            if (grid.getCell(x, y).isOccupied()) {
-                st.sendGameEvent("This cell is already occupied");
-                return;
-            }
             int tempCost = grid.getCell(x, y).getCost();
             placeTower(sp, x, y, tempCost);
         } catch (Exception e) {

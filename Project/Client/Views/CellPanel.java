@@ -22,7 +22,7 @@ public class CellPanel extends JPanel {
     private static final List<CellPanel> allCells = new ArrayList<>();
     private boolean selected = false;
 
-    private int cx, cy;
+    private int column, row; // column = x, row = y
     private JLabel label;
     private Tower tower;
     private Color color = Color.WHITE;
@@ -34,15 +34,17 @@ public class CellPanel extends JPanel {
     }
 
     /**
+     * Constructs a CellPanel with specified coordinates, cost, terrain, and a callback for selection.
      * 
-     * @param x
-     * @param y
-     * @param terrain
-     * @param selectCallback
+     * @param x Horizontal (column) coordinate.
+     * @param y Vertical (row) coordinate.
+     * @param cost Cost associated with this cell.
+     * @param terrain Terrain type of the cell.
+     * @param selectCallback Callback function to handle selection.
      */
     public CellPanel(int x, int y, int cost, Terrain terrain, Consumer<CellPanel> selectCallback) {
-        this.cx = x;
-        this.cy = y;
+        this.column = x; // Column corresponds to x
+        this.row = y;    // Row corresponds to y
         allCells.add(this); // Add this instance to the list of all cells
 
         this.terrain = terrain;
@@ -99,23 +101,21 @@ public class CellPanel extends JPanel {
     }
 
     /**
-     * Uses to get the x coordinate (note: getX() is a built in method for screen
-     * info)
+     * Returns the column (x) coordinate of the cell.
      * 
-     * @return
+     * @return Column coordinate.
      */
     public int getCellX() {
-        return cx;
+        return column;
     }
 
     /**
-     * Uses to get the y coordinate (note: getY() is a built in method for screen
-     * info)
+     * Returns the row (y) coordinate of the cell.
      * 
-     * @return
+     * @return Row coordinate.
      */
     public int getCellY() {
-        return cy;
+        return row;
     }
 
     // Method to update the borders of all cells
@@ -150,7 +150,7 @@ public class CellPanel extends JPanel {
             label.setText(text);
             label.setForeground(tower.getClientId() == Client.INSTANCE.getMyClientId() ? Color.BLUE : Color.RED);
         } else {
-            label.setText(String.format("<html>Cost: %s<br>Terrain: %s</html>", cost, terrain.name()));
+            label.setText(String.format("<html>(%s,%s)Cost: %s<br>Terrain: %s</html>",getCellX(), getCellY(), cost, terrain.name()));
         }
     }
 

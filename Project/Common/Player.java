@@ -18,7 +18,7 @@ public class Player {
     private boolean takeTurn = false;
 
     private List<Card> hand = new ArrayList<>();
-    private ConcurrentHashMap<Long, Tower> towers = new ConcurrentHashMap<>();
+    protected ConcurrentHashMap<Long, Tower> towers = new ConcurrentHashMap<>();
     private int energy = 0;
     private int energyCap = 20;
 

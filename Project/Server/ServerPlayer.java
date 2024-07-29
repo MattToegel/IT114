@@ -1,8 +1,10 @@
 package Project.Server;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import Project.Common.Card;
+import Project.Common.LoggerUtil;
 import Project.Common.Phase;
 import Project.Common.Player;
 import Project.Common.TimerType;
@@ -99,5 +101,28 @@ public class ServerPlayer extends Player {
 
     public boolean sendCurrentPhase(Phase phase) {
         return client.sendCurrentPhase(phase);
+    }
+
+    public synchronized boolean syncMyTowersToPlayer(ServerPlayer sp) {
+        /*
+         * AtomicBoolean provides a thread-safe boolean value.
+         * Ensures atomic read and write operations to avoid race conditions in
+         * multi-threaded code.
+         * Useful for scenarios requiring an effectively final variable.
+         */
+        AtomicBoolean wasSucces = new AtomicBoolean();
+        wasSucces.set(true);
+        towers.values().forEach(t -> {
+            try {
+                boolean failedToSend = !sp.sendTowerStatus(t.getCell().getX(), t.getCell().getY(), t);
+                if (failedToSend) {
+                    wasSucces.set(false);
+                }
+            } catch (Exception e) {
+                LoggerUtil.INSTANCE
+                        .severe(String.format("Error syncing tower to %s[%s]", sp.getClientName(), sp.getClientId()));
+            }
+        });
+        return wasSucces.get();
     }
 }

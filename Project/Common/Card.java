@@ -154,6 +154,7 @@ public class Card implements Serializable {
             case RAPID_CONSTRUCTION:
             case ENERGY_SHIELD:
             case FORCEFIELD:
+            case ARTILLERY_STRIKE:
             
                 return true;
             default:

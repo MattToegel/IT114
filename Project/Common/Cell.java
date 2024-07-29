@@ -2,11 +2,11 @@ package Project.Common;
 
 /**
  * Represents a single cell in a grid.
- * The cell is defined by its row (x) and column (y) coordinates.
+ * The cell is defined by its column (x) and row (y) coordinates.
  */
 public class Cell {
-    private int x;
-    private int y;
+    private int x; // column
+    private int y; // row
     private Tower tower;
 
     // Terrain bonus start
@@ -61,7 +61,6 @@ public class Cell {
             default:
                 cost = 1;
                 break;
-
         }
     }
 
@@ -83,13 +82,12 @@ public class Cell {
         HEALING, // Springs
         CARDS, // Factory
     }
-    // terrain bonus end
 
     /**
      * Constructs a Cell with specified coordinates.
      *
-     * @param x the row index of the cell.
-     * @param y the column index of the cell.
+     * @param x the column index of the cell.
+     * @param y the row index of the cell.
      */
     public Cell(int x, int y) {
         this.x = x;
@@ -98,18 +96,18 @@ public class Cell {
     }
 
     /**
-     * Gets the row index of the cell.
+     * Gets the column index of the cell.
      *
-     * @return the row index.
+     * @return the column index.
      */
     public int getX() {
         return x;
     }
 
     /**
-     * Gets the column index of the cell.
+     * Gets the row index of the cell.
      *
-     * @return the column index.
+     * @return the row index.
      */
     public int getY() {
         return y;

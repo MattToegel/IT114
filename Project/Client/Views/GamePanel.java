@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -76,7 +77,7 @@ public class GamePanel extends JPanel
         });
         JButton endButton = createActionButton("End", TurnAction.NONE);
         cardSelectButton = createCardSelectButton();
-
+        buttonPanel.setLayout(new BoxLayout(buttonPanel, BoxLayout.X_AXIS));
         buttonPanel.add(placeButton);
         buttonPanel.add(allocateButton);
         buttonPanel.add(attackButton);
@@ -126,21 +127,21 @@ public class GamePanel extends JPanel
         setVisible(false);
     }
 
-    private void useCard(Card card, int x, int y) {
+    private void useCard(Card card, int col, int row) {
         if (card.getEnergy() > Client.INSTANCE.getMyEnergy()) {
             Client.INSTANCE.clientSideGameEvent("You can't afford to use this card");
             return;
         }
         try {
-            Client.INSTANCE.sendUseCard(card, x, y);
+            Client.INSTANCE.sendUseCard(card, col, row);
         } catch (IOException e) {
             Client.INSTANCE.clientSideGameEvent("There was a network error during use card");
         }
     }
 
-    private void handleTargetSelection(int x, int y) {
+    private void handleTargetSelection(int col, int row) {
         if (selectedCard != null) {
-            useCard(selectedCard, x, y);
+            useCard(selectedCard, col, row);
             selectedCard = null;
             currentAction = TurnAction.NONE;
             enableButtons();
@@ -149,21 +150,21 @@ public class GamePanel extends JPanel
 
     private void enableButtons() {
         for (Component component : buttonPanel.getComponents()) {
-            component.setEnabled(true);
+            component.setVisible(true);
         }
         cancelButton.setVisible(false);
-        buttonPanel.revalidate();
+        buttonPanel.validate();
         buttonPanel.repaint();
     }
 
     private void disableButtonsExceptCancel() {
         for (Component component : buttonPanel.getComponents()) {
             if (component instanceof JButton && !((JButton) component).equals(cancelButton)) {
-                component.setEnabled(false);
+                component.setVisible(false);
             }
         }
         cancelButton.setVisible(true);
-        buttonPanel.revalidate();
+        buttonPanel.validate();
         buttonPanel.repaint();
     }
 
@@ -173,6 +174,7 @@ public class GamePanel extends JPanel
             currentAction = action;
             LoggerUtil.INSTANCE.fine("Selected " + currentAction);
             selectedTower = null;
+            selectedCell = null;
             defenderTowers.clear();
             if (action == TurnAction.NONE) {
                 try {
@@ -238,18 +240,17 @@ public class GamePanel extends JPanel
     private void makeGrid(Grid grid) {
         SwingUtilities.invokeLater(() -> {
             int rows = grid.getRows();
-            int columns = grid.getCols();
+            int cols = grid.getCols();
             resetView();
             LoggerUtil.INSTANCE.fine("Create CellPanels Grid");
-            cells = new CellPanel[rows][columns];
-            gridPanel.setLayout(new GridLayout(rows, columns));
-            for (int i = 0; i < rows; i++) {
-                for (int j = 0; j < columns; j++) {
-
-                    Cell cell = grid.getCell(i, j);
+            cells = new CellPanel[cols][rows];
+            gridPanel.setLayout(new GridLayout(rows, cols));
+            for (int col = 0; col < cols; col++) {
+                for (int row = 0; row < rows; row++) {
+                    Cell cell = grid.getCell(col, row);
                     // map Cell Terrain Info
-                    cells[i][j] = new CellPanel(i, j, cell.getCost(), cell.getTerrainType(), this::handleSelection);
-                    gridPanel.add(cells[i][j]);
+                    cells[col][row] = new CellPanel(col, row, cell.getCost(), cell.getTerrainType(), this::handleSelection);
+                    gridPanel.add(cells[col][row]);
                 }
             }
             gridPanel.revalidate();
@@ -446,7 +447,7 @@ public class GamePanel extends JPanel
 
     @Override
     public void onReceiveGrid(Grid grid) {
-        if (grid.getRows() > 0 && grid.getCols() > 0) {
+        if (grid.getCols() > 0 && grid.getRows() > 0) {
             makeGrid(grid);
         } else {
             resetView();
@@ -454,13 +455,13 @@ public class GamePanel extends JPanel
     }
 
     @Override
-    public void onReceiveTowerStatus(int x, int y, Tower tower) {
-        if (cells != null && x >= 0 && x < cells.length && y >= 0 && y < cells[0].length) {
-            CellPanel target = cells[x][y];
+    public void onReceiveTowerStatus(int col, int row, Tower tower) {
+        if (cells != null && col >= 0 && col < cells.length && row >= 0 && row < cells[0].length) {
+            CellPanel target = cells[col][row];
             target.setTower(tower);
         } else {
-            System.err.println("Invalid cell coordinates: (" + x + ", " + y + ")");
-            Client.INSTANCE.clientSideGameEvent("Invalid cell coordinates: (\" + x + \", \" + y + \")");
+            System.err.println("Invalid cell coordinates: (" + col + ", " + row + ")");
+            Client.INSTANCE.clientSideGameEvent("Invalid cell coordinates: (\" + col + \", \" + row + \")");
         }
     }
 

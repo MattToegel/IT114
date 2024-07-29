@@ -115,6 +115,7 @@ public class Tower implements Serializable {
             BuffDebuff buffDebuff = entry.getValue();
             buffDebuff.reduceDuration();
             if (buffDebuff.getDuration() <= 0) {
+                LoggerUtil.INSTANCE.fine("BuffDebuff Expired: " + buffDebuff);
                 iterator.remove();
             }
         }
@@ -141,7 +142,7 @@ public class Tower implements Serializable {
     }
 
     public int getAttack() {
-        int calcAttack = attack;
+        float calcAttack = attack*1.0f;
         // buff/debuff
         double percentModifier = activeBuffsDebuffs.values().stream()
                 .filter(buff -> ATTACK_EFFECTS.contains(buff.getEffectType()))
@@ -165,7 +166,7 @@ public class Tower implements Serializable {
     }
 
     public int getDefense() {
-        int calcDefense = defense;
+        float calcDefense = defense*1.0f;
         // buff/debuff
         double percentModifier = activeBuffsDebuffs.values().stream()
                 .filter(buff -> DEFENSE_EFFECTS.contains(buff.getEffectType()))
@@ -190,7 +191,7 @@ public class Tower implements Serializable {
     }
 
     public int getRange() {
-        int calcRange = range;
+        float calcRange = range*1.0f;
         // buff/debuff
         double percentModifier = activeBuffsDebuffs.values().stream()
                 .filter(buff -> RANGE_EFFECTS.contains(buff.getEffectType()))
