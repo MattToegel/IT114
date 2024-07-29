@@ -393,9 +393,9 @@ public class GamePanel extends JPanel
 
     private void handleAttackAction(CellPanel cellPanel, Tower tower) {
         if (selectedTower != null && tower != null && tower.getClientId() != Client.INSTANCE.getMyClientId()) {
-            int distance = Math.abs(cellPanel.getCellX() - selectedCell.getCellX())
-                    + Math.abs(cellPanel.getCellY() - selectedCell.getCellY());
-            if (distance <= selectedTower.getRange()) {
+            
+            boolean isInRange = Client.INSTANCE.isInRange(selectedCell.getCellX(), selectedCell.getCellY(), tower);
+            if (isInRange) {
                 defenderTowers.add(tower);
                 System.out.println("Defender tower added");
                 try {

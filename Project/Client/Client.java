@@ -390,9 +390,18 @@ public enum Client {
         }
         return false;
     }
-    public List<Card> getMyHand(){
+
+    public boolean isInRange(int x, int y, Tower tower) {
+        Tower target = grid.getValidCellsWithinRangeBoundingBox(x, y, tower.getRange()).stream()
+                .filter(c -> c.getTower() != null && c.getTower().getId() == tower.getId()).map(c -> c.getTower())
+                .findFirst().orElse(null);
+        return target != null;
+    }
+
+    public List<Card> getMyHand() {
         return myData.getHand();
     }
+
     public int getMyEnergy() {
         LoggerUtil.INSTANCE.info("My Energy: " + myData.getEnergy());
         return myData.getEnergy();
@@ -759,7 +768,8 @@ public enum Client {
                     break;
                 case PayloadType.GRID_DIMENSION:
                     XYPayload gd = (XYPayload) payload;
-                    // clientId is holding the seed value which makes sure the Random class produces the same set of random values
+                    // clientId is holding the seed value which makes sure the Random class produces
+                    // the same set of random values
                     long seed = gd.getClientId();
                     processGridDimension(gd.getX(), gd.getY(), seed);
                     break;
@@ -951,10 +961,11 @@ public enum Client {
             });
         }
     }
+
     /**
      * 
-     * @param x rows
-     * @param y cols
+     * @param x    rows
+     * @param y    cols
      * @param seed random seed to ensure same random numbers occur
      */
     private void processGridDimension(int x, int y, long seed) {
