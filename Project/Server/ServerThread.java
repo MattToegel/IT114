@@ -9,11 +9,15 @@ import java.util.logging.Logger;
 
 import Project.Common.ConnectionPayload;
 import Project.Common.Constants;
+import Project.Common.PathChoicesPayload;
 import Project.Common.Payload;
 import Project.Common.PayloadType;
+import Project.Common.PointsPayload;
+import Project.Common.PositionPayload;
 import Project.Common.ReadyPayload;
 import Project.Common.RoomResultsPayload;
 import Project.Common.TextFX;
+import Project.Common.TurnStatusPayload;
 import Project.Common.TextFX.Color;
 
 /**
@@ -84,6 +88,69 @@ public class ServerThread extends Thread {
     }
 
     // send methods
+    protected boolean sendPathChoices(List<String> options) {
+        PathChoicesPayload pcp = new PathChoicesPayload();
+        pcp.setChoices(options);
+        return send(pcp);
+    }
+    protected boolean sendGameEvent(String message) {
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.GAME_EVENT);
+        p.setMessage(message);
+        return send(p);
+    }
+    protected boolean sendPoints(long clientId, int changedPoints, int currentPoints) {
+        PointsPayload pp = new PointsPayload();
+        pp.setPayloadType(PayloadType.POINTS);
+        pp.setClientId(clientId);
+        pp.setChangedPoints(changedPoints);
+        pp.setCurrentPoints(currentPoints);
+        return send(pp);
+    }
+    protected boolean sendRoll(long clientId, int roll) {
+        TurnStatusPayload tsp = new TurnStatusPayload();
+        tsp.setPayloadType(PayloadType.ROLL);
+        tsp.setClientId(clientId);
+        tsp.setDidTakeTurn(true);
+        tsp.setRoll(roll);
+        return send(tsp);
+    }
+    public boolean sendGridDimensions(int x, int y) {
+        PositionPayload pp = new PositionPayload(x, y);
+        pp.setPayloadType(PayloadType.GRID);
+        return send(pp);
+    }
+
+    public boolean sendPlayerPosition(long clientId, int x, int y) {
+        PositionPayload pp = new PositionPayload(x, y);
+        pp.setClientId(clientId);
+        return send(pp);
+    }
+    protected boolean sendCurrentPlayerTurn(long clientId) {
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.CURRENT_TURN);
+        p.setClientId(clientId);
+        return send(p);
+    }
+
+    protected boolean sendResetLocalReadyState() {
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.RESET_READY);
+        return send(p);
+    }
+
+    protected boolean sendResetLocalTurns() {
+        Payload p = new Payload();
+        p.setPayloadType(PayloadType.RESET_TURNS);
+        return send(p);
+    }
+
+    protected boolean sendPlayerTurnStatus(long clientId, boolean didTakeTurn) {
+        TurnStatusPayload tsp = new TurnStatusPayload();
+        tsp.setClientId(clientId);
+        tsp.setDidTakeTurn(didTakeTurn);
+        return send(tsp);
+    }
     protected boolean sendReadyState(long clientId, boolean isReady) {
         ReadyPayload rp = new ReadyPayload();
         rp.setReady(isReady);
@@ -225,6 +292,8 @@ public class ServerThread extends Thread {
                 break;
             case MESSAGE:
                 if (currentRoom != null) {
+                    System.out
+                            .println(TextFX.colorize("ServerThread received message: " + p.getMessage(), Color.YELLOW));
                     currentRoom.sendMessage(this, p.getMessage());
                 } else {
                     // TODO migrate to lobby
@@ -258,6 +327,25 @@ public class ServerThread extends Thread {
                             "You can only use the /ready commmand in a GameRoom and not the Lobby");
                 }
 
+                break;
+
+            case ROLL:
+                try {
+                    ((GameRoom) currentRoom).doRoll(this);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    this.sendMessage(Constants.DEFAULT_CLIENT_ID,
+                            "You can only use the /roll commmand in a GameRoom and not the Lobby");
+                }
+                break;
+            case CHOICES:
+                try {
+                    ((GameRoom) currentRoom).handleDirectionChoice(this, p.getMessage());
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    this.sendMessage(Constants.DEFAULT_CLIENT_ID,
+                            "You can only use the /choice commmand in a GameRoom and not the Lobby");
+                }
                 break;
             default:
                 break;
