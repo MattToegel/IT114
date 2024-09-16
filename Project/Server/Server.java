@@ -219,7 +219,7 @@ public enum Server {
         while (it.hasNext()) {
             Room room = it.next();
             if (room != null) {
-                room.sendMessage(null, message);
+                room.sendMessage(ServerConstants.FROM_ROOM, message);
             }
         }
     }
