@@ -138,7 +138,7 @@ public class Room {
         // to be sent
         // Note: this uses a lambda expression for each item in the values() collection,
         // it's one way we can safely remove items during iteration
-        info(String.format("sending message to %s recipients: %s", getName(), clientsInRoom.size(), formattedMessage));
+        info(String.format("sending message to %s recipients: %s", clientsInRoom.size(), formattedMessage));
         clientsInRoom.values().removeIf(client -> {
             boolean failedToSend = !client.send(formattedMessage);
             if (failedToSend) {
