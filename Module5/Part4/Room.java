@@ -200,6 +200,6 @@ public class Room {
         Server.INSTANCE.removeRoom(this);
         isRunning = false;
         clientsInRoom.clear();
-        info(String.format("closed", name));
+        info(String.format("closed [%s]", name));
     }
 }
