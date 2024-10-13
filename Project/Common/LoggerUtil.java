@@ -43,7 +43,6 @@ public enum LoggerUtil {
     private static class CustomFormatter extends Formatter {
         private static final String PATTERN = "MM/dd/yyyy HH:mm:ss";
         private static final String RESET = "\u001B[0m";
-        private static final String BLACK = "\u001B[30m";
         private static final String RED = "\u001B[31m";
         private static final String GREEN = "\u001B[32m";
         private static final String YELLOW = "\u001B[33m";
@@ -63,7 +62,9 @@ public enum LoggerUtil {
             String level = getColoredLevel(record.getLevel());
             String throwable = "";
             if (record.getThrown() != null) {
-                throwable = "\n" +getStackTrace(record.getThrown());
+                // Use stackTraceLimit from LoggerConfig to truncate stack trace
+                throwable = "\n"
+                        + getFormattedStackTrace(record.getThrown(), LoggerUtil.INSTANCE.config.getStackTraceLimit());
             }
             return String.format("%s [%s] (%s):\n> %s%s\n", date, source, level, message, throwable);
         }
@@ -88,6 +89,12 @@ public enum LoggerUtil {
             return null;
         }
 
+        /**
+         * Returns a colored log level string based on the severity.
+         * 
+         * @param level the log level
+         * @return the colored log level string
+         */
         private static String getColoredLevel(Level level) {
             switch (level.getName()) {
                 case "SEVERE":
@@ -105,15 +112,45 @@ public enum LoggerUtil {
                 case "FINEST":
                     return WHITE + level.getName() + RESET;
                 default:
-                    return BLACK + level.getName() + RESET;
+                    return level.getName();
             }
         }
 
-        private static String getStackTrace(Throwable throwable) {
+        /**
+         * Generates the stack trace string from the given Throwable.
+         * The format includes the exception class name, message (if any),
+         * and the stack trace elements up to the specified maxElements.
+         * 
+         * @param throwable   the throwable to extract the stack trace from
+         * @param maxElements the maximum number of stack trace elements to show
+         * @return the formatted stack trace as a string
+         */
+        private static String getFormattedStackTrace(Throwable throwable, int maxElements) {
             StringBuilder sb = new StringBuilder();
-            for (StackTraceElement element : throwable.getStackTrace()) {
-                sb.append("\tat ").append(element).append("\n");
+
+            // Add the exception class name and message
+            sb.append(throwable.getClass().getName());
+            if (throwable.getMessage() != null) {
+                sb.append(": ").append(throwable.getMessage());
             }
+            sb.append("\n");
+
+            // Stack trace elements
+            StackTraceElement[] stackTrace = throwable.getStackTrace();
+            int length = stackTrace.length;
+            // Limit the output to the top maxElements items
+            int displayLimit = Math.min(maxElements, length);
+
+            // Add the stack trace up to the limit
+            for (int i = 0; i < displayLimit; i++) {
+                sb.append("\tat ").append(stackTrace[i]).append("\n");
+            }
+
+            // If stack trace was truncated, append a message to indicate it
+            if (length > maxElements) {
+                sb.append("\t... ").append(length - maxElements).append(" more elements truncated ...\n");
+            }
+
             return sb.toString();
         }
     }
@@ -173,12 +210,65 @@ public enum LoggerUtil {
     }
 
     /**
+     * Logs a message at the specified level, overloaded to accept an Object.
+     * If the Object is a String, logs it as a message.
+     * If the Object is a Throwable (Exception), logs its message and stack trace.
+     * Otherwise, logs the Object's toString().
+     * 
+     * @param level   the level of the log message
+     * @param message the Object to log
+     */
+    public void log(Level level, Object message) {
+        if (!isConfigured)
+            setupLogger();
+        if (message instanceof String) {
+            logger.log(level, (String) message);
+        } else if (message instanceof Throwable) {
+            logger.log(level, ((Throwable) message).getMessage(), (Throwable) message);
+        } else {
+            logger.log(level, message.toString());
+        }
+    }
+
+    /**
+     * Logs an exception at the specified level.
+     *
+     * @param level     the level of the log message
+     * @param message   the log message
+     * @param throwable the exception to log
+     */
+    public void log(Level level, String message, Throwable throwable) {
+        if (!isConfigured)
+            setupLogger();
+        logger.log(level, message, throwable);
+    }
+
+    /**
      * Logs an informational message.
      * 
      * @param message the log message
      */
     public void info(String message) {
         log(Level.INFO, message);
+    }
+
+    /**
+     * Logs an informational message, overloaded to accept an Object.
+     * 
+     * @param message the Object to log
+     */
+    public void info(Object message) {
+        log(Level.INFO, message);
+    }
+
+    /**
+     * Logs an exception with an INFO level.
+     *
+     * @param message   the log message
+     * @param throwable the exception to log
+     */
+    public void info(String message, Throwable throwable) {
+        log(Level.INFO, message, throwable);
     }
 
     /**
@@ -191,6 +281,25 @@ public enum LoggerUtil {
     }
 
     /**
+     * Logs a warning message, overloaded to accept an Object.
+     * 
+     * @param message the Object to log
+     */
+    public void warning(Object message) {
+        log(Level.WARNING, message);
+    }
+
+    /**
+     * Logs an exception with a WARNING level.
+     *
+     * @param message   the log message
+     * @param throwable the exception to log
+     */
+    public void warning(String message, Throwable throwable) {
+        log(Level.WARNING, message, throwable);
+    }
+
+    /**
      * Logs a severe error message.
      * 
      * @param message the log message
@@ -200,11 +309,39 @@ public enum LoggerUtil {
     }
 
     /**
+     * Logs a severe error message, overloaded to accept an Object.
+     * 
+     * @param message the Object to log
+     */
+    public void severe(Object message) {
+        log(Level.SEVERE, message);
+    }
+
+    /**
+     * Logs an exception with a SEVERE level.
+     *
+     * @param message   the log message
+     * @param throwable the exception to log
+     */
+    public void severe(String message, Throwable throwable) {
+        log(Level.SEVERE, message, throwable);
+    }
+
+    /**
      * Logs a fine-grained informational message.
      * 
      * @param message the log message
      */
     public void fine(String message) {
+        log(Level.FINE, message);
+    }
+
+    /**
+     * Logs a fine-grained informational message, overloaded to accept an Object.
+     * 
+     * @param message the Object to log
+     */
+    public void fine(Object message) {
         log(Level.FINE, message);
     }
 
@@ -218,6 +355,15 @@ public enum LoggerUtil {
     }
 
     /**
+     * Logs a finer-grained informational message, overloaded to accept an Object.
+     * 
+     * @param message the Object to log
+     */
+    public void finer(Object message) {
+        log(Level.FINER, message);
+    }
+
+    /**
      * Logs the finest-grained informational message.
      * 
      * @param message the log message
@@ -227,46 +373,13 @@ public enum LoggerUtil {
     }
 
     /**
-     * Logs an exception at the specified level.
+     * Logs the finest-grained informational message, overloaded to accept an
+     * Object.
      * 
-     * @param level     the level of the log message
-     * @param message   the log message
-     * @param throwable the exception to log
+     * @param message the Object to log
      */
-    public void log(Level level, String message, Throwable throwable) {
-        if (!isConfigured)
-            setupLogger();
-        logger.log(level, message, throwable);
-    }
-
-    /**
-     * Logs an exception with an INFO level.
-     * 
-     * @param message   the log message
-     * @param throwable the exception to log
-     */
-    public void info(String message, Throwable throwable) {
-        log(Level.INFO, message, throwable);
-    }
-
-    /**
-     * Logs an exception with a WARNING level.
-     * 
-     * @param message   the log message
-     * @param throwable the exception to log
-     */
-    public void warning(String message, Throwable throwable) {
-        log(Level.WARNING, message, throwable);
-    }
-
-    /**
-     * Logs an exception with a SEVERE level.
-     * 
-     * @param message   the log message
-     * @param throwable the exception to log
-     */
-    public void severe(String message, Throwable throwable) {
-        log(Level.SEVERE, message, throwable);
+    public void finest(Object message) {
+        log(Level.FINEST, message);
     }
 
     /**
@@ -279,6 +392,7 @@ public enum LoggerUtil {
         private String logLocation = "application.log";
         private Level fileLogLevel = Level.ALL; // default log level for file
         private Level consoleLogLevel = Level.ALL; // default log level for console
+        private int stackTraceLimit = 10; // default maximum number of stack trace elements
 
         // Getters and Setters for each property
 
@@ -371,6 +485,24 @@ public enum LoggerUtil {
         public void setConsoleLogLevel(Level consoleLogLevel) {
             this.consoleLogLevel = consoleLogLevel;
         }
+
+        /**
+         * Gets the stack trace limit for logging.
+         * 
+         * @return the maximum number of stack trace elements to show
+         */
+        public int getStackTraceLimit() {
+            return stackTraceLimit;
+        }
+
+        /**
+         * Sets the stack trace limit for logging.
+         * 
+         * @param stackTraceLimit the maximum number of stack trace elements to show
+         */
+        public void setStackTraceLimit(int stackTraceLimit) {
+            this.stackTraceLimit = stackTraceLimit;
+        }
     }
 
     /**
@@ -390,7 +522,7 @@ public enum LoggerUtil {
         // Set the logger configuration
         LoggerUtil.INSTANCE.setConfig(config);
 
-        // Log various messages
+        // Original examples
         LoggerUtil.INSTANCE.info("This is an info message.");
         LoggerUtil.INSTANCE.warning("This is a warning message.");
         LoggerUtil.INSTANCE.severe("This is a severe error message.");
@@ -402,5 +534,51 @@ public enum LoggerUtil {
         new Thread(() -> {
             LoggerUtil.INSTANCE.info("This is a message from a separate thread.");
         }).start();
+
+        // Simulate an exception
+        LoggerUtil.INSTANCE.warning("This is a simulated warning exception.", new IOException("Simulated IOException"));
+        LoggerUtil.INSTANCE.severe("This is a simulated severe error", new Exception("Simulated Exception"));
+
+        // New examples to test Object overloads
+        LoggerUtil.INSTANCE.info(new Object() {
+            @Override
+            public String toString() {
+                return "Logging a custom object using info";
+            }
+        });
+
+        LoggerUtil.INSTANCE.warning(new Exception("Logging a Throwable object using warning"));
+
+        LoggerUtil.INSTANCE.severe(new Object() {
+            @Override
+            public String toString() {
+                return "Logging a custom object using severe";
+            }
+        });
+
+        LoggerUtil.INSTANCE.fine(new Object() {
+            @Override
+            public String toString() {
+                return "Logging a custom object using fine";
+            }
+        });
+
+        // Logging a null value to test edge cases
+        try {
+            LoggerUtil.INSTANCE.info((Object) null);
+        } catch (Exception e) {
+            LoggerUtil.INSTANCE.severe("A NullPointerException occurred!", e);
+        }
+        // New example to trigger a larger stack trace (StackOverflowError)
+        try {
+            recursiveMethod(0);
+        } catch (StackOverflowError e) {
+            LoggerUtil.INSTANCE.severe("A StackOverflowError occurred!", e);
+        }
+    }
+
+    private static void recursiveMethod(int depth) {
+        // Keep calling itself to cause a StackOverflowError
+        recursiveMethod(depth + 1);
     }
 }
