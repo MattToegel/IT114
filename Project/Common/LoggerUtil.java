@@ -62,8 +62,9 @@ public enum LoggerUtil {
             String level = getColoredLevel(record.getLevel());
             String throwable = "";
             if (record.getThrown() != null) {
-                // Adjust maxElements to control how many stack trace elements you want to show
-                throwable = "\n" + getStackTrace(record.getThrown(), 10); // Example: Show top 10 elements
+                // Use stackTraceLimit from LoggerConfig to truncate stack trace
+                throwable = "\n"
+                        + getFormattedStackTrace(record.getThrown(), LoggerUtil.INSTANCE.config.getStackTraceLimit());
             }
             return String.format("%s [%s] (%s):\n\u001B[34m>\u001B[0m %s%s\n", date, source, level, message, throwable);
         }
@@ -117,26 +118,30 @@ public enum LoggerUtil {
 
         /**
          * Generates the stack trace string from the given Throwable.
+         * The format includes the exception class name, message (if any),
+         * and the stack trace elements up to the specified maxElements.
          * 
-         * @param throwable the throwable to extract the stack trace from
-         * @return the stack trace as a string
+         * @param throwable   the throwable to extract the stack trace from
+         * @param maxElements the maximum number of stack trace elements to show
+         * @return the formatted stack trace as a string
          */
-        private static String getStackTrace(Throwable throwable) {
+        private static String getFormattedStackTrace(Throwable throwable, int maxElements) {
             StringBuilder sb = new StringBuilder();
-            for (StackTraceElement element : throwable.getStackTrace()) {
-                sb.append("\tat ").append(element).append("\n");
+
+            // Add the exception class name and message
+            sb.append(throwable.getClass().getName());
+            if (throwable.getMessage() != null) {
+                sb.append(": ").append(throwable.getMessage());
             }
-            return sb.toString();
-        }
+            sb.append("\n");
 
-        private static String getStackTrace(Throwable throwable, int maxElements) {
-            StringBuilder sb = new StringBuilder();
+            // Stack trace elements
             StackTraceElement[] stackTrace = throwable.getStackTrace();
-
             int length = stackTrace.length;
             // Limit the output to the top maxElements items
             int displayLimit = Math.min(maxElements, length);
 
+            // Add the stack trace up to the limit
             for (int i = 0; i < displayLimit; i++) {
                 sb.append("\tat ").append(stackTrace[i]).append("\n");
             }
@@ -387,6 +392,7 @@ public enum LoggerUtil {
         private String logLocation = "application.log";
         private Level fileLogLevel = Level.ALL; // default log level for file
         private Level consoleLogLevel = Level.ALL; // default log level for console
+        private int stackTraceLimit = 10; // default maximum number of stack trace elements
 
         // Getters and Setters for each property
 
@@ -479,6 +485,24 @@ public enum LoggerUtil {
         public void setConsoleLogLevel(Level consoleLogLevel) {
             this.consoleLogLevel = consoleLogLevel;
         }
+
+        /**
+         * Gets the stack trace limit for logging.
+         * 
+         * @return the maximum number of stack trace elements to show
+         */
+        public int getStackTraceLimit() {
+            return stackTraceLimit;
+        }
+
+        /**
+         * Sets the stack trace limit for logging.
+         * 
+         * @param stackTraceLimit the maximum number of stack trace elements to show
+         */
+        public void setStackTraceLimit(int stackTraceLimit) {
+            this.stackTraceLimit = stackTraceLimit;
+        }
     }
 
     /**
@@ -540,8 +564,11 @@ public enum LoggerUtil {
         });
 
         // Logging a null value to test edge cases
-        // LoggerUtil.INSTANCE.info((Object) null);
-
+        try {
+            LoggerUtil.INSTANCE.info((Object) null);
+        } catch (Exception e) {
+            LoggerUtil.INSTANCE.severe("A NullPointerException occurred!", e);
+        }
         // New example to trigger a larger stack trace (StackOverflowError)
         try {
             recursiveMethod(0);
@@ -552,9 +579,6 @@ public enum LoggerUtil {
 
     private static void recursiveMethod(int depth) {
         // Keep calling itself to cause a StackOverflowError
-        if (depth == 0) {
-            System.out.println("Triggering deep recursion...");
-        }
         recursiveMethod(depth + 1);
     }
 }
