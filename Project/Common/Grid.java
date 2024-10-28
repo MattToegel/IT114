@@ -165,6 +165,7 @@ public class Grid {
 
         System.out.println("Trying to occupy cell (1, 1): " + grid.tryOccupyCell(1, 1));
         System.out.println("Trying to occupy cell (2, 2): " + grid.tryOccupyCell(2, 2));
+        System.out.println(grid);
         System.out.println("All cells occupied: " + grid.areAllCellsOccupied());
         
         grid.reset();
