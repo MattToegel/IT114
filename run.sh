@@ -8,6 +8,9 @@ if [ "$input" = "server" ]; then
 elif [ "$input" = "client" ]; then
     java $1.Client.Client
     # In Milestone3 changes Client to ClientUI
+elif [ "$input" = "ui" ]; then
+	java $1.Client.ClientUI
+	# Milestone 3's new entry point
 else
     echo "Must specify client or server"
 fi
