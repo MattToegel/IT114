@@ -264,7 +264,12 @@ public enum Client {
                     sendReady();
                     wasCommand = true;
                     break;
+                case "turn": //Milestone2 compatible
+                    sendTurnAction();
+                    wasCommand = true;
+                    break;
                 }
+                
                 return wasCommand;
             }
         }
@@ -606,6 +611,9 @@ public enum Client {
     private void processPoints(long clientId, int points) {
         if (clientId == ClientPlayer.DEFAULT_CLIENT_ID) {
             knownClients.values().forEach(cp -> cp.setPoints(0));
+        }
+        else{
+            knownClients.get(clientId).setPoints(points);
         }
         events.forEach(event -> {
             if (event instanceof IPointsEvent) {
