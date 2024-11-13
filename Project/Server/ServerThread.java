@@ -7,11 +7,15 @@ import java.util.function.Consumer;
 
 import Project.Common.PayloadType;
 import Project.Common.Phase;
+import Project.Common.PointsPayload;
 import Project.Common.ReadyPayload;
 import Project.Common.RoomResultsPayload;
+import Project.Common.TimerPayload;
+import Project.Common.TimerType;
 import Project.Common.Payload;
 
 import Project.Common.ConnectionPayload;
+import Project.Common.Constants;
 import Project.Common.LoggerUtil;
 
 /**
@@ -126,6 +130,13 @@ public class ServerThread extends BaseServerThread {
                         sendMessage("You must be in a GameRoom to do the ready check");
                     }
                     break;
+                case EXAMPLE_TURN:
+                    try {
+                        // cast to GameRoom as the subclass will handle all Game logic
+                        ((GameRoom) currentRoom).handleTurn(this);
+                    } catch (Exception e) {
+                        sendMessage("You must be in a GameRoom to do the example turn");
+                    }
                 default:
                     break;
             }
@@ -134,35 +145,102 @@ public class ServerThread extends BaseServerThread {
 
         }
     }
-    // send methods specific to non-chatroom projects
 
-    public boolean sendCurrentPhase(Phase phase){
+    // send methods specific to non-chatroom
+    /**
+     * Syncs a specific client's points
+     * 
+     * @param clientId
+     * @param points
+     * @return
+     */
+    public boolean sendPointsUpdate(long clientId, int points) {
+        PointsPayload rp = new PointsPayload();
+        rp.setPoints(points);
+        rp.setClientId(clientId);
+        return send(rp);
+    }
+
+    /**
+     * Syncs the current time of a specific TimerType
+     * 
+     * @param timerType
+     * @param time
+     * @return
+     */
+    public boolean sendCurrentTime(TimerType timerType, int time) {
+        TimerPayload tp = new TimerPayload();
+        tp.setTime(time);
+        tp.setTimerType(timerType);
+        return send(tp);
+    }
+
+    /**
+     * Sends a message as a GAME_EVENT for non-chat UI
+     * 
+     * @param str
+     * @return
+     */
+    public boolean sendGameEvent(String str) {
+        return sendMessage(Constants.GAME_EVENT_CHANNEL, str);
+    }
+
+    /**
+     * Syncs a specific client's turn status
+     * 
+     * @param clientId
+     * @param didTakeTurn
+     * @return
+     */
+    public boolean sendTurnStatus(long clientId, boolean didTakeTurn) {
+        ReadyPayload rp = new ReadyPayload();
+        rp.setPayloadType(PayloadType.EXAMPLE_TURN);
+        rp.setReady(didTakeTurn);
+        rp.setClientId(clientId);
+        return send(rp);
+    }
+
+    /**
+     * Syncs the currnet phase to the client
+     * 
+     * @param phase
+     * @return
+     */
+    public boolean sendCurrentPhase(Phase phase) {
         Payload p = new Payload();
         p.setPayloadType(PayloadType.PHASE);
         p.setMessage(phase.name());
         return send(p);
     }
-    public boolean sendResetReady(){
+
+    /**
+     * Sends a trigger to have the client-side reset their list of READY state
+     * 
+     * @return
+     */
+    public boolean sendResetReady() {
         ReadyPayload rp = new ReadyPayload();
         rp.setPayloadType(PayloadType.RESET_READY);
         return send(rp);
     }
 
-    public boolean sendReadyStatus(long clientId, boolean isReady){
+    public boolean sendReadyStatus(long clientId, boolean isReady) {
         return sendReadyStatus(clientId, isReady, false);
     }
+
     /**
      * Sync ready status of client id
+     * 
      * @param clientId who
-     * @param isReady ready or not
-     * @param quiet silently mark ready
+     * @param isReady  ready or not
+     * @param quiet    silently mark ready
      * @return
      */
-    public boolean sendReadyStatus(long clientId, boolean isReady, boolean quiet){
+    public boolean sendReadyStatus(long clientId, boolean isReady, boolean quiet) {
         ReadyPayload rp = new ReadyPayload();
         rp.setClientId(clientId);
         rp.setReady(isReady);
-        if(quiet){
+        if (quiet) {
             rp.setPayloadType(PayloadType.SYNC_READY);
         }
         return send(rp);

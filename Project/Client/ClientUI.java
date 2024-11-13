@@ -22,7 +22,7 @@ import Project.Client.Interfaces.ICardControls;
 import Project.Client.Interfaces.IConnectionEvents;
 import Project.Client.Interfaces.IMessageEvents;
 import Project.Client.Interfaces.IRoomEvents;
-import Project.Client.Views.ChatPanel;
+import Project.Client.Views.ChatGamePanel;
 import Project.Client.Views.ConnectionPanel;
 import Project.Client.Views.Menu;
 import Project.Client.Views.RoomsPanel;
@@ -44,7 +44,7 @@ public class ClientUI extends JFrame implements IConnectionEvents, IMessageEvent
     private JMenuBar menu;
     private ConnectionPanel connectionPanel;
     private UserDetailsPanel userDetailsPanel;
-    private ChatPanel chatPanel;
+    private ChatGamePanel chatGamePanel;
     private RoomsPanel roomsPanel;
     private JLabel roomLabel = new JLabel();
 
@@ -95,7 +95,7 @@ public class ClientUI extends JFrame implements IConnectionEvents, IMessageEvent
         // Initialize panels
         connectionPanel = new ConnectionPanel(this);
         userDetailsPanel = new UserDetailsPanel(this);
-        chatPanel = new ChatPanel(this);
+        chatGamePanel = new ChatGamePanel(this);
         roomsPanel = new RoomsPanel(this);
 
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
@@ -180,11 +180,11 @@ public class ClientUI extends JFrame implements IConnectionEvents, IMessageEvent
     @Override
     public void onClientDisconnect(long clientId, String clientName) {
         if (currentCard.ordinal() >= CardView.CHAT.ordinal()) {
-            chatPanel.removeUserListItem(clientId);
+            chatGamePanel.getChatPanel().removeUserListItem(clientId);
             boolean isMe = clientId == Client.INSTANCE.getMyClientId();
             String message = String.format("*%s disconnected*",
                     isMe ? "You" : String.format("%s[%s]", clientName, clientId));
-            chatPanel.addText(message);
+                    chatGamePanel.getChatPanel().addText(message);
             if (isMe) {
                 LoggerUtil.INSTANCE.info("I disconnected");
                 previous();
@@ -195,26 +195,30 @@ public class ClientUI extends JFrame implements IConnectionEvents, IMessageEvent
     @Override
     public void onMessageReceive(long clientId, String message) {
         if (currentCard.ordinal() >= CardView.CHAT.ordinal()) {
+            if (clientId < ClientPlayer.DEFAULT_CLIENT_ID) {
+                // Note: Planning to use < -1 as internal channels (see GameEventsPanel)
+                return;
+            }
             String clientName = Client.INSTANCE.getClientNameFromId(clientId);
-            chatPanel.addText(String.format("%s[%s]: %s", clientName, clientId, message));
+            chatGamePanel.getChatPanel().addText(String.format("%s[%s]: %s", clientName, clientId, message));
         }
     }
 
     @Override
     public void onReceiveClientId(long id) {
-        show(CardView.CHAT.name());
-        chatPanel.addText("*You connected*");
+        show(CardView.CHAT_GAME_SCREEN.name());
+        chatGamePanel.getChatPanel().addText("*You connected*");
     }
 
     @Override
     public void onResetUserList() {
-        chatPanel.clearUserList();
+        chatGamePanel.getChatPanel().clearUserList();
     }
 
     @Override
     public void onSyncClient(long clientId, String clientName) {
         if (currentCard.ordinal() >= CardView.CHAT.ordinal()) {
-            chatPanel.addUserListItem(clientId, String.format("%s (%s)", clientName, clientId));
+            chatGamePanel.getChatPanel().addUserListItem(clientId, String.format("%s (%s)", clientName, clientId));
         }
     }
 
@@ -240,12 +244,12 @@ public class ClientUI extends JFrame implements IConnectionEvents, IMessageEvent
                     /* 1st %s */ isMe ? "You" : String.format("%s[%s]", clientName, clientId),
                     /* 2nd %s */ isJoin ? "joined" : "left",
                     /* 3rd %s */ roomName == null ? "" : roomName); // added handling of null after the demo video
-            chatPanel.addText(message);
+                    chatGamePanel.getChatPanel().addText(message);
             if (isJoin) {
                 roomLabel.setText("Room: " + roomName);
-                chatPanel.addUserListItem(clientId, String.format("%s (%s)", clientName, clientId));
+                chatGamePanel.getChatPanel().addUserListItem(clientId, String.format("%s (%s)", clientName, clientId));
             } else {
-                chatPanel.removeUserListItem(clientId);
+                chatGamePanel.getChatPanel().removeUserListItem(clientId);
             }
 
         }

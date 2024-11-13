@@ -102,6 +102,10 @@ public enum Server {
      * @return true if it was created and false if it wasn't
      */
     protected boolean createRoom(String name) {
+        // added a check to prevent empty room names (11/10/2024)
+        if (name == null || name.length() == 0) {
+            return false;
+        }
         final String nameCheck = name.toLowerCase();
         if (rooms.containsKey(nameCheck)) {
             return false;

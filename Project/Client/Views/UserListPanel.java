@@ -1,6 +1,7 @@
 package Project.Client.Views;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
@@ -18,12 +19,17 @@ import javax.swing.ScrollPaneConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
 
+import Project.Client.Client;
+import Project.Client.ClientPlayer;
+import Project.Client.Interfaces.IPointsEvent;
+import Project.Client.Interfaces.IReadyEvent;
+import Project.Client.Interfaces.ITurnEvent;
 import Project.Common.LoggerUtil;
 
 /**
  * UserListPanel represents a UI component that displays a list of users.
  */
-public class UserListPanel extends JPanel {
+public class UserListPanel extends JPanel implements IReadyEvent, IPointsEvent, ITurnEvent {
     private JPanel userListArea;
     private GridBagConstraints lastConstraints; // Keep track of the last constraints for the glue
     private HashMap<Long, UserListItem> userItemsMap; // Maintain a map of client IDs to UserListItems
@@ -80,9 +86,11 @@ public class UserListPanel extends JPanel {
         this.addComponentListener(new ComponentAdapter() {
             @Override
             public void componentResized(ComponentEvent e) {
-                SwingUtilities.invokeLater(() -> adjustUserListItemsWidth());
+                // SwingUtilities.invokeLater(() -> adjustUserListItemsWidth());
             }
         });
+        // register to receive events
+        Client.INSTANCE.addCallback(this);
     }
 
     /**
@@ -108,7 +116,7 @@ public class UserListPanel extends JPanel {
             gbc.gridy = userListArea.getComponentCount() - 1; // Place before the glue
             gbc.weightx = 1; // Let the component grow horizontally to fill the space
             gbc.anchor = GridBagConstraints.NORTH; // Anchor to the top
-            gbc.fill = GridBagConstraints.HORIZONTAL; // Fill horizontally
+            gbc.fill = GridBagConstraints.BOTH;
             gbc.insets = new Insets(0, 0, 5, 0); // Add spacing between users
 
             // Remove the last glue component if it exists
@@ -173,5 +181,44 @@ public class UserListPanel extends JPanel {
             userListArea.revalidate();
             userListArea.repaint();
         });
+    }
+
+    @Override
+    public void onTookTurn(long clientId, boolean didtakeCurn) {
+        if (clientId == ClientPlayer.DEFAULT_CLIENT_ID) {
+            SwingUtilities.invokeLater(() -> {
+                userItemsMap.values().forEach(u -> u.setTurn(false));// reset all
+            });
+        } else if (userItemsMap.containsKey(clientId)) {
+            SwingUtilities.invokeLater(() -> {
+                userItemsMap.get(clientId).setTurn(didtakeCurn);
+            });
+        }
+    }
+
+    @Override
+    public void onPointsUpdate(long clientId, int points) {
+        if (userItemsMap.containsKey(clientId)) {
+            SwingUtilities.invokeLater(() -> {
+                if (clientId > ClientPlayer.DEFAULT_CLIENT_ID) {
+                    userItemsMap.get(clientId).setPoints(points);
+                } else {
+                    userItemsMap.values().forEach(u -> u.setPoints(-1));// reset all
+                }
+            });
+        }
+    }
+
+    @Override
+    public void onReceiveReady(long clientId, boolean isReady, boolean isQuiet) {
+        if (clientId == ClientPlayer.DEFAULT_CLIENT_ID) {
+            SwingUtilities.invokeLater(() -> {
+                userItemsMap.values().forEach(u -> u.setTurn(false));// reset all
+            });
+        } else if (userItemsMap.containsKey(clientId)) {
+            SwingUtilities.invokeLater(() -> {
+                userItemsMap.get(clientId).setTurn(isReady, Color.GRAY);
+            });
+        }
     }
 }
