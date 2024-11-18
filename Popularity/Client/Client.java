@@ -10,11 +10,14 @@ import java.util.List;
 import java.util.Scanner;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import Popularity.Client.Interfaces.IClientEvents;
 import Popularity.Client.Interfaces.IConnectionEvents;
+import Popularity.Client.Interfaces.IGridEvents;
 import Popularity.Client.Interfaces.IMessageEvents;
 import Popularity.Client.Interfaces.IPhaseEvent;
 import Popularity.Client.Interfaces.IPointsEvent;
@@ -24,7 +27,10 @@ import Popularity.Client.Interfaces.ITimeEvents;
 import Popularity.Client.Interfaces.ITurnEvent;
 import Popularity.Common.ConnectionPayload;
 import Popularity.Common.Constants;
+import Popularity.Common.Grid;
 import Popularity.Common.LoggerUtil;
+import Popularity.Common.OSPayload;
+import Popularity.Common.OccupiedStatus;
 import Popularity.Common.Payload;
 import Popularity.Common.PayloadType;
 import Popularity.Common.Phase;
@@ -35,6 +41,7 @@ import Popularity.Common.TextFX;
 import Popularity.Common.TextFX.Color;
 import Popularity.Common.TimerPayload;
 import Popularity.Common.TimerType;
+import Popularity.Common.XYPayload;
 
 /**
  * Demoing bi-directional communication between client and server in a
@@ -43,17 +50,6 @@ import Popularity.Common.TimerType;
 public enum Client {
     INSTANCE;
 
-    {
-        // TODO moved to ClientUI (this repeat doesn't do anything since config is set
-        // only once)
-        // statically initialize the client-side LoggerUtil
-        LoggerUtil.LoggerConfig config = new LoggerUtil.LoggerConfig();
-        config.setFileSizeLimit(2048 * 1024); // 2MB
-        config.setFileCount(1);
-        config.setLogLocation("client.log");
-        // Set the logger configuration
-        LoggerUtil.INSTANCE.setConfig(config);
-    }
     private Socket server = null;
     private ObjectOutputStream out = null;
     private ObjectInputStream in = null;
@@ -76,7 +72,7 @@ public enum Client {
     private final String SINGLE_SPACE = " ";
     // other constants
     private final String READY = "ready";
-
+    private Grid grid = null;
     // callback that updates the UI
     private static List<IClientEvents> events = new ArrayList<IClientEvents>();
 
@@ -265,6 +261,7 @@ public enum Client {
                     wasCommand = true;
                     break;
                 }
+
                 return wasCommand;
             }
         }
@@ -273,6 +270,21 @@ public enum Client {
 
     public long getMyClientId() {
         return myData.getClientId();
+    }
+
+    public List<Object[]> getScores() {
+        // AtomicInteger is a thread-safe integer that supports atomic (indivisible)
+        // operations
+        // like increment, decrement, and update without needing synchronization or
+        // locks.
+
+        AtomicInteger rankCounter = new AtomicInteger(1); // Counter for ranks
+        return knownClients.values().stream().filter(p -> p.isReady()) // Filter clients who are ready
+                .sorted((a, b) -> Integer.compare(b.getPoints(), a.getPoints())) // Sort by points descending
+                .map(p -> new Object[] { rankCounter.getAndIncrement(), // Assign rank and increment the counter
+                        String.format("%s(%s)", p.getClientName(), p.getClientId()), // Name and ID
+                        p.getPoints() // Points
+                }).collect(Collectors.toList());
     }
 
     public void clientSideGameEvent(String str) {
@@ -285,8 +297,8 @@ public enum Client {
     }
 
     // send methods to pass data to the ServerThread
-    public void sendTurnAction() throws IOException {
-        Payload p = new Payload();
+    public void sendTurnAction(int x, int y) throws IOException {
+        XYPayload p = new XYPayload(x, y);
         p.setPayloadType(PayloadType.EXAMPLE_TURN);
         send(p);
     }
@@ -524,7 +536,9 @@ public enum Client {
      */
     private void processPayload(Payload payload) {
         try {
-            LoggerUtil.INSTANCE.info("Received Payload: " + payload);
+            if (payload.getPayloadType() != PayloadType.TIME) {
+                LoggerUtil.INSTANCE.info("Received Payload: " + payload);
+            }
             switch (payload.getPayloadType()) {
             case PayloadType.CLIENT_ID: // get id assigned
                 ConnectionPayload cp = (ConnectionPayload) payload;
@@ -574,9 +588,21 @@ public enum Client {
                 ReadyPayload tp = (ReadyPayload) payload;
                 processTurnStatus(tp.getClientId(), tp.isReady());
                 break;
+            case PayloadType.MOVE:
+                XYPayload tc = (XYPayload) payload;
+                processTurnConfirm(tc.getX(), tc.getY());
+                break;
             case PayloadType.POINTS:
                 PointsPayload pp = (PointsPayload) payload;
                 processPoints(pp.getClientId(), pp.getPoints());
+                break;
+            case PayloadType.GRID_DIMENSION:
+                XYPayload gd = (XYPayload) payload;
+                processGridDimension(gd.getX(), gd.getY());
+                break;
+            case PayloadType.OCCUPIED_STATUS:
+                OSPayload osp = (OSPayload) payload;
+                processOccupiedStatus(osp.getOccupiedStatuses());
                 break;
             default:
                 break;
@@ -603,9 +629,49 @@ public enum Client {
     }
 
     // payload processors
+    private void processTurnConfirm(int x, int y) {
+        events.forEach(event -> {
+            if (event instanceof IGridEvents) {
+                ((IGridEvents) event).onConfirmMove(x, y);
+            }
+        });
+    }
+
+    private void processOccupiedStatus(List<OccupiedStatus> os) {
+        try {
+            for (OccupiedStatus s : os) {
+                grid.setOccupiedStatus(s.getX(), s.getY(), s.getCount());
+                events.forEach(event -> {
+                    if (event instanceof IGridEvents) {
+                        ((IGridEvents) event).onUpdateOccupied(s.getX(), s.getY(), s.getCount());
+                    }
+                });
+            }
+        } catch (Exception e) {
+            LoggerUtil.INSTANCE.severe("Error handling occupied status", e);
+        }
+
+    }
+
+    private void processGridDimension(int x, int y) {
+        if (x > 0 && y > 0) {
+            grid = new Grid(x, y);
+        } else {
+            grid.reset();
+        }
+        events.forEach(event -> {
+            if (event instanceof IGridEvents) {
+                ((IGridEvents) event).onGridDimensions(x, y);
+            }
+        });
+        LoggerUtil.INSTANCE.info("Grid: " + grid);
+    }
+
     private void processPoints(long clientId, int points) {
         if (clientId == ClientPlayer.DEFAULT_CLIENT_ID) {
             knownClients.values().forEach(cp -> cp.setPoints(0));
+        } else if (knownClients.containsKey(clientId)) {
+            knownClients.get(clientId).setPoints(points);
         }
         events.forEach(event -> {
             if (event instanceof IPointsEvent) {
@@ -623,7 +689,13 @@ public enum Client {
     }
 
     private void processResetTurns() {
-        knownClients.values().forEach(cp -> cp.setTakeTurn(false));
+        knownClients.values().forEach(cp -> cp.setCoordinate(-1, -1));
+        grid.reset();
+        events.forEach(event -> {
+            if (event instanceof IGridEvents) {
+                ((IGridEvents) event).onResetCells();
+            }
+        });
         events.forEach(event -> {
             if (event instanceof ITurnEvent) {
                 ((ITurnEvent) event).onTookTurn(ClientPlayer.DEFAULT_CLIENT_ID, false);
@@ -637,7 +709,7 @@ public enum Client {
 
         } else {
             ClientPlayer cp = knownClients.get(clientId);
-            cp.setTakeTurn(didTakeTurn);
+            // cp.setTakeTurn(didTakeTurn);
             if (didTakeTurn) {
                 System.out.println(
                         TextFX.colorize(String.format("%s finished their turn", cp.getClientName()), Color.CYAN));

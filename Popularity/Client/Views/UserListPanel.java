@@ -145,8 +145,7 @@ public class UserListPanel extends JPanel implements IReadyEvent, IPointsEvent, 
     private void adjustUserListItemsWidth() {
         SwingUtilities.invokeLater(() -> {
             for (UserListItem item : userItemsMap.values()) {
-                item.setPreferredSize(
-                        new Dimension(userListArea.getWidth() - 20, item.getPreferredSize().height));
+                item.setPreferredSize(new Dimension(userListArea.getWidth() - 20, item.getPreferredSize().height));
             }
             userListArea.revalidate();
             userListArea.repaint();
@@ -198,15 +197,14 @@ public class UserListPanel extends JPanel implements IReadyEvent, IPointsEvent, 
 
     @Override
     public void onPointsUpdate(long clientId, int points) {
-        if (userItemsMap.containsKey(clientId)) {
-            SwingUtilities.invokeLater(() -> {
-                if (clientId > ClientPlayer.DEFAULT_CLIENT_ID) {
-                    userItemsMap.get(clientId).setPoints(points);
-                } else {
-                    userItemsMap.values().forEach(u -> u.setPoints(-1));// reset all
-                }
-            });
-        }
+        SwingUtilities.invokeLater(() -> {
+            if (userItemsMap.containsKey(clientId)) {
+                userItemsMap.get(clientId).setPoints(points);
+            } else {
+                userItemsMap.values().forEach(u -> u.setPoints(-1));// reset all
+                userItemsMap.values().forEach(u -> u.setTurn(false));// reset all
+            }
+        });
     }
 
     @Override

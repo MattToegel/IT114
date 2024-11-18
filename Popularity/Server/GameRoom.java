@@ -1,11 +1,11 @@
 package Popularity.Server;
 
 import java.util.List;
-import java.util.stream.Collector;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
+import Popularity.Common.Cell;
+import Popularity.Common.Grid;
 import Popularity.Common.LoggerUtil;
+import Popularity.Common.OccupiedStatus;
 import Popularity.Common.Phase;
 import Popularity.Common.Player;
 import Popularity.Common.TimedEvent;
@@ -19,7 +19,7 @@ public class GameRoom extends BaseGameRoom {
     // used for granular turn handling (usually turn-order turns)
     private TimedEvent turnTimer = null;
     private int round = 0;
-
+    private Grid grid = null;
     public GameRoom(String name) {
         super(name);
     }
@@ -102,6 +102,8 @@ public class GameRoom extends BaseGameRoom {
     protected void onSessionStart() {
         LoggerUtil.INSTANCE.info("onSessionStart() start");
         changePhase(Phase.IN_PROGRESS);
+        grid = new Grid(4, 4);
+        sendGridDimensions();
         LoggerUtil.INSTANCE.info("onSessionStart() end");
         onRoundStart();
     }
@@ -114,6 +116,8 @@ public class GameRoom extends BaseGameRoom {
         startRoundTimer();
         round++;
         sendGameEvent("Round: " + round);
+        changePhase(Phase.IN_PROGRESS);
+        grid.reset();
         // reset taken turn
         sendResetTurnStatus();
         LoggerUtil.INSTANCE.info("onRoundStart() end");
@@ -146,11 +150,35 @@ public class GameRoom extends BaseGameRoom {
     protected void onRoundEnd() {
         LoggerUtil.INSTANCE.info("onRoundEnd() start");
         resetRoundTimer(); // reset timer if round ended without the time expiring
-
-        if (round >= 10) {
-            onSessionEnd();
+        // check points logic
+        Cell mostPopular = grid.getMostPopularCell();
+        if(mostPopular != null){
+            LoggerUtil.INSTANCE.info(String.format("Found most popular cell: %s", mostPopular));
+            for(long clientId : mostPopular.getPlayersInCell()){
+                if(playersInRoom.containsKey(clientId)){
+                    ServerPlayer sp = playersInRoom.get(clientId);
+                    sp.changePoints(1);
+                    sendPointsUpdate(sp); // remember, this is a nested loop so the entire operation of this can potentially be a bit expensive
+                }
+            }
+        }
+        else{
+            LoggerUtil.INSTANCE.warning("No 'most popular' Cell for round " + round);
+        }
+        if (round >= 3) {
+            changePhase(Phase.SCORING);
+            new TimedEvent(10, ()->{
+                onSessionEnd();
+            });
         } else {
-            onRoundStart();
+            changePhase(Phase.ROUND_DELAY);
+            sendOccupiedStatus();
+            TimedEvent t = new TimedEvent(5, ()->{
+                onRoundStart();
+            });
+            t.setTickCallback((time)->{
+                sendCurrentTime(TimerType.NEXT_ROUND, time);
+            });
         }
         LoggerUtil.INSTANCE.info("onRoundEnd() end");
 
@@ -160,13 +188,46 @@ public class GameRoom extends BaseGameRoom {
     @Override
     protected void onSessionEnd() {
         LoggerUtil.INSTANCE.info("onSessionEnd() start");
+        sendResetPoints();
         resetReadyStatus();
+
         changePhase(Phase.READY);
         LoggerUtil.INSTANCE.info("onSessionEnd() end");
     }
     // end lifecycle methods
 
     // send/sync data to ServerPlayer(s)
+    private void sendResetPoints(){
+        playersInRoom.values().removeIf(spInRoom -> {
+            spInRoom.setPoints(0);
+            boolean failedToSend = !spInRoom.sendPointsUpdate(ServerPlayer.DEFAULT_CLIENT_ID, 0);
+            if (failedToSend) {
+                removedClient(spInRoom.getServerThread());
+            }
+            return failedToSend;
+        });
+    }
+    private void sendOccupiedStatus(){
+        List<OccupiedStatus> os = grid.getOccupiedStatus();
+        
+        playersInRoom.values().removeIf(spInRoom -> {
+            boolean failedToSend = !spInRoom.sendOccupiedStatus(os);
+            if (failedToSend) {
+                removedClient(spInRoom.getServerThread());
+            }
+            return failedToSend;
+        });
+    }
+   
+    private void sendGridDimensions() {
+        playersInRoom.values().removeIf(spInRoom -> {
+            boolean failedToSend = !spInRoom.sendGridDimensions(grid.getRows(), grid.getCols());
+            if (failedToSend) {
+                removedClient(spInRoom.getServerThread());
+            }
+            return failedToSend;
+        });
+    }
     /**
      * Sends the turn status of one Player to all Players (including themselves)
      * 
@@ -188,7 +249,7 @@ public class GameRoom extends BaseGameRoom {
      */
     private void sendResetTurnStatus() {
         playersInRoom.values().removeIf(spInRoom -> {
-            spInRoom.setTakeTurn(false); // reset server data
+            spInRoom.setCoordinate(-1, -1); // reset server data
             // using DEFAULT_CLIENT_ID as a trigger, prevents needing a nested loop to
             // update the status of each player to each player
             boolean failedToSend = !spInRoom.sendTurnStatus(Player.DEFAULT_CLIENT_ID, false);
@@ -251,6 +312,11 @@ public class GameRoom extends BaseGameRoom {
         }
     }
 
+    /**
+     * Used to prevent a player from doing multiple actions on their turn
+     * @param sp
+     * @throws Exception
+     */
     private void checkPlayerTookTurn(ServerPlayer sp) throws Exception {
         if (sp.didTakeTurn()) {
             sp.sendGameEvent("You already took your turn");
@@ -260,7 +326,7 @@ public class GameRoom extends BaseGameRoom {
     // end custom checks
 
     // receive data from ServerThread (GameRoom specific)
-    protected void handleTurn(ServerThread sender) {
+    protected void handleTurn(ServerThread sender, int x, int y) {
         try {
             // early exit checks
             checkPlayerInRoom(sender);
@@ -268,16 +334,23 @@ public class GameRoom extends BaseGameRoom {
 
             ServerPlayer sp = playersInRoom.get(sender.getClientId());
             checkPlayerIsReady(sp);
-            checkPlayerTookTurn(sp);
-
-            sp.setTakeTurn(true);
+            //checkPlayerTookTurn(sp); // commented out to allow a player to change their location choice
+            // get previous coordinate
+            int px = sp.getX(), py = sp.getY();
+            if(px == x && py == y){
+                sender.sendMessage("You're already at this coordinate");
+                return;
+            }
+            if(grid.addPlayerToCellAtCoordinate(x, y, sender.getClientId(), px, py)){
+                sp.setCoordinate(x, y);
+            }
+            else if(px > -1 && py > -1){
+                sp.setCoordinate(px, py);
+            }
+            
+            sender.sendTurnConfirm(x, y);
             sendTurnStatus(sp);
-            // example of fastest to take a turn
-            long ready = playersInRoom.values().stream().filter(p -> p.isReady()).count() + 1;
-            long tookTurn = playersInRoom.values().stream().filter(p -> p.isReady() && p.didTakeTurn()).count();
-            int points = (int) (ready - tookTurn);
-            sp.changePoints(points);
-            sendPointsUpdate(sp);
+            
             if (didAllTakeTurn()) {
                 onRoundEnd();
             }

@@ -12,15 +12,18 @@ import Popularity.Common.ReadyPayload;
 import Popularity.Common.RoomResultsPayload;
 import Popularity.Common.TimerPayload;
 import Popularity.Common.TimerType;
+import Popularity.Common.XYPayload;
 import Popularity.Common.Payload;
 
 import Popularity.Common.ConnectionPayload;
 import Popularity.Common.Constants;
 import Popularity.Common.LoggerUtil;
+import Popularity.Common.OSPayload;
+import Popularity.Common.OccupiedStatus;
 
 /**
- * A server-side representation of a single client.
- * This class is more about the data and abstracted communication
+ * A server-side representation of a single client. This class is more about the
+ * data and abstracted communication
  */
 public class ServerThread extends BaseServerThread {
     public static final long DEFAULT_CLIENT_ID = -1;
@@ -102,43 +105,45 @@ public class ServerThread extends BaseServerThread {
     protected void processPayload(Payload payload) {
         try {
             switch (payload.getPayloadType()) {
-                case CLIENT_CONNECT:
-                    ConnectionPayload cp = (ConnectionPayload) payload;
-                    setClientName(cp.getClientName());
-                    break;
-                case MESSAGE:
-                    currentRoom.sendMessage(this, payload.getMessage());
-                    break;
-                case ROOM_CREATE:
-                    currentRoom.handleCreateRoom(this, payload.getMessage());
-                    break;
-                case ROOM_JOIN:
-                    currentRoom.handleJoinRoom(this, payload.getMessage());
-                    break;
-                case ROOM_LIST:
-                    currentRoom.handleListRooms(this, payload.getMessage());
-                    break;
-                case DISCONNECT:
-                    currentRoom.disconnect(this);
-                    break;
-                case READY:
-                    // no data needed as the intent will be used as the trigger
-                    try {
-                        // cast to GameRoom as the subclass will handle all Game logic
-                        ((GameRoom) currentRoom).handleReady(this);
-                    } catch (Exception e) {
-                        sendMessage("You must be in a GameRoom to do the ready check");
-                    }
-                    break;
-                case EXAMPLE_TURN:
-                    try {
-                        // cast to GameRoom as the subclass will handle all Game logic
-                        ((GameRoom) currentRoom).handleTurn(this);
-                    } catch (Exception e) {
-                        sendMessage("You must be in a GameRoom to do the example turn");
-                    }
-                default:
-                    break;
+            case CLIENT_CONNECT:
+                ConnectionPayload cp = (ConnectionPayload) payload;
+                setClientName(cp.getClientName());
+                break;
+            case MESSAGE:
+                currentRoom.sendMessage(this, payload.getMessage());
+                break;
+            case ROOM_CREATE:
+                currentRoom.handleCreateRoom(this, payload.getMessage());
+                break;
+            case ROOM_JOIN:
+                currentRoom.handleJoinRoom(this, payload.getMessage());
+                break;
+            case ROOM_LIST:
+                currentRoom.handleListRooms(this, payload.getMessage());
+                break;
+            case DISCONNECT:
+                currentRoom.disconnect(this);
+                break;
+            case READY:
+                // no data needed as the intent will be used as the trigger
+                try {
+                    // cast to GameRoom as the subclass will handle all Game logic
+                    ((GameRoom) currentRoom).handleReady(this);
+                } catch (Exception e) {
+                    sendMessage("You must be in a GameRoom to do the ready check");
+                }
+                break;
+            case EXAMPLE_TURN:
+                try {
+                    // Cast to the proper type that was sent for this PayloadType
+                    XYPayload t = (XYPayload) payload;
+                    // cast to GameRoom as the subclass will handle all Game logic
+                    ((GameRoom) currentRoom).handleTurn(this, t.getX(), t.getY());
+                } catch (Exception e) {
+                    sendMessage("You must be in a GameRoom to do the example turn");
+                }
+            default:
+                break;
             }
         } catch (Exception e) {
             LoggerUtil.INSTANCE.severe("Could not process Payload: " + payload, e);
@@ -147,6 +152,34 @@ public class ServerThread extends BaseServerThread {
     }
 
     // send methods specific to non-chatroom
+    public boolean sendTurnConfirm(int x, int y){
+        XYPayload p = new XYPayload(x, y);
+        p.setPayloadType(PayloadType.MOVE);
+        return send(p);
+    }
+    /**
+     * Sends the cell occupied status of the grid (for visualization)
+     * @param os
+     * @return
+     */
+    public boolean sendOccupiedStatus(List<OccupiedStatus> os){
+        OSPayload p = new OSPayload(os);
+        return send(p);
+    }
+
+    /**
+     * Sends the grid dimensions to tell the Client what to locally setup
+     * 
+     * @param w width
+     * @param h height
+     * @return
+     */
+    public boolean sendGridDimensions(int w, int h) {
+        XYPayload p = new XYPayload(w, h);
+        p.setPayloadType(PayloadType.GRID_DIMENSION);
+        return send(p);
+    }
+
     /**
      * Syncs a specific client's points
      * 

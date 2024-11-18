@@ -7,8 +7,9 @@ public class Player {
     public static long DEFAULT_CLIENT_ID = -1L;
     private long clientId = Player.DEFAULT_CLIENT_ID;
     private boolean isReady = false;
-    private boolean takeTurn = false;
+    
     private int points = 0;
+    private int x = -1, y = -1; 
     public long getClientId() {
         return clientId;
     }
@@ -24,11 +25,12 @@ public class Player {
         this.isReady = isReady;
     }
     public boolean didTakeTurn() {
-        return takeTurn;
+        return x > -1 && y > -1;
     }
 
-    public void setTakeTurn(boolean tookTurn) {
-        this.takeTurn = tookTurn;
+    public void setCoordinate(int x, int y) {
+        this.x = x;
+        this.y = y;
     }
     public void setPoints(int p){
         this.points = p;
@@ -40,6 +42,12 @@ public class Player {
     public int getPoints(){
         return this.points;
     }
+    public int getX(){
+        return x;
+    }
+    public int getY(){
+        return y;
+    }
     /**
      * Resets all of the data (this is destructive).
      * You may want to make a softer reset for other data
@@ -47,7 +55,8 @@ public class Player {
     public void reset(){
         this.clientId = Player.DEFAULT_CLIENT_ID;
         this.isReady = false;
-        this.takeTurn = false;
         this.points = 0;
+        this.x = -1;
+        this.y = -1;
     }
 }

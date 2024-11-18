@@ -16,4 +16,7 @@ public enum PayloadType {
     TIME, // syncs current time of various timers
     EXAMPLE_TURN, // example of doing some turn logic
     POINTS, // syncs current points of a player
+    MOVE, // syncs as a point/coordinate
+    GRID_DIMENSION, // syncs grid dimension for server-side controlled grid 
+    OCCUPIED_STATUS, // syncs the status of occupied cells from server-side
 }

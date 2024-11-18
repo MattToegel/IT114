@@ -1,5 +1,8 @@
 package Popularity.Server;
 
+import java.util.List;
+
+import Popularity.Common.OccupiedStatus;
 import Popularity.Common.Phase;
 import Popularity.Common.Player;
 import Popularity.Common.TimerType;
@@ -22,8 +25,8 @@ public class ServerPlayer extends Player {
     }
 
     /**
-     * Used only for passing the ServerThread to the base class of Room.
-     * Favor creating wrapper methods instead of interacting with this directly.
+     * Used only for passing the ServerThread to the base class of Room. Favor
+     * creating wrapper methods instead of interacting with this directly.
      * 
      * @return ServerThread reference
      */
@@ -32,7 +35,18 @@ public class ServerPlayer extends Player {
     }
 
     // add any wrapper methods to call on the ServerThread
-    // don't used the exposed full ServerThread object
+    // don't used the exposed full ServerThread 
+    
+    public boolean sendTurnConfirm(int x, int y){
+        return client.sendTurnConfirm(x, y);
+    }
+    public boolean sendOccupiedStatus(List<OccupiedStatus> os){
+        return client.sendOccupiedStatus(os);
+    }
+    public boolean sendGridDimensions(int w, int h) {
+        return client.sendGridDimensions(w, h);
+    }
+
     public boolean sendCurrentTime(TimerType timerType, int time) {
         return client.sendCurrentTime(timerType, time);
     }
