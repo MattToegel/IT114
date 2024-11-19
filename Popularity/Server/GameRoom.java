@@ -103,6 +103,7 @@ public class GameRoom extends BaseGameRoom {
         LoggerUtil.INSTANCE.info("onSessionStart() start");
         changePhase(Phase.IN_PROGRESS);
         grid = new Grid(4, 4);
+        round = 0; // init as 0; onRoundStart() will increment
         sendGridDimensions();
         LoggerUtil.INSTANCE.info("onSessionStart() end");
         onRoundStart();
