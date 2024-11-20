@@ -1,5 +1,8 @@
 package HotPot.Server;
 
+import java.util.List;
+
+import HotPot.Common.Card;
 import HotPot.Common.Phase;
 import HotPot.Common.Player;
 import HotPot.Common.TimerType;
@@ -31,8 +34,36 @@ public class ServerPlayer extends Player {
         return client;
     }
 
+    public String getClientName() {
+        return client.getClientName();
+    }
+
     // add any wrapper methods to call on the ServerThread
     // don't used the exposed full ServerThread object
+    public boolean sendVisualPercentage(int percentage) {
+        return client.sendVisualPercentage(percentage);
+    }
+
+    public boolean sendRemoveCardFromHand(Card card) {
+        return client.sendRemoveCardFromHand(card);
+    }
+
+    public boolean sendRemoveCardsFromHand(List<Card> cards) {
+        return client.sendRemoveCardsFromHand(cards);
+    }
+
+    public boolean sendAddCardToHand(Card card) {
+        return client.sendAddCardToHand(card);
+    }
+
+    public boolean sendAddCardsToHand(List<Card> cards) {
+        return client.sendAddCardsToHand(cards);
+    }
+
+    public boolean sendCardsInHand(List<Card> cards) {
+        return client.sendCardsInHand(cards);
+    }
+
     public boolean sendCurrentTime(TimerType timerType, int time) {
         return client.sendCurrentTime(timerType, time);
     }
@@ -60,7 +91,8 @@ public class ServerPlayer extends Player {
     public boolean sendCurrentPhase(Phase phase) {
         return client.sendCurrentPhase(phase);
     }
-    public boolean sendGameEvent(String message){
+
+    public boolean sendGameEvent(String message) {
         return client.sendGameEvent(message);
     }
 }

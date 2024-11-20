@@ -16,4 +16,9 @@ public enum PayloadType {
     TIME, // syncs current time of various timers
     EXAMPLE_TURN, // example of doing some turn logic
     POINTS, // syncs current points of a player
+    CARDS_IN_HAND, //syncs a full hand to a client
+    ADD_CARD, // syncs a new card to a client's hand
+    REMOVE_CARD, // client to tell server-side it'll discard, server-side confirms to client
+    USE_CARD, // client to tell server-side it'll activate a card, server-side confirms to client
+    PERCENTAGE, // used for a visual progress
 }

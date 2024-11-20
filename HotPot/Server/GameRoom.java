@@ -1,7 +1,12 @@
 package HotPot.Server;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
+import java.util.stream.IntStream;
 
+import HotPot.Common.Card;
+import HotPot.Common.Deck;
 import HotPot.Common.LoggerUtil;
 import HotPot.Common.Phase;
 import HotPot.Common.Player;
@@ -16,6 +21,11 @@ public class GameRoom extends BaseGameRoom {
     // used for granular turn handling (usually turn-order turns)
     private TimedEvent turnTimer = null;
     private int round = 0;
+    Deck deck = null;
+    private List<ServerPlayer> turnOrder = new ArrayList<>();
+    private long currentPlayerId;
+    private int magicNumber = -1;
+    private int originalMagicNumber = -1;
 
     public GameRoom(String name) {
         super(name);
@@ -99,6 +109,32 @@ public class GameRoom extends BaseGameRoom {
     protected void onSessionStart() {
         LoggerUtil.INSTANCE.info("onSessionStart() start");
         changePhase(Phase.IN_PROGRESS);
+        long count = playersInRoom.values().stream().filter(p -> p.isReady()).count();
+        // setup deck
+        deck = new Deck((int) count);
+        deck.shuffle();
+
+        // setup turns
+        turnOrder.clear();
+        playersInRoom.values().stream().filter(ServerPlayer::isReady).forEach(p -> {
+            turnOrder.add(p); // add ServerPlayer reference
+        });
+
+        // draw hands
+        turnOrder.forEach(sp -> {
+            List<Card> cards = deck.draw(5);
+            if (cards == null || cards.size() == 0) {
+                LoggerUtil.INSTANCE.severe("Failed to draw cards");
+            } else {
+                sp.addToHand(cards); // server state
+                sp.sendCardsInHand(cards); // sync
+            }
+
+        });
+        magicNumber = (int) (new Random().nextInt((int) (count * 101)) + (count * 10));
+        originalMagicNumber = magicNumber;
+        LoggerUtil.INSTANCE.info("Magic Number is " + magicNumber);
+        sendVisualPercentage(0);
         LoggerUtil.INSTANCE.info("onSessionStart() end");
         onRoundStart();
     }
@@ -107,21 +143,33 @@ public class GameRoom extends BaseGameRoom {
     @Override
     protected void onRoundStart() {
         LoggerUtil.INSTANCE.info("onRoundStart() start");
-        resetRoundTimer();
-        startRoundTimer();
+        // This example doesn't use round timer
+        // resetRoundTimer();
+        // startRoundTimer();
         round++;
         sendGameEvent("Round: " + round);
         // reset taken turn
         sendResetTurnStatus();
+
         LoggerUtil.INSTANCE.info("onRoundStart() end");
+        onTurnStart();
     }
 
     /** {@inheritDoc} */
     @Override
     protected void onTurnStart() {
         LoggerUtil.INSTANCE.info("onTurnStart() start");
+        changePhase(Phase.IN_PROGRESS);
         resetTurnTimer();
         startTurnTimer();
+        nextPlayer();
+        ServerPlayer currentPlayer = getCurrentPlayer();
+        sendGameEvent(String.format("It's %s's turn", currentPlayer.getClientName()));
+        Card card = deck.draw();
+        if (card != null) {
+            currentPlayer.addToHand(card);// server state
+            currentPlayer.sendAddCardToHand(card);// sync
+        }
         LoggerUtil.INSTANCE.info("onTurnStart() end");
     }
 
@@ -132,8 +180,37 @@ public class GameRoom extends BaseGameRoom {
     protected void onTurnEnd() {
         LoggerUtil.INSTANCE.info("onTurnEnd() start");
         resetTurnTimer(); // reset timer if turn ended without the time expiring
-
+        // update player turn state
+        ServerPlayer sp = getCurrentPlayer();
+        sp.setTakeTurn(true); // server state
+        sendTurnStatus(sp);// sync
         LoggerUtil.INSTANCE.info("onTurnEnd() end");
+
+        if (magicNumber <= 0) {
+            sendGameEvent(String.format("%s ended the session", sp.getClientName()));
+            // delay change
+            changePhase(Phase.SCORING);
+            new TimedEvent(10, () -> {
+                onSessionEnd();
+            });
+            return;
+        }
+
+        if (isRoundOver() || deck.isEmpty()) {
+            changePhase(Phase.TRANSITION_DELAY);
+            TimedEvent t = new TimedEvent(5, () -> {
+                // move to next round (there's no benefit other than resetting the turns for
+                // this example)
+                onRoundEnd(); // next round
+            });
+            t.setTickCallback((time) -> {
+                sendCurrentTime(TimerType.NEXT_ROUND, time);
+            });
+
+        } else {
+            onTurnStart(); // next player
+        }
+
     }
 
     // Note: logic between Round Start and Round End is typically handled via timers
@@ -142,9 +219,10 @@ public class GameRoom extends BaseGameRoom {
     @Override
     protected void onRoundEnd() {
         LoggerUtil.INSTANCE.info("onRoundEnd() start");
-        resetRoundTimer(); // reset timer if round ended without the time expiring
+        // This example doesn't use round timer
+        // resetRoundTimer(); // reset timer if round ended without the time expiring
 
-        if (round >= 10) {
+        if (deck.isEmpty()) {
             onSessionEnd();
         } else {
             onRoundStart();
@@ -157,13 +235,76 @@ public class GameRoom extends BaseGameRoom {
     @Override
     protected void onSessionEnd() {
         LoggerUtil.INSTANCE.info("onSessionEnd() start");
+        // reset timers in case end was reached before expiry
+        resetTurnTimer();
+        sendResetHands();
+        sendResetTurnStatus();
         resetReadyStatus();
         changePhase(Phase.READY);
         LoggerUtil.INSTANCE.info("onSessionEnd() end");
     }
     // end lifecycle methods
 
+    // turn helpers start
+    private ServerPlayer getCurrentPlayer() {
+        return turnOrder.stream()
+                .filter(sp -> sp.getClientId() == currentPlayerId)
+                .findFirst()
+                .orElse(null);
+
+    }
+
+    private int getCurrentPlayerIndex() {
+        return IntStream.range(0, turnOrder.size())
+                .filter(i -> turnOrder.get(i).getClientId() == currentPlayerId)
+                .findFirst()
+                .orElse(-1); // Return -1 if not found
+    }
+
+    private ServerPlayer nextPlayer() {
+        int indexOfCurrentPlayer = getCurrentPlayerIndex();
+        System.out.println("Current player index: " + indexOfCurrentPlayer);
+        indexOfCurrentPlayer++;
+        if (indexOfCurrentPlayer >= turnOrder.size()) {
+            indexOfCurrentPlayer = 0;
+        }
+        currentPlayerId = turnOrder.get(indexOfCurrentPlayer).getClientId();
+        System.out.println("Current player id: " + currentPlayerId);
+        return getCurrentPlayer();
+    }
+
+    private boolean isRoundOver() {
+        int check = getCurrentPlayerIndex() + 1;
+        return check >= turnOrder.size();
+    }
+    // turn helpers end
+
     // send/sync data to ServerPlayer(s)
+    private void sendVisualPercentage(int percentage){
+        playersInRoom.values().removeIf(spInRoom -> {
+          
+            // using DEFAULT_CLIENT_ID as a trigger, prevents needing a nested loop to
+            // update the status of each player to each player
+            boolean failedToSend = !spInRoom.sendVisualPercentage(percentage);
+            if (failedToSend) {
+                removedClient(spInRoom.getServerThread());
+            }
+            return failedToSend;
+        });
+    }
+    private void sendResetHands() {
+        playersInRoom.values().removeIf(spInRoom -> {
+            spInRoom.setHand(null); // reset server data
+            // using DEFAULT_CLIENT_ID as a trigger, prevents needing a nested loop to
+            // update the status of each player to each player
+            boolean failedToSend = !spInRoom.sendCardsInHand(null);
+            if (failedToSend) {
+                removedClient(spInRoom.getServerThread());
+            }
+            return failedToSend;
+        });
+    }
+
     /**
      * Sends the turn status of one Player to all Players (including themselves)
      * 
@@ -195,8 +336,10 @@ public class GameRoom extends BaseGameRoom {
             return failedToSend;
         });
     }
+
     /**
      * Sends a game event to all clients
+     * 
      * @param str
      */
     private void sendGameEvent(String str) {
@@ -205,6 +348,7 @@ public class GameRoom extends BaseGameRoom {
 
     /**
      * Sends a game event to specific clients (by id)
+     * 
      * @param str
      * @param targets
      */
@@ -241,6 +385,20 @@ public class GameRoom extends BaseGameRoom {
     // end send data to ServerPlayer(s)
 
     // start custom checks
+    /**
+     * Early exit (via exception throwing) if the user isn't in the room
+     * 
+     * @param client
+     * @throws Exception
+     */
+    protected void checkCurrentPlayer(ServerThread client) throws Exception {
+        if (currentPlayerId != client.getClientId()) {
+            LoggerUtil.INSTANCE.severe("Player isn't the current Player");
+            client.sendGameEvent("It's not your turn");
+            throw new Exception("Player isn't the current Player");
+        }
+    }
+
     private void checkPlayerIsReady(ServerPlayer sp) throws Exception {
         if (!sp.isReady()) {
             sp.sendGameEvent("You weren't ready in time");
@@ -257,41 +415,37 @@ public class GameRoom extends BaseGameRoom {
     // end custom checks
 
     // receive data from ServerThread (GameRoom specific)
-    protected void handleTurn(ServerThread sender) {
+    protected void handleUseCard(ServerThread st, Card card) {
         try {
-            // early exit checks
-            checkPlayerInRoom(sender);
-            checkCurrentPhase(sender, Phase.IN_PROGRESS);
+            checkCurrentPhase(st, Phase.IN_PROGRESS);
+            checkPlayerInRoom(st);
+            checkCurrentPlayer(st);
 
-            ServerPlayer sp = playersInRoom.get(sender.getClientId());
+            ServerPlayer sp = playersInRoom.get(st.getClientId());
             checkPlayerIsReady(sp);
             checkPlayerTookTurn(sp);
-
-            sp.setTakeTurn(true);
-            sendTurnStatus(sp);
-            // example of fastest to take a turn
-            long ready = playersInRoom.values().stream().filter(p -> p.isReady()).count() + 1;
-            long tookTurn = playersInRoom.values().stream().filter(p -> p.isReady() && p.didTakeTurn()).count();
-            int points = (int) (ready - tookTurn);
-            sp.changePoints(points);
-            sendPointsUpdate(sp);
-            if (didAllTakeTurn()) {
-                onRoundEnd();
+            if (sp.removeFromHand(card) == null) {// server state
+                LoggerUtil.INSTANCE.severe("User doesn't have this card in hand: " + card);
+                sp.sendGameEvent("You don't have this card: " + card);
+                return;
             }
+            sp.sendRemoveCardFromHand(card);// sync
+            sendGameEvent(String.format("%s used %s", st.getClientName(), card));
+            magicNumber -= card.getValue();
+            int percentage = (int) Math.ceil((originalMagicNumber - magicNumber) / (originalMagicNumber * 1.0) * 100);
 
+            sendVisualPercentage(percentage);
+            // end session is handled in onTurnEnd()
+            if (magicNumber > 0) {
+                sp.changePoints(card.getValue());// server state
+                sendPointsUpdate(sp); // sync
+            }
+            onTurnEnd();
         } catch (Exception e) {
-            LoggerUtil.INSTANCE.severe("handleReady exception", e);
+            e.printStackTrace();
         }
     }
 
     // end receive data from ServerThread (GameRoom specific)
 
-    // misc logic
-    private boolean didAllTakeTurn() {
-        long ready = playersInRoom.values().stream().filter(p -> p.isReady()).count();
-        long tookTurn = playersInRoom.values().stream().filter(p -> p.isReady() && p.didTakeTurn()).count();
-        LoggerUtil.INSTANCE.info(String.format("didAllTakeTurn() %s/%s", tookTurn, ready));
-        return ready == tookTurn;
-    }
-    // end misc logic
 }

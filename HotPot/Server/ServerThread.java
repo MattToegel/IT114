@@ -1,6 +1,7 @@
 package HotPot.Server;
 
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -13,7 +14,8 @@ import HotPot.Common.RoomResultsPayload;
 import HotPot.Common.TimerPayload;
 import HotPot.Common.TimerType;
 import HotPot.Common.Payload;
-
+import HotPot.Common.Card;
+import HotPot.Common.CardPayload;
 import HotPot.Common.ConnectionPayload;
 import HotPot.Common.Constants;
 import HotPot.Common.LoggerUtil;
@@ -130,10 +132,11 @@ public class ServerThread extends BaseServerThread {
                         sendMessage("You must be in a GameRoom to do the ready check");
                     }
                     break;
-                case EXAMPLE_TURN:
+                case USE_CARD:
                     try {
+                        CardPayload cardPayload = (CardPayload)payload;
                         // cast to GameRoom as the subclass will handle all Game logic
-                        ((GameRoom) currentRoom).handleTurn(this);
+                        ((GameRoom) currentRoom).handleUseCard(this, cardPayload.getCard());
                     } catch (Exception e) {
                         sendMessage("You must be in a GameRoom to do the example turn");
                     }
@@ -147,6 +150,49 @@ public class ServerThread extends BaseServerThread {
     }
 
     // send methods specific to non-chatroom
+    public boolean sendVisualPercentage(int percentage){
+        // leveraging Points so I don't need a new subclass
+        PointsPayload p = new PointsPayload();
+        p.setPoints(percentage);
+        p.setPayloadType(PayloadType.PERCENTAGE);
+        return send(p);
+    }
+
+    public boolean sendRemoveCardFromHand(Card card) {
+        List<Card> cards = new ArrayList<>();
+        cards.add(card);
+        return sendRemoveCardsFromHand(cards);
+    }
+
+    public boolean sendRemoveCardsFromHand(List<Card> cards) {
+        CardPayload cp = new CardPayload();
+        cp.setPayloadType(PayloadType.REMOVE_CARD);
+        cp.setCards(cards);
+        cp.setClientId(clientId);
+        return send(cp);
+    }
+
+    public boolean sendAddCardToHand(Card card) {
+        List<Card> cards = new ArrayList<>();
+        cards.add(card);
+        return sendAddCardsToHand(cards);
+    }
+
+    public boolean sendAddCardsToHand(List<Card> cards) {
+        CardPayload cp = new CardPayload();
+        cp.setPayloadType(PayloadType.ADD_CARD);
+        cp.setCards(cards);
+        cp.setClientId(clientId);
+        return send(cp);
+    }
+
+    public boolean sendCardsInHand(List<Card> cards) {
+        CardPayload cp = new CardPayload();
+        cp.setPayloadType(PayloadType.CARDS_IN_HAND);
+        cp.setCards(cards);
+        cp.setClientId(clientId);
+        return send(cp);
+    }
     /**
      * Syncs a specific client's points
      * 

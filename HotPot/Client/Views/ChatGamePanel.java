@@ -1,5 +1,6 @@
 package HotPot.Client.Views;
 
+import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.event.ComponentAdapter;
@@ -19,18 +20,25 @@ public class ChatGamePanel extends JPanel {
 
     public ChatGamePanel(ICardControls controls) {
         super();
-        setLayout(new BoxLayout(this, BoxLayout.X_AXIS));
+        setLayout(new BorderLayout());
         chatPanel = new ChatPanel(controls);
         gamePanel = new GamePanel(controls);
         gamePanel.setVisible(false);
         gamePanel.setBackground(Color.BLUE);
         chatPanel.setBackground(Color.GRAY);
-
+        chatPanel.setMinimumSize(new Dimension(200, 100)); // Prevent collapse
         final JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, gamePanel, chatPanel);
         splitPane.setResizeWeight(.6);
 
         splitPane.setOneTouchExpandable(false); // This disables the one-touch expandable buttons
         splitPane.setEnabled(false); // This makes the divider non-movable
+        this.addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentShown(ComponentEvent e) {
+                // Recalculate the divider location when the left panel becomes visible
+                splitPane.setDividerLocation(0.6);
+            }
+        });
         gamePanel.addComponentListener(new ComponentAdapter() {
             @Override
             public void componentShown(ComponentEvent e) {
@@ -38,7 +46,7 @@ public class ChatGamePanel extends JPanel {
                 splitPane.setDividerLocation(0.6);
             }
         });
-        add(splitPane);
+        add(splitPane, BorderLayout.CENTER);
         this.setName(CardView.CHAT_GAME_SCREEN.name());
         controls.addPanel(CardView.CHAT_GAME_SCREEN.name(), this);
         chatPanel.setVisible(true);

@@ -87,7 +87,7 @@ public class ClientUI extends JFrame implements IConnectionEvents, IMessageEvent
             }
         });
 
-        setMinimumSize(new Dimension(400, 400));
+        setMinimumSize(new Dimension(600, 400));
         setLocationRelativeTo(null); // Center the window
         menu = new Menu(this);
         this.setJMenuBar(menu);

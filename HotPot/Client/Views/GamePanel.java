@@ -2,46 +2,44 @@ package HotPot.Client.Views;
 
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
-import java.io.IOException;
 import java.util.List;
 
-import javax.swing.JButton;
+import javax.swing.BorderFactory;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
+import javax.swing.JTable;
+import javax.swing.table.DefaultTableModel;
 
 import HotPot.Client.CardView;
 import HotPot.Client.Client;
 import HotPot.Client.Interfaces.ICardControls;
+import HotPot.Client.Interfaces.ICardGameEvents;
 import HotPot.Client.Interfaces.IPhaseEvent;
 import HotPot.Client.Interfaces.IRoomEvents;
+import HotPot.Common.Card;
 import HotPot.Common.Constants;
 import HotPot.Common.Phase;
 
-public class GamePanel extends JPanel implements IRoomEvents, IPhaseEvent {
+public class GamePanel extends JPanel implements IRoomEvents, IPhaseEvent, ICardGameEvents {
 
     private JPanel playPanel;
+    private JPanel handPanel;
+    private DrawPanel drawPanel;
+    private JPanel scorePanel;
+    private JTable scoreTable;
     private CardLayout cardLayout;
     private static final String READY_PANEL = "READY";
-    private static final String PLAY_PANEL = "PLAY";//example panel for this lesson
-    JPanel buttonPanel = new JPanel();
+    private static final String PLAY_PANEL = "PLAY";// example panel for this lesson
+    private static final String SCORE_PANEL = "SCORE";
 
     public GamePanel(ICardControls controls) {
         super(new BorderLayout());
-
-        // Create the buttons and add them to a panel
-        JButton doSomething = new JButton("Do Something");
-        doSomething.addActionListener(event->{
-            try {
-                Client.INSTANCE.sendTurnAction();
-            } catch (IOException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-            }
-        });
-        buttonPanel.add(doSomething);
-
 
         JPanel gameContainer = new JPanel(new CardLayout());
         cardLayout = (CardLayout) gameContainer.getLayout();
@@ -54,17 +52,35 @@ public class GamePanel extends JPanel implements IRoomEvents, IPhaseEvent {
 
         playPanel = new JPanel();
         playPanel.setName(PLAY_PANEL);
-        playPanel.add(buttonPanel);
+        drawPanel = new DrawPanel();
+        drawPanel.setMinimumSize(new Dimension(200, 200)); // Prevent collapse
+        drawPanel.setPreferredSize(drawPanel.getMinimumSize());
+        drawPanel.setBorder(BorderFactory.createLineBorder(Color.GREEN));
+        handPanel = new JPanel();
+        handPanel.setBorder(BorderFactory.createLineBorder(Color.CYAN));
+        handPanel.setLayout(new FlowLayout(FlowLayout.LEFT)); // Horizontal and vertical gaps
+        JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, drawPanel, handPanel);
+        split.setResizeWeight(.7);
+        split.setBorder(BorderFactory.createLineBorder(Color.BLUE));
+        playPanel.add(split);
         gameContainer.add(PLAY_PANEL, playPanel);
+
+        scorePanel = new JPanel(new BorderLayout());
+        scorePanel.setName(SCORE_PANEL);
+        scoreTable = new JTable();
+        JScrollPane scrollPane = new JScrollPane(scoreTable);
+        scorePanel.add(scrollPane, BorderLayout.CENTER);
+        gameContainer.add(SCORE_PANEL, scorePanel);
 
         GameEventsPanel gameEventsPanel = new GameEventsPanel();
         JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, gameContainer, gameEventsPanel);
-        splitPane.setResizeWeight(0.7);
+        splitPane.setResizeWeight(0.6);
 
-        playPanel.addComponentListener(new ComponentAdapter() {
+        this.addComponentListener(new ComponentAdapter() {
             @Override
             public void componentShown(ComponentEvent e) {
-                splitPane.setDividerLocation(0.7);
+                splitPane.setDividerLocation(0.6);
+                split.setDividerLocation(.7);
             }
         });
 
@@ -80,8 +96,6 @@ public class GamePanel extends JPanel implements IRoomEvents, IPhaseEvent {
         controls.addPanel(CardView.CHAT_GAME_SCREEN.name(), this);
         setVisible(false);
     }
-
-    
 
     @Override
     public void onRoomAction(long clientId, String clientName, String roomName, boolean isJoin) {
@@ -103,15 +117,42 @@ public class GamePanel extends JPanel implements IRoomEvents, IPhaseEvent {
         }
         if (phase == Phase.READY) {
             cardLayout.show(playPanel.getParent(), READY_PANEL);
-            buttonPanel.setVisible(false);
+
         } else if (phase == Phase.IN_PROGRESS) {
             cardLayout.show(playPanel.getParent(), PLAY_PANEL);
-            buttonPanel.setVisible(true);
+        }
+        else if (phase == Phase.SCORING) {
+            DefaultTableModel dfm = new DefaultTableModel(new String[] { "Rank", "Player", "Score" }, 0);
+            scoreTable.setModel(dfm);
+            List<Object[]> scores = Client.INSTANCE.getScores();
+            for (Object[] score : scores) {
+                dfm.addRow(score);
+            }
+            cardLayout.show(scorePanel.getParent(), SCORE_PANEL);
+
         }
     }
-    
+
     @Override
     public void onReceiveRoomList(List<String> rooms, String message) {
         // Not used here, but needs to be defined due to interface
+    }
+
+    @Override
+    public void onHandChange(List<Card> cards) {
+        // Not the best approach but doing quick solutions for this lesson
+        // It's best to recycle components instead of destroy/create
+        handPanel.removeAll();
+        for (Card card : cards) {
+            CardPanel cp = new CardPanel(card);
+            handPanel.add(cp);
+        }
+        this.revalidate();
+        this.repaint();
+    }
+
+    @Override
+    public void onReceivePercentage(int percentage) {
+        drawPanel.setPosePercentage(percentage);
     }
 }

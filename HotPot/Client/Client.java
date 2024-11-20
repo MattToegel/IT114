@@ -10,9 +10,12 @@ import java.util.List;
 import java.util.Scanner;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
+import HotPot.Client.Interfaces.ICardGameEvents;
 import HotPot.Client.Interfaces.IClientEvents;
 import HotPot.Client.Interfaces.IConnectionEvents;
 import HotPot.Client.Interfaces.IMessageEvents;
@@ -22,6 +25,8 @@ import HotPot.Client.Interfaces.IReadyEvent;
 import HotPot.Client.Interfaces.IRoomEvents;
 import HotPot.Client.Interfaces.ITimeEvents;
 import HotPot.Client.Interfaces.ITurnEvent;
+import HotPot.Common.Card;
+import HotPot.Common.CardPayload;
 import HotPot.Common.ConnectionPayload;
 import HotPot.Common.Constants;
 import HotPot.Common.LoggerUtil;
@@ -240,30 +245,30 @@ public enum Client {
                 final String command = commandParts[0];
                 final String commandValue = commandParts.length >= 2 ? commandParts[1] : "";
                 switch (command) {
-                case CREATE_ROOM:
-                    sendCreateRoom(commandValue);
-                    wasCommand = true;
-                    break;
-                case JOIN_ROOM:
-                    sendJoinRoom(commandValue);
-                    wasCommand = true;
-                    break;
-                case LIST_ROOMS:
-                    sendListRooms(commandValue);
-                    wasCommand = true;
-                    break;
-                // Note: these are to disconnect, they're not for changing rooms
-                case DISCONNECT:
-                case LOGOFF:
-                case LOGOUT:
-                    sendDisconnect();
-                    wasCommand = true;
-                    break;
-                // others
-                case READY:
-                    sendReady();
-                    wasCommand = true;
-                    break;
+                    case CREATE_ROOM:
+                        sendCreateRoom(commandValue);
+                        wasCommand = true;
+                        break;
+                    case JOIN_ROOM:
+                        sendJoinRoom(commandValue);
+                        wasCommand = true;
+                        break;
+                    case LIST_ROOMS:
+                        sendListRooms(commandValue);
+                        wasCommand = true;
+                        break;
+                    // Note: these are to disconnect, they're not for changing rooms
+                    case DISCONNECT:
+                    case LOGOFF:
+                    case LOGOUT:
+                        sendDisconnect();
+                        wasCommand = true;
+                        break;
+                    // others
+                    case READY:
+                        sendReady();
+                        wasCommand = true;
+                        break;
                 }
                 return wasCommand;
             }
@@ -273,6 +278,21 @@ public enum Client {
 
     public long getMyClientId() {
         return myData.getClientId();
+    }
+
+    public List<Object[]> getScores() {
+        // AtomicInteger is a thread-safe integer that supports atomic (indivisible)
+        // operations
+        // like increment, decrement, and update without needing synchronization or
+        // locks.
+
+        AtomicInteger rankCounter = new AtomicInteger(1); // Counter for ranks
+        return knownClients.values().stream().filter(p -> p.isReady()) // Filter clients who are ready
+                .sorted((a, b) -> Integer.compare(b.getPoints(), a.getPoints())) // Sort by points descending
+                .map(p -> new Object[] { rankCounter.getAndIncrement(), // Assign rank and increment the counter
+                        String.format("%s(%s)", p.getClientName(), p.getClientId()), // Name and ID
+                        p.getPoints() // Points
+                }).collect(Collectors.toList());
     }
 
     public void clientSideGameEvent(String str) {
@@ -285,10 +305,11 @@ public enum Client {
     }
 
     // send methods to pass data to the ServerThread
-    public void sendTurnAction() throws IOException {
-        Payload p = new Payload();
-        p.setPayloadType(PayloadType.EXAMPLE_TURN);
-        send(p);
+    public void sendUseCard(Card c) throws IOException {
+        CardPayload cp = new CardPayload();
+        cp.setCard(c);
+        cp.setPayloadType(PayloadType.USE_CARD);
+        send(cp);
     }
 
     /**
@@ -526,60 +547,77 @@ public enum Client {
         try {
             LoggerUtil.INSTANCE.info("Received Payload: " + payload);
             switch (payload.getPayloadType()) {
-            case PayloadType.CLIENT_ID: // get id assigned
-                ConnectionPayload cp = (ConnectionPayload) payload;
-                processClientData(cp.getClientId(), cp.getClientName());
-                break;
-            case PayloadType.SYNC_CLIENT: // silent add
-                cp = (ConnectionPayload) payload;
-                processClientSync(cp.getClientId(), cp.getClientName());
-                break;
-            case PayloadType.DISCONNECT: // remove a disconnected client (mostly for the specific message vs leaving
-                                         // a room)
-                cp = (ConnectionPayload) payload;
-                processDisconnect(cp.getClientId(), cp.getClientName());
-                break;
-            // note: we want this to cascade
-            case PayloadType.ROOM_JOIN: // add/remove client info from known clients
-                cp = (ConnectionPayload) payload;
-                processRoomAction(cp.getClientId(), cp.getClientName(), cp.getMessage(), cp.isConnect());
-                break;
-            case PayloadType.ROOM_LIST:
-                RoomResultsPayload rrp = (RoomResultsPayload) payload;
-                processRoomsList(rrp.getRooms(), rrp.getMessage());
-                break;
-            case PayloadType.MESSAGE: // displays a received message
-                processMessage(payload.getClientId(), payload.getMessage());
-                break;
-            case PayloadType.READY:
-                ReadyPayload rp = (ReadyPayload) payload;
-                processReadyStatus(rp.getClientId(), rp.isReady(), false);
-                break;
-            case PayloadType.SYNC_READY:
-                ReadyPayload qrp = (ReadyPayload) payload;
-                processReadyStatus(qrp.getClientId(), qrp.isReady(), true);
-                break;
-            case PayloadType.RESET_READY:
-                // note no data necessary as this is just a trigger
-                processResetReady();
-                break;
-            case PayloadType.PHASE:
-                processPhase(payload.getMessage());
-                break;
-            case PayloadType.TIME:
-                TimerPayload timerPayload = (TimerPayload) payload;
-                processCurrentTimer(timerPayload.getTimerType(), timerPayload.getTime());
-                break;
-            case PayloadType.EXAMPLE_TURN:
-                ReadyPayload tp = (ReadyPayload) payload;
-                processTurnStatus(tp.getClientId(), tp.isReady());
-                break;
-            case PayloadType.POINTS:
-                PointsPayload pp = (PointsPayload) payload;
-                processPoints(pp.getClientId(), pp.getPoints());
-                break;
-            default:
-                break;
+                case PayloadType.CLIENT_ID: // get id assigned
+                    ConnectionPayload cp = (ConnectionPayload) payload;
+                    processClientData(cp.getClientId(), cp.getClientName());
+                    break;
+                case PayloadType.SYNC_CLIENT: // silent add
+                    cp = (ConnectionPayload) payload;
+                    processClientSync(cp.getClientId(), cp.getClientName());
+                    break;
+                case PayloadType.DISCONNECT: // remove a disconnected client (mostly for the specific message vs leaving
+                                             // a room)
+                    cp = (ConnectionPayload) payload;
+                    processDisconnect(cp.getClientId(), cp.getClientName());
+                    break;
+                // note: we want this to cascade
+                case PayloadType.ROOM_JOIN: // add/remove client info from known clients
+                    cp = (ConnectionPayload) payload;
+                    processRoomAction(cp.getClientId(), cp.getClientName(), cp.getMessage(), cp.isConnect());
+                    break;
+                case PayloadType.ROOM_LIST:
+                    RoomResultsPayload rrp = (RoomResultsPayload) payload;
+                    processRoomsList(rrp.getRooms(), rrp.getMessage());
+                    break;
+                case PayloadType.MESSAGE: // displays a received message
+                    processMessage(payload.getClientId(), payload.getMessage());
+                    break;
+                case PayloadType.READY:
+                    ReadyPayload rp = (ReadyPayload) payload;
+                    processReadyStatus(rp.getClientId(), rp.isReady(), false);
+                    break;
+                case PayloadType.SYNC_READY:
+                    ReadyPayload qrp = (ReadyPayload) payload;
+                    processReadyStatus(qrp.getClientId(), qrp.isReady(), true);
+                    break;
+                case PayloadType.RESET_READY:
+                    // note no data necessary as this is just a trigger
+                    processResetReady();
+                    break;
+                case PayloadType.PHASE:
+                    processPhase(payload.getMessage());
+                    break;
+                case PayloadType.TIME:
+                    TimerPayload timerPayload = (TimerPayload) payload;
+                    processCurrentTimer(timerPayload.getTimerType(), timerPayload.getTime());
+                    break;
+                case PayloadType.EXAMPLE_TURN:
+                    ReadyPayload tp = (ReadyPayload) payload;
+                    processTurnStatus(tp.getClientId(), tp.isReady());
+                    break;
+                case PayloadType.POINTS:
+                    PointsPayload pp = (PointsPayload) payload;
+                    processPoints(pp.getClientId(), pp.getPoints());
+                    break;
+                case PayloadType.CARDS_IN_HAND:
+                    CardPayload hand = (CardPayload) payload;
+                    processHand(hand.getClientId(), hand.getCards());
+                    break;
+                case PayloadType.ADD_CARD:
+                    CardPayload add = (CardPayload) payload;
+                    processAddCard(add.getClientId(), add.getCard());
+                    break;
+                case PayloadType.REMOVE_CARD:
+                    CardPayload remove = (CardPayload) payload;
+                    processRemoveCard(remove.getClientId(), remove.getCard());
+                    break;
+                case PayloadType.PERCENTAGE:
+                // leverage PointsPayload so I don't need a subclass for this example
+                    PointsPayload percPayload = (PointsPayload) payload;
+                    processPercentage(percPayload.getPoints());
+                    break;
+                default:
+                    break;
             }
         } catch (Exception e) {
             LoggerUtil.INSTANCE.severe("Could not process Payload: " + payload, e);
@@ -603,9 +641,68 @@ public enum Client {
     }
 
     // payload processors
+    private void processPercentage(int percentage){
+        events.forEach(event -> {
+            if (event instanceof ICardGameEvents) {
+                ((ICardGameEvents) event).onReceivePercentage(percentage);
+            }
+        });
+    }
+    private void processRemoveCard(long clientId, Card card) {
+        // Note: generally the player will only know their own hand
+        // I chose to utilize clientId just in case there are future implementations
+        // where you can see info about other players
+        if (clientId == myData.getClientId()) {
+            myData.removeFromHand(card);
+            // Note: We may need to leverage an additional PayloadType
+            System.out.println("Used Card " + card);
+            // lazy fetch of current state and send it
+            events.forEach(event -> {
+                if (event instanceof ICardGameEvents) {
+                    ((ICardGameEvents) event).onHandChange(myData.getHand());
+                }
+            });
+
+        }
+    }
+
+    private void processAddCard(long clientId, Card card) {
+        // Note: generally the player will only know their own hand
+        // I chose to utilize clientId just in case there are future implementations
+        // where you can see info about other players
+        if (clientId == myData.getClientId()) {
+            myData.addToHand(card);
+            System.out.println("Received Card " + card);
+            // lazy fetch of current state and send it
+            events.forEach(event -> {
+                if (event instanceof ICardGameEvents) {
+                    ((ICardGameEvents) event).onHandChange(myData.getHand());
+                }
+            });
+        }
+    }
+
+    private void processHand(long clientId, List<Card> cards) {
+        // Note: generally the player will only know their own hand
+        // I chose to utilize clientId just in case there are future implementations
+        // where you can see info about other players
+        if (clientId == myData.getClientId()) {
+            myData.setHand(cards);
+
+            events.forEach(event -> {
+                if (event instanceof ICardGameEvents) {
+                    ((ICardGameEvents) event).onHandChange(myData.getHand());
+                }
+            });
+        }
+    }
+
     private void processPoints(long clientId, int points) {
         if (clientId == ClientPlayer.DEFAULT_CLIENT_ID) {
             knownClients.values().forEach(cp -> cp.setPoints(0));
+        }
+        else if(knownClients.containsKey(clientId)){
+            knownClients.get(clientId).setPoints(points);
         }
         events.forEach(event -> {
             if (event instanceof IPointsEvent) {

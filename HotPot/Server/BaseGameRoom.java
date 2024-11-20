@@ -306,8 +306,7 @@ public abstract class BaseGameRoom extends Room {
      */
     protected void checkCurrentPhase(ServerThread client, Phase check) throws Exception {
         if (currentPhase != check) {
-            client.sendMessage(ServerThread.DEFAULT_CLIENT_ID,
-                    String.format("Current phase is %s, please try again later", currentPhase.name()));
+            client.sendGameEvent(String.format("Current phase is %s, please try again later", currentPhase.name()));
             throw new Exception("Invalid Phase");
         }
     }

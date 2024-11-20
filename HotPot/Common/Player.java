@@ -1,5 +1,8 @@
 package HotPot.Common;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Common Player data shared between Client and Server
  */
@@ -9,6 +12,7 @@ public class Player {
     private boolean isReady = false;
     private boolean takeTurn = false;
     private int points = 0;
+     private List<Card> hand = new ArrayList<Card>();
     public long getClientId() {
         return clientId;
     }
@@ -40,6 +44,42 @@ public class Player {
     public int getPoints(){
         return this.points;
     }
+
+    public void addToHand(Card card) {
+        hand.add(card);
+    }
+
+    public void addToHand(List<Card> cards) {
+        hand.addAll(cards);
+    }
+
+    public Card removeFromHand(Card card) {
+        // Important: Since Card is being passed over the socket as Payload data
+        // It likely won't be the exact object that's in the Player's hand
+        // so hand.remove(card) may not always work.
+        // The below logic uses Card.id which is unique so it can find the proper match
+        // then that reference will be removed from the hand
+        return hand.stream()
+                .filter(c -> c.getId() == card.getId())
+                .findFirst()
+                .map(c -> {
+                    hand.remove(c);
+                    return c;
+                })
+                .orElse(null);
+    }
+
+    public List<Card> getHand() {
+        return new ArrayList<>(hand);
+    }
+
+    public void setHand(List<Card> cards) {
+        if (cards == null) {
+            hand.clear();
+        } else {
+            hand = cards;
+        }
+    }
     /**
      * Resets all of the data (this is destructive).
      * You may want to make a softer reset for other data
@@ -49,5 +89,6 @@ public class Player {
         this.isReady = false;
         this.takeTurn = false;
         this.points = 0;
+        this.hand.clear();
     }
 }
