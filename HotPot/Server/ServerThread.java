@@ -11,6 +11,8 @@ import HotPot.Common.Phase;
 import HotPot.Common.PointsPayload;
 import HotPot.Common.ReadyPayload;
 import HotPot.Common.RoomResultsPayload;
+import HotPot.Common.ScoreboardPayload;
+import HotPot.Common.ScoreboardRecord;
 import HotPot.Common.TimerPayload;
 import HotPot.Common.TimerType;
 import HotPot.Common.Payload;
@@ -150,6 +152,11 @@ public class ServerThread extends BaseServerThread {
     }
 
     // send methods specific to non-chatroom
+    public boolean sendScoreboard(List<ScoreboardRecord> records){
+        ScoreboardPayload p = new ScoreboardPayload();
+        p.setRecords(records);
+        return send(p);
+    }
     public boolean sendVisualPercentage(int percentage){
         // leveraging Points so I don't need a new subclass
         PointsPayload p = new PointsPayload();

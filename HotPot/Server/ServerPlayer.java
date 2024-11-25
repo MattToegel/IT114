@@ -5,6 +5,7 @@ import java.util.List;
 import HotPot.Common.Card;
 import HotPot.Common.Phase;
 import HotPot.Common.Player;
+import HotPot.Common.ScoreboardRecord;
 import HotPot.Common.TimerType;
 
 /**
@@ -40,6 +41,9 @@ public class ServerPlayer extends Player {
 
     // add any wrapper methods to call on the ServerThread
     // don't used the exposed full ServerThread object
+    public boolean sendScoreboard(List<ScoreboardRecord> records){
+        return client.sendScoreboard(records);
+    }
     public boolean sendVisualPercentage(int percentage) {
         return client.sendVisualPercentage(percentage);
     }

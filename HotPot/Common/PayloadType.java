@@ -21,4 +21,5 @@ public enum PayloadType {
     REMOVE_CARD, // client to tell server-side it'll discard, server-side confirms to client
     USE_CARD, // client to tell server-side it'll activate a card, server-side confirms to client
     PERCENTAGE, // used for a visual progress
+    SCOREBOARD, // sends score data from server to client
 }

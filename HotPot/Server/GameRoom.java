@@ -3,6 +3,8 @@ package HotPot.Server;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import HotPot.Common.Card;
@@ -10,6 +12,7 @@ import HotPot.Common.Deck;
 import HotPot.Common.LoggerUtil;
 import HotPot.Common.Phase;
 import HotPot.Common.Player;
+import HotPot.Common.ScoreboardRecord;
 import HotPot.Common.TimedEvent;
 import HotPot.Common.TimerType;
 
@@ -190,6 +193,7 @@ public class GameRoom extends BaseGameRoom {
             sendGameEvent(String.format("%s ended the session", sp.getClientName()));
             // delay change
             changePhase(Phase.SCORING);
+            sendScoreboard();
             new TimedEvent(10, () -> {
                 onSessionEnd();
             });
@@ -236,14 +240,37 @@ public class GameRoom extends BaseGameRoom {
     protected void onSessionEnd() {
         LoggerUtil.INSTANCE.info("onSessionEnd() start");
         // reset timers in case end was reached before expiry
+        
         resetTurnTimer();
         sendResetHands();
+
         sendResetTurnStatus();
         resetReadyStatus();
         changePhase(Phase.READY);
         LoggerUtil.INSTANCE.info("onSessionEnd() end");
     }
+
     // end lifecycle methods
+    public List<ScoreboardRecord> getScores() {
+        // AtomicInteger is a thread-safe integer that supports atomic (indivisible)
+        // operations
+        // like increment, decrement, and update without needing synchronization or
+        // locks.
+
+        AtomicInteger rankCounter = new AtomicInteger(1); // Counter for ranks
+        return playersInRoom.values().stream().filter(p -> p.isReady()) // Filter clients who are ready
+                .sorted((a, b) -> Integer.compare(b.getPoints(), a.getPoints())) // Sort by points descending
+                .map(p -> {
+                    ScoreboardRecord r = new ScoreboardRecord(
+                            rankCounter.getAndIncrement(),
+                            String.format("%s(%s)", p.getClientName(), p.getClientId()),
+                            p.getPoints());
+                    return r;
+
+                }
+
+                ).collect(Collectors.toList());
+    }
 
     // turn helpers start
     private ServerPlayer getCurrentPlayer() {
@@ -280,9 +307,22 @@ public class GameRoom extends BaseGameRoom {
     // turn helpers end
 
     // send/sync data to ServerPlayer(s)
-    private void sendVisualPercentage(int percentage){
+    private void sendScoreboard() {
+        List<ScoreboardRecord> records = getScores();
         playersInRoom.values().removeIf(spInRoom -> {
-          
+
+            // using DEFAULT_CLIENT_ID as a trigger, prevents needing a nested loop to
+            // update the status of each player to each player
+            boolean failedToSend = !spInRoom.sendScoreboard(records);
+            if (failedToSend) {
+                removedClient(spInRoom.getServerThread());
+            }
+            return failedToSend;
+        });
+    }
+    private void sendVisualPercentage(int percentage) {
+        playersInRoom.values().removeIf(spInRoom -> {
+
             // using DEFAULT_CLIENT_ID as a trigger, prevents needing a nested loop to
             // update the status of each player to each player
             boolean failedToSend = !spInRoom.sendVisualPercentage(percentage);
@@ -292,6 +332,7 @@ public class GameRoom extends BaseGameRoom {
             return failedToSend;
         });
     }
+
     private void sendResetHands() {
         playersInRoom.values().removeIf(spInRoom -> {
             spInRoom.setHand(null); // reset server data

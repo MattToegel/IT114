@@ -15,6 +15,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import javax.swing.Icon;
+
 import HotPot.Client.Interfaces.ICardGameEvents;
 import HotPot.Client.Interfaces.IClientEvents;
 import HotPot.Client.Interfaces.IConnectionEvents;
@@ -23,6 +25,7 @@ import HotPot.Client.Interfaces.IPhaseEvent;
 import HotPot.Client.Interfaces.IPointsEvent;
 import HotPot.Client.Interfaces.IReadyEvent;
 import HotPot.Client.Interfaces.IRoomEvents;
+import HotPot.Client.Interfaces.IScoreEvents;
 import HotPot.Client.Interfaces.ITimeEvents;
 import HotPot.Client.Interfaces.ITurnEvent;
 import HotPot.Common.Card;
@@ -36,6 +39,8 @@ import HotPot.Common.Phase;
 import HotPot.Common.PointsPayload;
 import HotPot.Common.ReadyPayload;
 import HotPot.Common.RoomResultsPayload;
+import HotPot.Common.ScoreboardPayload;
+import HotPot.Common.ScoreboardRecord;
 import HotPot.Common.TextFX;
 import HotPot.Common.TextFX.Color;
 import HotPot.Common.TimerPayload;
@@ -616,6 +621,10 @@ public enum Client {
                     PointsPayload percPayload = (PointsPayload) payload;
                     processPercentage(percPayload.getPoints());
                     break;
+                case PayloadType.SCOREBOARD:
+                    ScoreboardPayload sbp = (ScoreboardPayload)payload;
+                    processScoreboard(sbp.getRecords());
+                break;
                 default:
                     break;
             }
@@ -641,6 +650,13 @@ public enum Client {
     }
 
     // payload processors
+    private void processScoreboard(List<ScoreboardRecord> records){
+        events.forEach(event -> {
+            if (event instanceof IScoreEvents) {
+                ((IScoreEvents) event).onReceiveScoreboard(records);
+            }
+        });
+    }   
     private void processPercentage(int percentage){
         events.forEach(event -> {
             if (event instanceof ICardGameEvents) {
@@ -825,6 +841,9 @@ public enum Client {
         if (myData.getClientId() == ClientPlayer.DEFAULT_CLIENT_ID) {
             myData.setClientId(clientId);
             myData.setClientName(clientName);
+            if(events instanceof IConnectionEvents){
+                ((IConnectionEvents)events).onReceiveClientId(clientId);
+            }
             // invoke onReceiveClientId callback
             events.forEach(event -> {
                 if (event instanceof IConnectionEvents) {

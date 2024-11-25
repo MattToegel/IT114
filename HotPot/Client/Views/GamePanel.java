@@ -22,11 +22,13 @@ import HotPot.Client.Interfaces.ICardControls;
 import HotPot.Client.Interfaces.ICardGameEvents;
 import HotPot.Client.Interfaces.IPhaseEvent;
 import HotPot.Client.Interfaces.IRoomEvents;
+import HotPot.Client.Interfaces.IScoreEvents;
 import HotPot.Common.Card;
 import HotPot.Common.Constants;
 import HotPot.Common.Phase;
+import HotPot.Common.ScoreboardRecord;
 
-public class GamePanel extends JPanel implements IRoomEvents, IPhaseEvent, ICardGameEvents {
+public class GamePanel extends JPanel implements IRoomEvents, IPhaseEvent, ICardGameEvents, IScoreEvents {
 
     private JPanel playPanel;
     private JPanel handPanel;
@@ -122,13 +124,13 @@ public class GamePanel extends JPanel implements IRoomEvents, IPhaseEvent, ICard
             cardLayout.show(playPanel.getParent(), PLAY_PANEL);
         }
         else if (phase == Phase.SCORING) {
-            DefaultTableModel dfm = new DefaultTableModel(new String[] { "Rank", "Player", "Score" }, 0);
+           /* DefaultTableModel dfm = new DefaultTableModel(new String[] { "Rank", "Player", "Score" }, 0);
             scoreTable.setModel(dfm);
             List<Object[]> scores = Client.INSTANCE.getScores();
             for (Object[] score : scores) {
                 dfm.addRow(score);
             }
-            cardLayout.show(scorePanel.getParent(), SCORE_PANEL);
+            cardLayout.show(scorePanel.getParent(), SCORE_PANEL);*/
 
         }
     }
@@ -154,5 +156,16 @@ public class GamePanel extends JPanel implements IRoomEvents, IPhaseEvent, ICard
     @Override
     public void onReceivePercentage(int percentage) {
         drawPanel.setPosePercentage(percentage);
+    }
+
+    @Override
+    public void onReceiveScoreboard(List<ScoreboardRecord> records) {
+        DefaultTableModel dfm = new DefaultTableModel(new String[] { "Rank", "Player", "Score" }, 0);
+            scoreTable.setModel(dfm);
+            
+            for (ScoreboardRecord score : records) {
+                dfm.addRow(new Object[]{score.getRank(), score.getName(),score.getScore()});
+            }
+            cardLayout.show(scorePanel.getParent(), SCORE_PANEL);
     }
 }
